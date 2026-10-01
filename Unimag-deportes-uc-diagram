@@ -1,9 +1,18 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Page-1" id="_6RqimXt7DlH0_IA4L0A">
-    <mxGraphModel>
+    <mxGraphModel dx="905" dy="527" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="czeYw3hgYPDq9f24-QTA-1" parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;" value="" vertex="1">
+          <mxGeometry height="380" width="380" x="235" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="czeYw3hgYPDq9f24-QTA-2" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="usuario" vertex="1">
+          <mxGeometry height="60" width="30" x="160" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="czeYw3hgYPDq9f24-QTA-3" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="adminstrador" vertex="1">
+          <mxGeometry height="60" width="30" x="700" y="490" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
