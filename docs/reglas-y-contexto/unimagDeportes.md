@@ -275,11 +275,11 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | Acción | Horas que cuentan |
 |---|---|
-| Ana reserva 2 h el lunes | 2 de 3 |
-| Ana reserva 1 h el miércoles | 3 de 3 |
-| Ana intenta reservar 1 h más el jueves | **Rechazada**: sin cuota |
-| Ana cancela la reserva del miércoles con 5 h de anticipación | 2 de 3 (devuelve 1 h) |
-| Ana reserva 1 h el jueves | 3 de 3 |
+| Ana reserva 2 h el lunes | 2 de 4 |
+| Ana reserva 1 h el miércoles | 3 de 4 |
+| Ana intenta reservar 2 h más el jueves | **Rechazada**: sin cuota |
+| Ana cancela la reserva del miércoles con 5 h de anticipación | 3 de 4 (devuelve 1 h) |
+| Ana reserva 1 h el jueves | 4 de 4 |
 
 **Escenario B: cancelación tardía**
 
