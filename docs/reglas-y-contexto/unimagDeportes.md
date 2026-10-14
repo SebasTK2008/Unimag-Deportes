@@ -49,8 +49,8 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 
 Estos valores **no deben quedar fijos en el código**: el administrador debe poder cambiarlos desde la configuración.
 
-| Parámetro | Valor | 
-|---|---|---|
+| Parámetro | Valor 
+|---|---|
 | Cobros monetarios | Ninguno | 
 | Tolerancia para reservar una vez iniciada la franja | **10 minutos** | 
 | Umbral de cancelación tardía | **Menos de 60 minutos** antes del inicio | 
@@ -59,7 +59,7 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | Cuota semanal por usuario | 4 horas por semana | 
 | Inicio de la semana de conteo | Lunes 00:00, zona horaria America/Bogota | 
 | Anticipación mínima para reservar | 0 minutos (se permite hasta el fin de la tolerancia) | 
-| Anticipación máxima para reservar | 7 días | 
+| Anticipación máxima para reservar | 10 días | 
 | Ventana de check-in | Desde 10 min antes del inicio hasta el fin de la tolerancia | 
 | Plazo de check-in en reservas hechas dentro de la tolerancia | 10 minutos desde que se crea la reserva | 
 | Recordatorio previo a la reserva | 2 horas antes del inicio | 
@@ -97,7 +97,7 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | RN-11 | Un usuario no puede tener dos reservas que se solapen en el tiempo, aunque sean en espacios distintos. |
 | RN-12 | La reserva solo se confirma si el correo es válido, el usuario no está suspendido, la franja está libre y el usuario tiene cuota suficiente. |
 | RN-13 | Si todas las validaciones pasan, la reserva se confirma al instante en pantalla y se envía el comprobante al correo. No hay aprobación manual. |
-| RN-14 | Solo se puede reservar con hasta 7 días de anticipación.  |
+| RN-14 | Solo se puede reservar con hasta 10 días de anticipación.  |
 | RN-15 | Una reserva puede abarcar hasta 2 franjas consecutivas del mismo espacio.  |
 
 ### 5.4 Cuota semanal
