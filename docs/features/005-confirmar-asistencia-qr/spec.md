@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC05 - Confirmar asistencia (QR)
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-10-18 (sesión con token JWT sin cookies; ver SPEC 001)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -15,21 +16,26 @@ Como Usuario con una reserva, quiero escanear con mi celular el código QR del e
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Check-in exitoso.
-   - **Dado** que el Usuario está autenticado, tiene una reserva activa en ese espacio y el momento está dentro de la ventana de check-in.
+   - **Dado** que el Usuario está autenticado (token vigente), tiene una reserva activa en ese espacio y el momento está dentro de la ventana de check-in.
    - **Cuando** escanea el QR del espacio.
    - **Entonces** el sistema registra el check-in y la reserva pasa a "En uso".
 
-2. **Escenario**: Escaneo sin sesión iniciada.
-   - **Dado** que el Usuario no tiene sesión iniciada.
+2. **Escenario**: Escaneo sin sesión vigente.
+   - **Dado** que el Usuario no tiene sesión vigente (no hay token o ya expiró).
    - **Cuando** escanea el QR.
-   - **Entonces** el sistema le pide iniciar sesión y continúa con el check-in.
+   - **Entonces** el sistema le pide iniciar sesión con su correo y código de acceso (ver SPEC 001) y, al terminar, continúa con el check-in en el mismo espacio.
 
-3. **Escenario**: Check-in fallido con motivo.
+3. **Escenario**: Escaneo desde un navegador distinto al de la sesión.
+   - **Dado** que el Usuario tiene sesión iniciada en un navegador, pero el enlace del QR se abre en otro.
+   - **Cuando** escanea el QR.
+   - **Entonces** el sistema le pide iniciar sesión de nuevo, porque el token no se comparte entre navegadores, y luego continúa con el check-in (RN-34).
+
+4. **Escenario**: Check-in fallido con motivo.
    - **Dado** que el Usuario no tiene reserva en ese espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada.
    - **Cuando** escanea el QR.
    - **Entonces** el sistema rechaza el check-in y muestra el motivo correspondiente.
 
-4. **Escenario**: Check-in de una reserva hecha dentro de la tolerancia.
+5. **Escenario**: Check-in de una reserva hecha dentro de la tolerancia.
    - **Dado** que la reserva fue creada dentro de la tolerancia de la franja.
    - **Cuando** el Usuario escanea el QR dentro de los 10 minutos siguientes a la creación de la reserva.
    - **Entonces** el sistema registra el check-in y la reserva pasa a "En uso".
@@ -64,13 +70,16 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 ### Casos Extremos (Edge Cases)
 
 - **¿Qué contiene el QR y cómo se identifica al Usuario?**
-  El QR es estático y contiene un enlace fijo al espacio (por ejemplo, `/checkin/{id_espacio}`). No identifica al Usuario; la identidad sale de su sesión iniciada (RN-31, RN-32).
+  El QR es estático y contiene un enlace fijo al espacio (por ejemplo, `/checkin/{id_espacio}`). No identifica al Usuario; la identidad sale de su sesión iniciada, es decir, del token vigente (RN-31, RN-32).
 
 - **¿Cada espacio tiene su propio QR?**
   Sí. Cada espacio tiene un código QR estático impreso en su entrada (RN-31).
 
 - **¿Quién debe hacer el check-in?**
   Quien creó la reserva, ya que es nominal (RN-04).
+
+- **¿Qué pasa si el enlace del QR se abre en un navegador distinto al de la sesión?**
+  Como el token no se guarda en cookies, no se comparte entre navegadores: el Usuario debe iniciar sesión de nuevo antes de que se registre su check-in (RN-34).
 
 - **¿Qué sucede si no se hace el check-in al cerrar la ventana?**
   La reserva pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-37; ver SPEC 010).
@@ -84,7 +93,7 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 
 - **RF-001**: El sistema DEBE permitir al Usuario confirmar su asistencia escaneando el QR del espacio al ingresar, sin intervención de vigilantes ni del administrador (RF-08, RN-31).
 - **RF-002**: El sistema DEBE comprobar, al escanear, que el Usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in; si todo coincide, la reserva pasa a "En uso" (RN-33).
-- **RF-003**: El sistema DEBE pedir el inicio de sesión cuando no haya una sesión activa y continuar con el check-in una vez autenticado el Usuario (RN-34).
+- **RF-003**: El sistema DEBE pedir el inicio de sesión cuando no haya una sesión vigente (sin token o con el token expirado) y continuar con el check-in en el mismo espacio una vez autenticado el Usuario; si el enlace se abre en un navegador distinto al de la sesión, DEBE pedir iniciar sesión de nuevo (RN-34).
 - **RF-004**: El sistema DEBE mostrar el motivo cuando el check-in falle: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada (RN-35).
 - **RF-005**: El sistema DEBE aplicar la ventana de check-in desde 10 minutos antes del inicio hasta el fin de la tolerancia (RN-36) y, para reservas creadas dentro de la tolerancia, el plazo de 10 minutos desde su creación (RN-30).
 - **RF-006**: El sistema DEBE permitir al Administrador generar el QR de cada espacio (RF-16).
