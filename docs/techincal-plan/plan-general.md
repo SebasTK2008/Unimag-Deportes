@@ -194,17 +194,23 @@ Unimag-Deportes/
 
 Convenciones: UUID como identificadores, `timestamptz` para instantes (se interpretan en America/Bogota), enums como texto, migraciones versionadas con Flyway. **No hay tabla de franjas, de cuota ni de sesiones**: las dos primeras se derivan (D-06) y la sesión vive en el token JWT, que el servidor no guarda (D-17).
 
+**Actualización del prototipo:** la clasificación vigente de parámetros y reglas está en §4 y RN-30, RN-36, RN-37, RN-43 y RN-65 del contexto. Solo cuota y umbral de inasistencias son editables por Administrador. Las reservas conservan las reglas vigentes al crearse; las referencias anteriores a diez minutos de vigencia del código, cierre de check-in al fin de tolerancia o edición administrativa de todos los parámetros deben sustituirse por esas reglas.
+
+Cada reserva conserva una instantánea de los valores necesarios para evaluarla posteriormente: límite semanal aplicable, umbral de cancelación, apertura de check-in y parámetros de sanción aplicables; el fin de check-in es `end_at`. Las validaciones de creación usan los valores vigentes al crearla. Una reserva que cruza semana distribuye su duración por intervalos semanales y valida cada semana; la comparación de cuota de una nueva reserva usa el límite vigente en su creación y no altera reservas ya confirmadas.
+
+Para evitar carreras, serializar por usuario la validación e inserción de reservas y las evaluaciones de sanciones; bloquear el espacio y, para implementos, las filas de `equipment` en orden estable por id antes de calcular compromisos e insertar. La edición de stock usa el mismo bloqueo y rechaza valores inferiores al máximo compromiso simultáneo futuro. Definir y respetar un orden global de bloqueos (usuario, espacio, implementos ordenados). La suspensión guarda una marca de corte de inasistencias junto con `suspended_until` en la misma transacción; el conteo solo incluye faltas posteriores a esa marca y dentro de la ventana rodante.
+
 | Tabla | Propósito / columnas relevantes | Restricciones |
 |---|---|---|
 | `app_user` | `id`, `email`, `name` (vacío hasta el primer ingreso), `suspended_until`, `role` **[TÉC]**, `created_at` | `UNIQUE(email)` guardado en minúsculas y sin espacios; solo nombre y correo como datos personales (RNF-09) |
-| `login_code` | `id`, `email`, `code_hash` (HMAC con clave del servidor), `expires_at`, `attempts`, `used_at`, `created_at` | Un solo uso; al pedir un código nuevo se invalidan los anteriores del correo; las solicitudes por correo se cuentan con `created_at` (60 s entre solicitudes y 5 por hora); `AuthCleanupJob` borra los vencidos |
+| `login_code` | `id`, `email`, `code_hash` (HMAC con clave del servidor), `expires_at`, `attempts`, `used_at`, `created_at` | Un solo uso; solicitudes contadas por `created_at`; conservar cada registro al menos una hora, incluso si venció o fue usado. El límite fijo por IP exige conservar sus solicitudes durante la ventana de una hora. |
 | `space` | `id`, `name`, `capacity`, `requirements`, `opening_time`, `closing_time` **[TÉC]**, `status` (`ACTIVE`, `MAINTENANCE`) | RN-06 |
 | `space_discipline` | `space_id`, `discipline` (baloncesto, voleibol, fútbol 5, fútbol 11, tenis de campo) | `PRIMARY KEY(space_id, discipline)` |
 | `reservation` | `id`, `user_id`, `space_id`, `start_at`, `end_at`, `status`, `created_at`, `checked_in_at`, `reminder_sent_at` | `CHECK(end_at > start_at)`; **restricción de exclusión**: mismo `space_id` con rangos que se solapan solo entre estados que no liberan el espacio; **segunda exclusión** equivalente por `user_id` (RN-11) |
 | `institutional_block` | `id`, `space_id`, `type` (clases y grupos formativos, eventos o torneos, mantenimiento), `reason`, `start_at`, `end_at`, `recurrence_group` (nullable; agrupa las ocurrencias de un bloqueo recurrente) | Índice por `(space_id, start_at)`; los bloqueos recurrentes se materializan en una fila por franja (OQ-06) |
 | `equipment` | `id`, `name`, `discipline` (nullable, sugerencia), `stock`, `status` (`AVAILABLE`, `INACTIVE`) | `UNIQUE(name)`; `CHECK(stock >= 0)`; RN-62 |
 | `reservation_equipment` | `reservation_id`, `equipment_id`, `quantity` | `PRIMARY KEY(reservation_id, equipment_id)`; `CHECK(quantity > 0)`; claves foráneas a `reservation` y `equipment`; RN-64 |
-| `usage_parameters` | Singleton (`id = 1`): una columna por cada parámetro **de negocio** de la sección 4 | `CHECK` de rangos; cada guardado sobrescribe |
+| `usage_parameters` | Singleton (`id = 1`): cuota semanal y número de inasistencias para suspender | `CHECK` de rangos; cada guardado sobrescribe. Los demás parámetros son fijos o de despliegue según el contexto §4. |
 | `audit_log` | `id`, `action`, `entity_type`, `entity_id`, `user_id` (nullable), `detail`, `created_at` | RNF-08; sin códigos ni tokens en `detail`. Además de reservas, cancelaciones, check-ins y sanciones, registra `CODE_REQUESTED`, `LOGIN`, `LOGIN_FAILED` y `LOGOUT` (RN-61) |
 
 **Estados de la reserva que no liberan el espacio** (participan en la restricción de exclusión): `CONFIRMED`, `IN_USE`, `COMPLETED`, `NO_SHOW`. Las tres cancelaciones liberan. Esa misma lista determina qué reservas consumen stock de implementos (RN-65, RN-66).
@@ -321,10 +327,10 @@ El sistema **no usa colas de mensajería**: los correos se envían después del 
 | Job | Origen | Regla |
 |---|---|---|
 | `ReservationLifecycleJob` (cada minuto) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in cuya ventana cerró pasan a `NO_SHOW`, se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
-| `ReminderJob` (cada minuto) | UC11-H2 | Reservas `CONFIRMED` que empiezan en 2 horas o menos y con `reminder_sent_at IS NULL`: envía el recordatorio y marca la fecha. |
-| `AuthCleanupJob` (cada hora) | UC01 | Borra códigos de acceso vencidos o usados **[TÉC]**. |
+| `ReminderJob` (cada minuto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. |
+| `AuthCleanupJob` (cada hora) | UC01 | Borra registros vencidos o usados solo después de conservarlos al menos una hora desde la solicitud. |
 
-Los tres jobs son idempotentes (se apoyan en el estado y en `reminder_sent_at`). **El reinicio semanal (UC08-H2) no tiene job**: ver D-06. Con una sola instancia no hace falta bloqueo de jobs; si algún día se despliegan varias, habrá que agregarlo.
+Los cambios de estado del job son idempotentes. El correo es de mejor esfuerzo: un fallo se registra y no revierte la operación; no se garantiza recuperación tras una caída ni ausencia de duplicados si el proceso cae entre envío y marcado. **El reinicio semanal (UC08-H2) no tiene job**: ver D-06. Con una sola instancia no hace falta bloqueo de jobs; si algún día se despliegan varias, habrá que agregarlo.
 
 ### 5.3 Calendario en vivo
 
@@ -574,11 +580,11 @@ En `application.properties` (por entorno): zona horaria `America/Bogota`, datos 
 
 | Clave | Valor inicial | Nota |
 |---|---|---|
-| `code.ttl` | 10 minutos | Vigencia del código |
+| `code.ttl` | 15 minutos | Vigencia del código; configurable por despliegue |
 | `code.max-attempts` | 5 | Intentos por código |
 | `code.resend-interval` | 60 segundos | Mínimo entre solicitudes del mismo correo |
 | `code.max-requests-per-email` | 5 por hora | Solicitudes de código |
-| `code.max-requests-per-ip` | por calibrar | Solicitudes de código |
+| `code.max-requests-per-ip` | 30 por hora | Límite fijo en ventana rodante |
 | `code.hmac-secret` | variable de entorno | Nunca en el repositorio |
 | `jwt.secret` | variable de entorno | Llave de firma, mínimo 256 bits; nunca en el repositorio |
 | `jwt.algorithm` | `HS256` | Fijado en el servidor; no se acepta del cliente |

@@ -38,7 +38,7 @@ GET /equipment/availability?startAt=2026-11-11T14:00:00-05:00&endAt=2026-11-11T1
 }
 ```
 
-- `committed`: unidades ya solicitadas por reservas activas que se solapan con la ventana.
+- `committed`: máximo de unidades comprometidas simultáneamente por reservas activas durante la ventana, no la suma de reservas consecutivas.
 - `available`: `stock - committed`; es el máximo que se puede pedir para esa ventana.
 
 ### 400 Bad Request

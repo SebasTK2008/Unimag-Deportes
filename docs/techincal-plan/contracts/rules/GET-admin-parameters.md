@@ -30,8 +30,7 @@ Sin parámetros.
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtToleranceEnd": true,
-    "toleranceBookingMinutes": 10
+    "closesAtReservationEnd": true
   },
   "reminder": {
     "hoursBefore": 2
@@ -54,5 +53,5 @@ Sin parámetros.
 
 ## Notas
 
-- Es la lectura de los parámetros de negocio que edita `PUT /admin/parameters`.
+- Muestra también valores fijos y de despliegue; solo `quota.weeklyHours` y `sanctions.noShowsForSuspension` se editan mediante `PUT /admin/parameters`.
 - Los parámetros de autenticación viven en `application.properties` y no se exponen ni se editan aquí (OQ-16).

@@ -56,5 +56,6 @@ GET /admin/indicators?period=WEEKLY
 ## Notas
 
 - Los períodos son fijos semanal y mensual; el frontend permite elegir cuál ver (OQ-08).
+- El período actual es `[from, to)` en America/Bogota. `reservations` cuenta creaciones registradas en el período; `lateCancellations` y `noShows` cuentan transiciones registradas en el período; `suspendedUsers` cuenta usuarios distintos suspendidos durante cualquier parte del período, según auditoría de suspensión y su fecha de fin.
 - El período semanal comienza el lunes a las 00:00 en America/Bogota (RNF-07).
 - `lateCancellations` y `noShows` siguen las definiciones del contexto (RN-22, RN-37).

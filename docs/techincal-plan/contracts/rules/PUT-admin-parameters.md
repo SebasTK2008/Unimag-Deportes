@@ -12,29 +12,16 @@ Se envían solo los bloques o campos que se quieren modificar; el resto se conse
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `reservation.slotMinutes` | integer | Duración de la franja en minutos. |
-| `reservation.maxSlotsPerReservation` | integer | Máximo de franjas consecutivas por reserva. |
-| `reservation.maxAdvanceDays` | integer | Anticipación máxima en días. |
-| `reservation.minAdvanceMinutes` | integer | Anticipación mínima en minutos. |
 | `quota.weeklyHours` | integer | Cuota semanal por usuario. |
-| `quota.weekStartsOn` | string | Día de inicio de la semana (`MONDAY`). |
-| `cancellation.lateThresholdMinutes` | integer | Umbral de cancelación tardía. |
-| `checkIn.opensMinutesBefore` | integer | Minutos antes del inicio en que abre el check-in. |
-| `checkIn.closesAtToleranceEnd` | boolean | Si la ventana cierra al terminar la tolerancia. |
-| `checkIn.toleranceBookingMinutes` | integer | Plazo de check-in para reservas hechas en tolerancia. |
-| `reminder.hoursBefore` | integer | Horas antes del inicio del recordatorio. |
 | `sanctions.noShowsForSuspension` | integer | Inasistencias que provocan suspensión. |
-| `sanctions.windowDays` | integer | Ventana rodante de conteo. |
-| `sanctions.suspensionDays` | integer | Duración de la suspensión. |
-| `emailDomain` | string | Dominio institucional permitido. |
 
 ```json
 {
   "quota": {
     "weeklyHours": 5
   },
-  "cancellation": {
-    "lateThresholdMinutes": 45
+  "sanctions": {
+    "noShowsForSuspension": 3
   }
 }
 ```
@@ -59,12 +46,11 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
     "timeZone": "America/Bogota"
   },
   "cancellation": {
-    "lateThresholdMinutes": 45
+    "lateThresholdMinutes": 60
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtToleranceEnd": true,
-    "toleranceBookingMinutes": 10
+    "closesAtReservationEnd": true
   },
   "reminder": {
     "hoursBefore": 2

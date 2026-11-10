@@ -43,7 +43,7 @@
 }
 ```
 
-- Si el bloqueo es puntual, `recurrenceGroup` es `null` y `createdBlocks` es `1`.
+- Si el bloqueo es puntual, `recurrenceGroup` es `null`. `createdBlocks` cuenta las filas creadas, una por franja, tanto para bloqueos puntuales como recurrentes.
 - `cancelledReservations` indica cuántas reservas se cancelaron automáticamente (RN-43).
 
 ### 403 Forbidden
@@ -65,6 +65,7 @@
 | `REAUTH_REQUIRED` | 403 | No hay reautenticación de los últimos 10 minutos. | D-21 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
+| `RESERVATION_IN_USE` | 409 | Alguna franja afecta una reserva en curso; se rechaza toda la operación. | RN-43 |
 
 ## Notas
 

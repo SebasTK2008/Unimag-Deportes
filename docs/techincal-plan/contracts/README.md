@@ -69,7 +69,7 @@ Todos los errores usan el mismo cuerpo:
 | `VALIDATION_ERROR` | 400 | Campos faltantes o inválidos; `details.fields` indica cuáles. |
 | `TOKEN_EXPIRED` | 401 | Token vencido; el cliente debe iniciar sesión y volver a la pantalla de origen (RN-56). |
 | `TOKEN_INVALID` | 401 | Firma, algoritmo o formato inválidos. |
-| `PROFILE_INCOMPLETE` | 403 | Falta el nombre del primer ingreso; solo `/me` y `/auth/*` están disponibles (RN-59). |
+| `PROFILE_INCOMPLETE` | 403 | Falta el nombre del primer ingreso; solo `/me`, `PUT /me/profile` y `/auth/*` están disponibles (RN-59). |
 | `REAUTH_REQUIRED` | 403 | Acción sensible sin reautenticación de los últimos 10 minutos (D-21). |
 | `FORBIDDEN` | 403 | Rol insuficiente o recurso de otro usuario. |
 | `SUSPENDED` | 403 | Usuario suspendido intentando crear una reserva (RN-40). |
@@ -83,7 +83,7 @@ Todos los errores usan el mismo cuerpo:
 | `INVALID_CODE` | 400 | El código de acceso no coincide. | RN-51 |
 | `CODE_EXPIRED` | 400 | El código de acceso venció. | RN-51 |
 | `CODE_INVALIDATED` | 400 | El código ya se usó o fue reemplazado por uno nuevo. | RN-51 |
-| `TOO_MANY_ATTEMPTS` | 400 | Se superaron 5 intentos fallidos con el mismo código. | RN-52 |
+| `TOO_MANY_ATTEMPTS` | 400 | El último intento fallido permitido invalida el código. | RN-52 |
 | `RESEND_TOO_SOON` | 429 | Menos de 60 segundos desde la solicitud anterior. | RN-53 |
 | `CODE_REQUEST_LIMIT` | 429 | Más de 5 solicitudes de código por hora para el correo. | RN-53 |
 | `INVALID_DATE` | 400 | Fecha con formato inválido o inexistente. | — |
