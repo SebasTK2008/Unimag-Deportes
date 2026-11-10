@@ -698,6 +698,9 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 ```
 
 ### Qué debe contener cada plan específico por SPEC (`docs/features/NNN-…/plan.md`)
+
+Los planes siguen la estructura acordada para este proyecto: Summary con trazabilidad RF/RNF/CE/HU, Technical Context, Project Structure, reglas de negocio, referencia a los contratos REST, fases (Setup, Foundational, User Stories, Polish), dependencias y checklist de auto-revisión.
+
 1. Resumen y trazabilidad a los RF, RNF y CE del SPEC (indicando a qué historia pertenece cada uno).
 2. Clases concretas (controller, service, policy, repository, model) con rutas reales.
 3. Migración SQL exacta.
