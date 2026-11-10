@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC12 - Contactar administrador
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (OQ-10: canal de contacto de RN-48)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -22,7 +23,7 @@ Como Usuario, quiero enviar un mensaje mediante un formulario al correo del áre
 ### Casos Extremos (Edge Cases)
 
 - **¿Cuál es el canal de contacto que deben incluir los correos de la plataforma?**
-  **[Pendiente de definir]** RN-48 exige un canal para contactar al administrador, pero el contexto no precisa si es este formulario.
+  Es este formulario de contacto: los correos de la plataforma enlazan a él (OQ-10).
 
 ## Requisitos *(obligatorio)*
 
@@ -30,6 +31,7 @@ Como Usuario, quiero enviar un mensaje mediante un formulario al correo del áre
 
 - **RF-001**: El sistema DEBE ofrecer al Usuario un formulario de contacto (RF-10).
 - **RF-002**: El sistema DEBE enviar el mensaje del formulario al correo del área de deportes (RF-10).
+- **RF-003**: El sistema DEBE usar este formulario como canal de contacto de RN-48 en los correos de la plataforma (OQ-10).
 
 ### Requisitos No Funcionales
 
@@ -44,3 +46,4 @@ Como Usuario, quiero enviar un mensaje mediante un formulario al correo del áre
 ### Resultados Medibles
 
 - **CE-001**: Entrega, "100% de los mensajes enviados desde el formulario se dirigen al correo del área de deportes".
+- **CE-002**: Canal de Contacto, "100% de los correos de la plataforma enlazan a este formulario como canal de contacto".

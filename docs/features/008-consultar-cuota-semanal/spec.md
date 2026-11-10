@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC08 - Consultar cuota semanal
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (cita de la regla de cuota)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -68,7 +69,7 @@ Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota se
 
 - **RF-001**: El sistema DEBE mostrar al Usuario sus horas usadas, sus horas disponibles y la fecha de reinicio de la cuota semanal (RF-07).
 - **RF-002**: El sistema DEBE permitir esta consulta en todo momento (RN-19).
-- **RF-003**: El sistema DEBE calcular las horas usadas según el estado de cada reserva, conforme a la regla de cuota de la SPEC 003 (RN-16).
+- **RF-003**: El sistema DEBE calcular las horas usadas según el estado de cada reserva, conforme a la tabla de la sección 5.4 del contexto y a la regla de cuota de la SPEC 003.
 - **RF-004**: El sistema DEBE usar el límite semanal configurado, 4 horas por defecto (sección 4 del contexto).
 - **RF-005**: El sistema DEBE reiniciar la cuota semanal cada semana al límite configurado (RF-21).
 - **RF-006**: El sistema DEBE iniciar la semana de conteo el lunes a las 00:00 en zona horaria America/Bogota (sección 4 del contexto).

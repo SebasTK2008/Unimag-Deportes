@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC11 - Enviar correos al usuario
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-10-14 (se agrega el envío del código de acceso para el inicio de sesión)
+**Última revisión**: 2026-11-10 (OQ-04 y OQ-20: fallos de correo e implementos en el comprobante)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -9,21 +9,26 @@
 
 Como el sistema, al ser invocado internamente por "Reservar espacio deportivo" una vez confirmada la reserva, quiero generar un comprobante en PDF y entregarlo mediante el Servicio de correo al correo institucional del Usuario, de manera que el Usuario tenga constancia de su reserva.
 
-**Por qué esta prioridad**: El comprobante forma parte de la confirmación de toda reserva (RN-13); sin él, el Usuario no recibe su constancia de espacio, fecha, hora y reglas de cancelación.
+**Por qué esta prioridad**: El comprobante forma parte de la confirmación de toda reserva (RN-13); sin él, el Usuario no recibe su constancia de espacio, fecha, hora, implementos solicitados y reglas de cancelación.
 
-**Prueba Independiente**: Confirmar una reserva y validar que se envía al correo institucional del Usuario un PDF con espacio, fecha, hora, nombre del Usuario y reglas de cancelación.
+**Prueba Independiente**: Confirmar una reserva con y sin implementos y validar que se envía al correo institucional del Usuario un PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados (si los hay) y reglas de cancelación.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Envío del comprobante tras confirmar una reserva.
    - **Dado** que una reserva fue confirmada.
    - **Cuando** el sistema es invocado desde "Reservar espacio deportivo".
-   - **Entonces** el sistema genera un PDF con espacio, fecha, hora, nombre del Usuario y reglas de cancelación, y el Servicio de correo lo entrega al correo institucional del Usuario.
+   - **Entonces** el sistema genera un PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación, y el Servicio de correo lo entrega al correo institucional del Usuario.
 
 2. **Escenario**: El correo incluye un canal de contacto.
    - **Dado** que se envía el comprobante.
    - **Cuando** el Servicio de correo lo entrega.
    - **Entonces** el correo incluye un canal para contactar al administrador.
+
+3. **Escenario**: Comprobante de una reserva con implementos.
+   - **Dado** que una reserva fue confirmada con uno o varios implementos solicitados.
+   - **Cuando** se genera el comprobante.
+   - **Entonces** el PDF lista cada implemento con su cantidad, además de los datos de la reserva (OQ-20).
 
 ---
 
@@ -103,10 +108,10 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
   Sí. Al confirmar una reserva, el sistema envía el comprobante (RN-13).
 
 - **¿Qué sucede si el Servicio de correo no puede entregar el comprobante o una notificación?**
-  **[Pendiente de definir]** El contexto no establece este comportamiento para el comprobante ni para las notificaciones.
+  El fallo se registra y no revierte la reserva, cancelación o sanción; el envío puede reintentarse (OQ-04).
 
 - **¿Qué sucede si el Servicio de correo no puede entregar el código de acceso?**
-  **[Pendiente de confirmar]** El contexto no lo establece. Propuesta: informar a la persona que no se pudo enviar el código y permitirle solicitar otro, respetando los límites de solicitud de la SPEC 001 (RN-53).
+  Se informa a la persona que no se pudo enviar el código y se le permite solicitar otro, respetando los límites de solicitud de la SPEC 001 (RN-53, OQ-04).
 
 - **¿Qué incluyen todos los correos?**
   Un canal para contactar al administrador (RN-48). Aplica también al correo del código de acceso.
@@ -118,13 +123,13 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
   No en claro. El código solo viaja en el correo; el sistema guarda únicamente su hash (RN-51, RNF-09 del contexto) y el código no aparece en los registros de auditoría.
 
 - **¿Los valores del código son definitivos?**
-  La longitud (6 dígitos), la vigencia (10 minutos) y los límites de reenvío están marcados como propuestos en el contexto y por confirmar (RN-51, RN-53); el correo debe mostrar siempre los valores vigentes configurados.
+  La longitud (6 dígitos), la vigencia (10 minutos), los intentos (5) y los límites de reenvío (60 segundos y 5 solicitudes por hora) son los valores iniciales de la configuración `app.auth.*`, fuera de `usage_parameters` y no editables por el Administrador (OQ-16). El correo debe mostrar siempre los valores vigentes configurados.
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
-- **RF-001**: El sistema DEBE generar un comprobante en PDF con espacio, fecha, hora, nombre del Usuario y reglas de cancelación al confirmarse una reserva (RF-04, RN-45).
+- **RF-001**: El sistema DEBE generar un comprobante en PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación al confirmarse una reserva (RF-04, RN-45, OQ-20).
 - **RF-002**: El sistema DEBE entregar el comprobante al correo institucional del Usuario mediante el Servicio de correo (RF-04, RN-45).
 - **RF-003**: El sistema DEBE incluir en el correo un canal para contactar al administrador (RN-48).
 - **RF-004**: El sistema DEBE ejecutar la generación y el envío del comprobante al ser invocado por "Reservar espacio deportivo" (`<<include>>`).
@@ -149,7 +154,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 
 ### Entidades Clave
 
-- **ComprobanteReserva (DTO)**: Documento PDF generado a partir de la Reserva (ver SPEC 003). Contiene espacio, fecha, hora, nombre del Usuario, reglas de cancelación y el canal de contacto con el administrador. No se define su persistencia en el contexto.
+- **ComprobanteReserva (DTO)**: Documento PDF generado a partir de la Reserva (ver SPEC 003). Contiene espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay), reglas de cancelación y el canal de contacto con el administrador. No se define su persistencia en el contexto.
 - **NotificacionCorreo (DTO)**: Mensaje enviado al correo institucional del Usuario. Contiene destinatario, tipo (recordatorio, cancelación, bloqueo, inasistencia o suspensión), contenido y canal de contacto con el administrador. No se define su persistencia en el contexto.
 - **CorreoCodigoAcceso (DTO)**: Mensaje enviado al correo institucional que solicitó iniciar sesión (ver SPEC 001). Contiene destinatario, el código de 6 dígitos, su vigencia, la indicación de no compartirlo y el canal de contacto con el administrador. No se persiste: el código solo existe en claro en el correo y el sistema conserva únicamente su hash.
 
@@ -158,7 +163,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 ### Resultados Medibles
 
 - **CE-001**: Cobertura de Confirmaciones, "100% de las reservas confirmadas generan un comprobante en PDF dirigido al correo institucional del Usuario".
-- **CE-002**: Completitud del Contenido, "100% de los comprobantes incluyen espacio, fecha, hora, nombre del Usuario, reglas de cancelación y canal de contacto con el administrador".
+- **CE-002**: Completitud del Contenido, "100% de los comprobantes incluyen espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay), reglas de cancelación y canal de contacto con el administrador".
 - **CE-003**: Cobertura de Notificaciones, "100% de los eventos de recordatorio, cancelación, bloqueo, inasistencia y suspensión generan su notificación por correo".
 - **CE-004**: Contacto, "100% de los correos de la plataforma (comprobante, notificaciones y código de acceso) incluyen un canal para contactar al administrador".
 - **CE-005**: Entrega de Códigos, "100% de las solicitudes de código con un correo del dominio institucional que cumplen los límites generan un correo con el código, su vigencia y la advertencia de no compartirlo".

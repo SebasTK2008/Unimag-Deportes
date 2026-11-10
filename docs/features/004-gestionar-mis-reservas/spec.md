@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC04 - Gestionar mis reservas
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (implementos solicitados en el detalle y liberación de stock al cancelar, OQ-19)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -79,6 +80,9 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 - **¿Se mantienen las reservas futuras de un Usuario suspendido?**
   Sí. Se mantienen, aunque el Usuario no puede crear nuevas (RN-40, RN-05).
 
+- **¿Qué pasa con los implementos solicitados si se cancela la reserva?**
+  El registro se conserva como historial y deja de contar para la disponibilidad, por lo que la cancelación libera el stock (RN-66, OQ-19).
+
 - **¿Puede el Administrador cancelar manualmente una reserva?**
   No. Solo el Usuario cancela su reserva desde "Mis reservas" (RN-20). La cancelación por parte del administrador ocurre únicamente de forma automática por un bloqueo institucional, con estado "Cancelada por administrador" y sin descontar horas (RN-43; ver SPEC 007).
 
@@ -111,7 +115,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 
 ### Entidades Clave
 
-- **Reserva**: Entidad definida en la SPEC 003. La consulta muestra espacio, fecha, franja(s) y estado; la cancelación cambia su estado a "Cancelada a tiempo" o "Cancelada tardía" y determina si sus horas siguen contando contra la cuota.
+- **Reserva**: Entidad definida en la SPEC 003. La consulta muestra espacio, fecha, franja(s), estado e implementos solicitados (si los hay); la cancelación cambia su estado a "Cancelada a tiempo" o "Cancelada tardía" y determina si sus horas siguen contando contra la cuota.
 
 ## Criterios de Éxito *(obligatorio)*
 
@@ -122,3 +126,4 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 - **CE-003**: Cumplimiento de Reglas, "100% de las cancelaciones con 60 minutos o más devuelven las horas a la cuota y 100% de las tardías las conservan como usadas".
 - **CE-004**: Integridad, "0 reservas con check-in registrado canceladas por el Usuario".
 - **CE-005**: Transparencia, "100% de las cancelaciones muestran al Usuario su efecto sobre la cuota antes de confirmarse".
+- **CE-006**: Implementos al cancelar, "100% de las reservas canceladas conservan el registro de implementos y liberan su stock para otras reservas" (RN-66, OQ-19; ver SPEC 013).

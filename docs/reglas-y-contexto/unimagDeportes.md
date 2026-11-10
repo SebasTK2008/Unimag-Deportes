@@ -1,5 +1,7 @@
 # Unimag Deportes — Reglas de negocio y funcionalidades
 
+**Última revisión**: 2026-11-10 (implementos con stock, cierre de OQ-11, OQ-12, OQ-16 y OQ-20)
+
 
 ---
 
@@ -15,7 +17,7 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 4. **Las reglas se aplican igual para todos** los usuarios.
 5. **Autenticación sin contraseña:** la identidad se verifica con el correo institucional y un código de un solo uso enviado a ese correo. La sesión se mantiene con un **token JWT de 24 horas, sin cookies**. **[Definido]**
 
-**Fuera del alcance:** pagos, alquiler a personas externas a la universidad, inscripción a torneos, reserva de implementos deportivos.
+**Fuera del alcance:** pagos, alquiler a personas externas a la universidad, inscripción a torneos. La solicitud de implementos deportivos al reservar **sí** hace parte del alcance (ver RN-62 a RN-66, RF-23 y RF-24).
 
 ---
 
@@ -37,6 +39,7 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 | **Espacio** | Cancha o área física reservable (por ejemplo, "Cancha de tenis 1"). |
 | **Franja** | Bloque de tiempo reservable de un espacio (por ejemplo, 2:00 p. m. a 3:00 p. m.). |
 | **Reserva** | Asignación de una franja de un espacio a un usuario. |
+| **Implemento** | Elemento del catálogo de implementos deportivos (por ejemplo, un balón de voleibol o de fútbol) con sus existencias (stock), que el Usuario puede solicitar, de forma opcional y con una cantidad, al hacer una reserva. |
 | **Cuota semanal** | Máximo de horas de uso que un usuario puede acumular en una semana. |
 | **Tolerancia** | Minutos después del inicio de una franja en los que aún se puede reservar un espacio libre. |
 | **Check-in** | Confirmación de asistencia escaneando el QR del espacio al ingresar. |
@@ -49,12 +52,12 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 
 ---
 
-## 4. Parámetros configurables
+## 4. Parámetros del sistema
 
-Estos valores **no deben quedar fijos en el código**: el administrador debe poder cambiarlos desde la configuración.
+Estos valores **no deben quedar fijos en el código**: el administrador debe poder cambiarlos desde la configuración, **salvo los parámetros de autenticación** (método, tipo de sesión, vigencia del token, longitud y vigencia del código, intentos y reenvío), que viven en `application.properties` y no son editables por el Administrador (OQ-16).
 
-| Parámetro | Valor | 
-|---|---|---|
+| Parámetro | Valor |
+|---|---|
 | Cobros monetarios | Ninguno | 
 | Tolerancia para reservar una vez iniciada la franja | **10 minutos** | 
 | Umbral de cancelación tardía | **Menos de 60 minutos** antes del inicio | 
@@ -63,19 +66,19 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | Cuota semanal por usuario | 4 horas por semana | 
 | Inicio de la semana de conteo | Lunes 00:00, zona horaria America/Bogota | 
 | Anticipación mínima para reservar | 0 minutos (se permite hasta el fin de la tolerancia) | 
-| Anticipación máxima para reservar | 10 días | 
+| Anticipación máxima para reservar | 7 días (OQ-12) | 
 | Ventana de check-in | Desde 10 min antes del inicio hasta el fin de la tolerancia | 
 | Plazo de check-in en reservas hechas dentro de la tolerancia | 10 minutos desde que se crea la reserva | 
 | Recordatorio previo a la reserva | 2 horas antes del inicio | 
 | Suspensión por inasistencias | 3 inasistencias en 30 días suspenden 7 días |
-| Dominio de correo permitido | `@unimagdalena.edu.co` (confirmar dominio exacto) | 
+| Dominio de correo permitido | `@unimagdalena.edu.co` (OQ-11) | 
 | Método de autenticación | Correo institucional + código de un solo uso enviado al correo (sin contraseña) |
 | Tipo de sesión | Token JWT, sin cookies |
 | Vigencia de la sesión | **24 horas** desde la emisión del token, sin renovación automática |
-| Longitud del código de acceso | 6 dígitos numéricos *(propuesto, confirmar)* |
-| Vigencia del código de acceso | 10 minutos *(propuesto, confirmar)* |
-| Intentos fallidos por código | 5 *(propuesto, confirmar)* |
-| Reenvío del código | Mínimo 60 segundos entre solicitudes y máximo 5 solicitudes por hora por correo *(propuesto, confirmar)* |
+| Longitud del código de acceso | 6 dígitos numéricos *(valor inicial en `app.auth.*`, OQ-16)* |
+| Vigencia del código de acceso | 10 minutos *(valor inicial en `app.auth.*`, OQ-16)* |
+| Intentos fallidos por código | 5 *(valor inicial en `app.auth.*`, OQ-16)* |
+| Reenvío del código | Mínimo 60 segundos entre solicitudes y máximo 5 solicitudes por hora por correo *(valor inicial en `app.auth.*`, OQ-16)* |
 
 ---
 
@@ -108,14 +111,14 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | RN-11 | Un usuario no puede tener dos reservas que se solapen en el tiempo, aunque sean en espacios distintos. |
 | RN-12 | La reserva solo se confirma si el correo es válido, el usuario no está suspendido, la franja está libre y el usuario tiene cuota suficiente. |
 | RN-13 | Si todas las validaciones pasan, la reserva se confirma al instante en pantalla y se envía el comprobante al correo. No hay aprobación manual. |
-| RN-14 | Solo se puede reservar con hasta 10 días de anticipación.  |
+| RN-14 | Solo se puede reservar con hasta 7 días de anticipación (OQ-12).  |
 | RN-15 | Una reserva puede abarcar hasta 2 franjas consecutivas del mismo espacio.  |
 
 ### 5.4 Cuota semanal
 
 | ID | Regla |
 |---|---|
-| RN-16 | Cada usuario tiene una cuota máxima de horas por semana (3 h por defecto). La cuota se mide en horas reservadas, no solo en horas efectivamente usadas, para evitar acaparar franjas. |
+| RN-16 | Cada usuario tiene una cuota máxima de horas por semana (4 h por defecto; OQ-12). La cuota se mide en horas reservadas, no solo en horas efectivamente usadas, para evitar acaparar franjas. |
 | RN-17 | La semana de una reserva es la de la **fecha de la franja**, no la fecha en que se creó la reserva. |
 | RN-18 | Antes de confirmar, el sistema suma las horas que ya cuentan en esa semana más las de la nueva reserva. Si superan la cuota, rechaza la reserva e informa cuántas horas le quedan al usuario. |
 | RN-19 | El usuario puede ver en todo momento sus horas usadas y disponibles de la semana. |
@@ -189,7 +192,7 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | ID | Regla |
 |---|---|
-| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario y reglas de cancelación. |
+| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación (OQ-20). |
 | RN-46 | **Recordatorio:** se envía 2 horas antes del inicio, con enlace para cancelar.  |
 | RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. |
 | RN-48 | Los correos incluyen un canal para contactar al administrador. |
@@ -213,6 +216,16 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RN-59 | Un usuario nuevo se crea automáticamente al completar su primer inicio de sesión. En ese momento el sistema le pide su nombre, necesario para el comprobante (RN-45). **[Propuesto]** |
 | RN-60 | El rol de administrador no se obtiene por autoservicio: se asigna a correos institucionales específicos desde la configuración del sistema. **[Propuesto]** |
 | RN-61 | Cada solicitud de código, inicio de sesión exitoso o fallido y cierre de sesión queda en el registro de auditoría (RNF-08). **[Propuesto]** |
+
+### 5.12 Implementos deportivos
+
+| ID | Regla |
+|---|---|
+| RN-62 | El área de deportes mantiene un catálogo de implementos con nombre, disciplina sugerida (opcional), existencias (stock) y estado (disponible o inactivo). Solo los implementos disponibles con stock suficiente se pueden solicitar. |
+| RN-63 | Solicitar implementos es **opcional** y se hace en el mismo momento de la reserva, indicando el implemento y la cantidad. Una reserva puede solicitar varios implementos. |
+| RN-64 | Los implementos solicitados quedan asociados a la reserva y forman parte de su detalle. |
+| RN-65 | La disponibilidad de un implemento para una franja es su `stock` menos la suma de las cantidades solicitadas por reservas activas (las que no liberan el espacio) que se solapan en el tiempo con esa franja. Si la cantidad pedida supera la disponibilidad, la reserva se rechaza y se informa cuántas unidades quedan. |
+| RN-66 | La disponibilidad por franja se deriva de las reservas y no se almacena como saldo; las reservas canceladas no cuentan y liberan el stock. |
 
 ---
 
@@ -252,7 +265,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 |---|---|---|
 | RF-01 | Iniciar sesión con código por correo | Ingresar el correo institucional, recibir un código de acceso y validarlo; rechaza otros dominios. Emite un token JWT de 24 horas sin cookies. Incluye cerrar sesión. |
 | RF-02 | Consultar disponibilidad | Calendario interactivo en tiempo real por espacio y disciplina; muestra franjas libres, ocupadas y bloqueadas. |
-| RF-03 | Reservar espacio deportivo | Elegir disciplina, espacio, fecha y franja, y confirmar. Valida correo, cuota, suspensión y disponibilidad; bloquea la franja de forma transaccional. |
+| RF-03 | Reservar espacio deportivo | Elegir disciplina, espacio, fecha y franja, y confirmar. Opcionalmente, solicitar implementos del catálogo con su cantidad. Valida correo, cuota, suspensión y disponibilidad; bloquea la franja de forma transaccional. |
 | RF-04 | Recibir comprobante | Pantalla de confirmación y PDF enviado al correo. |
 | RF-05 | Consultar mis reservas | Lista de reservas próximas y pasadas con su estado. |
 | RF-06 | Cancelar reserva | Desde "Mis reservas"; advierte si la cancelación es tardía antes de confirmar. |
@@ -260,6 +273,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RF-08 | Confirmar asistencia (QR) | Escanear el QR del espacio al ingresar. |
 | RF-09 | Consultar reglas de uso | Cuota, tolerancia, cancelación, check-in y sanciones, en lenguaje claro. |
 | RF-10 | Contactar administrador | Formulario que envía el mensaje al correo del área de deportes. |
+| RF-23 | Solicitar implementos extras | Al reservar, elegir opcionalmente uno o varios implementos disponibles del catálogo e indicar la cantidad de cada uno; el sistema valida la disponibilidad de la franja. |
 
 ### 7.2 Administrador
 
@@ -271,6 +285,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RF-14 | Consultar panel de ocupación | Ocupación por espacio y franja, con filtros por fecha, disciplina y espacio. |
 | RF-15 | Consultar indicadores de uso | Reservas, cancelaciones tardías, inasistencias y usuarios suspendidos. |
 | RF-16 | Generar códigos QR | Generar e imprimir el QR de cada espacio. |
+| RF-24 | Gestionar implementos | Crear, editar y desactivar los implementos del catálogo, con nombre, disciplina sugerida y existencias (stock). |
 
 ### 7.3 Sistema (automáticas)
 
@@ -334,5 +349,9 @@ El administrador bloquea el fútbol 11 el sábado para un torneo. Las 4 reservas
 **Escenario F: inicio de sesión con código y sesión expirada**
 
 Sofía abre la aplicación a las 8:00 a. m. e ingresa su correo institucional. Recibe un código de 6 dígitos, lo ingresa y el sistema le entrega un token JWT válido por 24 horas. Reserva sin volver a autenticarse durante todo el día. Al día siguiente a las 8:30 a. m. el token ya expiró; cuando intenta reservar, el sistema le pide iniciar sesión de nuevo con un código nuevo y, al validarlo, la devuelve a la reserva que estaba haciendo. Si escanea el QR de una cancha con un navegador distinto al que usa habitualmente, también deberá iniciar sesión antes de que se registre su check-in.
+
+**Escenario G: reserva con implementos extras**
+
+Andrés reserva la cancha de voleibol de 4:00 a 5:00 p. m. Al confirmar, solicita un balón de voleibol del catálogo. El sistema registra el implemento con su cantidad junto a la reserva y la confirma como siempre.
 
 ---

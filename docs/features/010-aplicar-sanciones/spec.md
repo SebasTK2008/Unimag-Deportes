@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC10 - Aplicar sanciones
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (OQ-07: ventana rodante y reinicio del contador)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -58,7 +59,7 @@ Como el sistema, al registrar la tercera inasistencia de un Usuario dentro de 30
   Su plazo es de 10 minutos desde la creación de la reserva (RN-30); al vencer sin check-in, la reserva pasa a "Inasistencia".
 
 - **¿Qué ocurre con el conteo de inasistencias después de aplicada una suspensión?**
-  **[Pendiente de definir]** El contexto no lo establece.
+  Las inasistencias se cuentan en una ventana rodante de 30 días; al aplicarse una suspensión, el contador se reinicia a cero (OQ-07).
 
 ## Requisitos *(obligatorio)*
 
@@ -69,6 +70,7 @@ Como el sistema, al registrar la tercera inasistencia de un Usuario dentro de 30
 - **RF-003**: El sistema DEBE notificar por correo al Usuario cuando se registre una inasistencia y cuando sea suspendido, con la fecha en que podrá reservar de nuevo (RN-39).
 - **RF-004**: El sistema DEBE mantener las reservas futuras de un Usuario suspendido e impedirle crear nuevas (RN-40, RN-05).
 - **RF-005**: El sistema DEBE tomar los umbrales de suspensión de los parámetros configurables (sección 4 del contexto; ver SPEC 006).
+- **RF-006**: El sistema DEBE contar las inasistencias en una ventana rodante de 30 días y reiniciar el contador cuando se aplica una suspensión (OQ-07).
 
 ### Requisitos No Funcionales
 
@@ -86,3 +88,4 @@ Como el sistema, al registrar la tercera inasistencia de un Usuario dentro de 30
 
 - **CE-001**: Aplicación de Sanciones, "100% de las reservas sin check-in al cerrar la ventana pasan a 'Inasistencia' y conservan sus horas contra la cuota".
 - **CE-002**: Suspensión Correcta, "100% de los Usuarios con 3 inasistencias en 30 días quedan suspendidos por 7 días y reciben el aviso correspondiente".
+- **CE-003**: Reincidencia, "100% de las inasistencias se cuentan en una ventana rodante de 30 días y el contador se reinicia al aplicarse una suspensión".

@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC01 - Iniciar sesión
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-10-18 (código de acceso de un solo uso y token JWT de 24 horas sin cookies)
+**Última revisión**: 2026-11-10 (cierre de OQ-02, OQ-04, OQ-11 y OQ-17; se mantiene el token JWT de 24 horas sin cookies)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -79,10 +79,10 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   Sí. Un Usuario suspendido puede consultar disponibilidad y sus reservas, pero no puede crear nuevas hasta que termine la suspensión (RN-05).
 
 - **¿Cuál es el dominio institucional válido?**
-  El contexto indica `@unimagdalena.edu.co` y señala que el dominio exacto debe confirmarse. El dominio es un parámetro configurable (ver SPEC 006), no un valor fijo en el código.
+  Es `@unimagdalena.edu.co` (OQ-11) y es un parámetro configurable (ver SPEC 006), no un valor fijo en el código.
 
 - **¿Cómo se obtiene el rol de Administrador?**
-  No se obtiene por autoservicio: se asigna a correos institucionales específicos desde la configuración del sistema (RN-60). El Administrador inicia sesión con el mismo mecanismo que el Usuario.
+  No se obtiene por autoservicio: se siembra en la columna `role` de `app_user` desde la lista `app.auth.admin-emails` al aprovisionar el usuario (RN-60, OQ-02). El Administrador inicia sesión con el mismo mecanismo que el Usuario.
 
 - **¿Por qué el token no usa cookies?**
   Por decisión del contexto (RN-55): el cliente guarda el token en el almacenamiento del navegador y lo envía en el encabezado `Authorization: Bearer`. Como consecuencia, el token no se comparte entre navegadores (ver escenario 10).
@@ -94,10 +94,10 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   Sí. Cada inicio de sesión genera un token independiente (RN-57).
 
 - **¿Qué ocurre si el correo con el código no se puede enviar?**
-  El sistema informa a la persona y le permite solicitar otro código. El comportamiento general ante fallos de correo está pendiente de definir (ver SPEC 011).
+  El sistema informa a la persona y le permite solicitar otro código, respetando los límites de solicitud (RN-53, OQ-04). En los demás correos, el fallo se registra y no revierte la operación de negocio (ver SPEC 011).
 
 - **¿Se puede cerrar la sesión de un dispositivo perdido?**
-  **[Pendiente de definir]** El contexto no define revocación de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas) o hasta que el usuario sea suspendido o cambie su estado (RN-58).
+  No en el prototipo: no hay revocación individual de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas) o hasta que el usuario sea suspendido o cambie su estado (RN-58, OQ-17). Rotar la llave de firma en una emergencia invalida todos los tokens.
 
 - **¿El método de acceso es definitivo?**
   No necesariamente. El código de acceso es sustituible por el inicio de sesión con Microsoft de la universidad sin cambiar los demás casos de uso (ver plan técnico, D-08 y D-09).
@@ -117,7 +117,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 - **RF-009**: El sistema DEBE permitir cerrar sesión eliminando el token del dispositivo, y permitir sesiones abiertas en varios dispositivos a la vez (RN-57).
 - **RF-010**: El sistema DEBE consultar en cada petición el estado vigente del usuario (existencia, rol y suspensión) y NO DEBE deducirlo del token (RN-58).
 - **RF-011**: El sistema DEBE crear el usuario automáticamente al completar su primer inicio de sesión y pedirle su nombre (RN-59).
-- **RF-012**: El sistema DEBE asignar el rol de Administrador solo a correos institucionales específicos definidos en la configuración (RN-60).
+- **RF-012**: El sistema DEBE sembrar el rol de Administrador en `app_user` solo para los correos definidos en `app.auth.admin-emails` (RN-60, OQ-02).
 - **RF-013**: El sistema DEBE aplicar las mismas reglas de acceso a estudiantes, docentes y funcionarios (RN-02).
 - **RF-014**: El sistema DEBE permitir el inicio de sesión de un Usuario suspendido, limitando sus acciones a consultar disponibilidad y sus reservas (RN-05).
 - **RF-015**: El sistema DEBE, ante un escaneo de QR sin sesión vigente, pedir el inicio de sesión y continuar con el check-in una vez autenticada la persona; si el enlace se abre en un navegador distinto, DEBE pedir iniciar sesión de nuevo (RN-34).
@@ -134,7 +134,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 
 ### Entidades Clave
 
-- **Usuario**: Persona con correo institucional que usa la plataforma. Atributos: nombre y correo institucional, además de su rol (Usuario o Administrador) y su estado de suspensión (ver SPEC 010). Su identidad proviene del token verificado en cada petición (RN-32, RN-58).
+- **Usuario**: Persona con correo institucional que usa la plataforma. Atributos: nombre y correo institucional, además de su rol (Usuario o Administrador) y su estado de suspensión (ver SPEC 010). Su identidad proviene del token verificado en cada petición (RN-03, RN-58).
 - **CódigoDeAcceso**: Código numérico de un solo uso enviado al correo institucional. Atributos: correo, hash del código, vencimiento, intentos fallidos y marca de uso. Solo se guarda su hash.
 - **TokenDeSesión (JWT)**: Credencial firmada con vigencia de 24 horas que el cliente conserva en el navegador. No se guarda en el servidor ni en cookies.
 

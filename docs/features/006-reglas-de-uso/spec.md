@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC06 - Reglas de uso
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-11 y OQ-16)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -60,7 +61,7 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
   No. La sanción es perder las horas y, de repetirse, una suspensión temporal (sección 5.8 del contexto).
 
 - **¿Qué ocurre con las reservas ya existentes cuando cambia un parámetro?**
-  **[Pendiente de definir]** El contexto no establece si los cambios afectan solo a las reservas nuevas o también a las existentes.
+  Los cambios rigen solo para operaciones nuevas; no modifican reservas existentes (OQ-05).
 
 - **¿Los cobros monetarios son un parámetro editable?**
   No. La tabla de parámetros lo lista con valor "Ninguno" y el principio 1 del contexto define que no hay cobros monetarios; esta SPEC no incluye cobros como parámetro editable.
@@ -75,8 +76,8 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 - **RF-001**: El sistema DEBE permitir al Usuario consultar las reglas de uso en lenguaje claro (RF-09).
 - **RF-002**: El sistema DEBE cubrir al menos las reglas de cuota, tolerancia, cancelación, check-in y sanciones (RF-09).
 - **RF-003**: El sistema DEBE mostrar los valores vigentes de los parámetros configurados, sin valores fijos en el código (sección 4 del contexto).
-- **RF-004**: El sistema DEBE permitir al Administrador editar los parámetros de la sección 4 del contexto (RF-12).
-- **RF-005**: El sistema DEBE almacenar los parámetros como configuración editable y NO DEBE dejarlos fijos en el código (sección 4 del contexto).
+- **RF-004**: El sistema DEBE permitir al Administrador editar los parámetros **de negocio** de la sección 4 del contexto; los parámetros de autenticación viven en `application.properties` y no son editables (RF-12, OQ-16).
+- **RF-005**: El sistema DEBE almacenar los parámetros de negocio como configuración editable y NO DEBE dejarlos fijos en el código (sección 4 del contexto).
 - **RF-006**: El sistema DEBE aplicar los valores configurados en las validaciones y reglas de los demás casos de uso.
 - **RF-007**: El sistema DEBE usar los valores por defecto de la sección 4 mientras no se modifiquen.
 
@@ -101,7 +102,7 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
   - Plazo de check-in en reservas hechas dentro de la tolerancia: 10 minutos desde su creación.
   - Recordatorio previo a la reserva: 2 horas antes del inicio.
   - Suspensión por inasistencias: 3 inasistencias en 30 días suspenden 7 días.
-  - Dominio de correo permitido: `@unimagdalena.edu.co` (dominio exacto por confirmar).
+  - Dominio de correo permitido: `@unimagdalena.edu.co` (OQ-11).
 
 ## Criterios de Éxito *(obligatorio)*
 
@@ -109,5 +110,5 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 
 - **CE-001**: Coherencia, "100% de los valores mostrados coinciden con los parámetros vigentes configurados".
 - **CE-002**: Cobertura, "Las cinco categorías de reglas (cuota, tolerancia, cancelación, check-in y sanciones) están presentes en la consulta".
-- **CE-003**: Configurabilidad, "100% de los parámetros de la sección 4 son editables desde la configuración, sin cambios en el código".
+- **CE-003**: Configurabilidad, "100% de los parámetros de negocio de la sección 4 son editables desde la configuración, sin cambios en el código; los parámetros de autenticación quedan fuera (OQ-16)".
 - **CE-004**: Aplicación de Cambios, "100% de los cambios guardados se reflejan en las validaciones posteriores y en la consulta de reglas de uso".
