@@ -3,7 +3,7 @@
 **Date**: 2026-10-13
 **Última revisión**: 2026-11-10 (cierre de los OQ, stock de implementos UC13, cliente React y MapStruct)
 **Spec**: `docs/features/001-…` a `docs/features/013-…` (UC01–UC13). **Fuente funcional**: `docs/reglas-y-contexto/unimagDeportes.md`. Si un SPEC y el contexto discrepan, se consulta antes de decidir.
-**Alcance de este documento**: solo la estructura general. Clases concretas, SQL exacto y contratos detallados van en `docs/features/<NNN>-<nombre>/plan.md` (ver §11).
+**Alcance de este documento**: solo la estructura general. Clases concretas y SQL exacto van en `docs/features/<NNN>-<nombre>/plan.md`; los contratos REST, en `docs/techincal-plan/contracts/` (ver §6 y §11).
 **Leyenda**: **[CONTEXTO]** respaldado por `unimagDeportes.md` o los SPEC · **[TÉC]** decisión técnica del plan · **OQ-xx** punto resuelto con su decisión (§10) · **H1/H2** historia de usuario 1 o 2 dentro de un SPEC.
 
 ---
@@ -126,7 +126,9 @@ Dentro de cada capa los archivos se agrupan por **módulo de negocio** (`auth`, 
 ```text
 Unimag-Deportes/
 ├── docs/
-│   ├── techincal-plan/plan-general.md           # Este documento
+│   ├── techincal-plan/
+│   │   ├── plan-general.md                     # Este documento
+│   │   └── contracts/<módulo>/<MÉTODO>-<ruta>.md  # contratos REST por endpoint
 │   ├── reglas-y-contexto/unimagDeportes.md
 │   ├── uc-diagrams/                            # diagrama UML (no incluido en el repositorio)
 │   └── features/NNN-<uc>/{spec.md, plan.md}
@@ -387,7 +389,7 @@ Si la persona escaneó un QR sin token vigente (RN-34), el cliente guarda `/chec
 
 ## 6. Contratos (índice de endpoints) **[TÉC]**
 
-Este índice solo fija las rutas y los roles. El detalle de cada contrato (solicitud, respuesta y errores) se escribe en el `plan.md` de cada SPEC. Todas las rutas, salvo las públicas, exigen `Authorization: Bearer <token>`.
+Este índice solo fija las rutas y los roles. El contrato detallado de cada endpoint (solicitud, respuesta y errores) vive en [`docs/techincal-plan/contracts/`](./contracts/README.md), un archivo por endpoint. Todas las rutas, salvo las públicas, exigen `Authorization: Bearer <token>`.
 
 | Método y ruta | UC | Rol |
 |---|---|---|
@@ -400,7 +402,7 @@ Este índice solo fija las rutas y los roles. El detalle de cada contrato (solic
 | `GET /spaces?discipline=` | UC02, UC03 | Usuario, Administrador |
 | `GET /spaces/{id}/availability?date=` | UC02 | Usuario, Administrador |
 | `GET /spaces/{id}/availability/stream` (SSE) | UC02 | Usuario, Administrador |
-| `POST /reservations` | UC03 | Usuario |
+| `POST /reservations` | UC03, UC13 | Usuario |
 | `GET /reservations/mine` | UC04-H1 | Usuario |
 | `GET /reservations/{id}/cancellation-preview` | UC04-H2 | Usuario |
 | `POST /reservations/{id}/cancellation` | UC04-H2 | Usuario |
@@ -408,7 +410,7 @@ Este índice solo fija las rutas y los roles. El detalle de cada contrato (solic
 | `GET /admin/spaces/{id}/qr` | UC05-H2 | Administrador |
 | `GET /rules` | UC06-H1 | Usuario |
 | `GET /admin/parameters`, `PUT /admin/parameters` | UC06-H2 | Administrador (el `PUT` exige reautenticación reciente) |
-| `GET/POST/PUT /admin/spaces` | UC07-H1 | Administrador |
+| `GET/POST /admin/spaces`, `PUT /admin/spaces/{id}` | UC07-H1 | Administrador |
 | `POST /admin/blocks` | UC07-H2 | Administrador (exige reautenticación reciente) |
 | `GET /quota/me` | UC08-H1 | Usuario |
 | `GET /admin/occupancy` | UC09-H1 | Administrador |
@@ -416,7 +418,7 @@ Este índice solo fija las rutas y los roles. El detalle de cada contrato (solic
 | `POST /contact` | UC12 | Usuario |
 | `GET /equipment?discipline=` | UC13 | Usuario, Administrador |
 | `GET /equipment/availability?startAt=&endAt=` | UC13 | Usuario, Administrador |
-| `GET/POST/PUT /admin/equipment` | UC13 | Administrador |
+| `POST /admin/equipment`, `PUT /admin/equipment/{id}` | UC13 | Administrador |
 
 Sin endpoint propio: UC08-H2, UC10 y UC11 (internos). `POST /reservations` acepta, de forma opcional, una lista de implementos solicitados con su cantidad y valida el stock disponible en la franja (UC13). `GET /equipment/availability` evalúa la ventana `startAt`–`endAt` solicitada (una franja o un rango) y devuelve la disponibilidad por solape con las reservas activas (RN-65). Los bloqueos recurrentes se fijan al crearse: no hay edición por `recurrence_group` en el prototipo; para cambiarlos se crea un bloqueo nuevo.
 
@@ -699,7 +701,7 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 1. Resumen y trazabilidad a los RF, RNF y CE del SPEC (indicando a qué historia pertenece cada uno).
 2. Clases concretas (controller, service, policy, repository, model) con rutas reales.
 3. Migración SQL exacta.
-4. Contrato REST del caso de uso (solicitud, respuesta y errores).
+4. Contrato REST: el detalle por endpoint vive en `docs/techincal-plan/contracts/` (solicitud, respuesta y errores); el `plan.md` referencia esos archivos.
 5. Reglas de negocio con ejemplos numéricos (con la cuota de 4 h) y manejo de errores por escenario.
 6. Estrategia de pruebas con una prueba por cada criterio de éxito (`CE-xxx`). El plan de UC01 incluye además las pruebas de seguridad de §7.1.6.
 7. Tareas granulares con dependencias y los OQ que lo afecten.
