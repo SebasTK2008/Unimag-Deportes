@@ -87,7 +87,7 @@ Fuente: [`contracts/quota/GET-quota-me.md`](../../techincal-plan/contracts/quota
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Implementar `WeekCalculator`.
+- [x] **T002** Implementar `WeekCalculator`.
 - [ ] **T003** Agregar la consulta de horas por semana al repositorio.
 
 ### Phase 3: User Stories
@@ -97,7 +97,7 @@ Fuente: [`contracts/quota/GET-quota-me.md`](../../techincal-plan/contracts/quota
 - [ ] **T006** [US1/P1] Implementar `GET /quota/me`.
 - [ ] **T007** [US1/P1] Prueba de contrato.
 - [ ] **T008** [US1/P1] Integración de estados que cuentan y no cuentan.
-- [ ] **T009** [US1/P1] Prueba unitaria de `WeekCalculator`.
+- [x] **T009** [US1/P1] Prueba unitaria de `WeekCalculator`.
 - [ ] **T010** [US2/P1] Repartir duración por semana y exponer `resetAt`.
 - [ ] **T011** [US2/P1] Verificar que no existe saldo ni job de reinicio.
 - [ ] **T012** [US2/P1] Integración de cambio de semana, cruce semanal y reservas anticipadas.

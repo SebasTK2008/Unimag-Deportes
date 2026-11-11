@@ -29,7 +29,7 @@ UC06 implementa la consulta de las reglas y la edición de cuota semanal y umbra
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: lectura rápida de parámetros vigentes.
 **Constraints**: valores configurables, no fijos en el código (sección 4 del contexto); `PUT` con reautenticación (D-21); cambios rigen para operaciones nuevas (OQ-05); America/Bogota (RNF-07).
-**Scale/Scope**: 3 endpoints, sin migraciones propias (`V5` es de UC01), 7 RF + 3 RNF + 4 CE + 2 HU.
+**Scale/Scope**: 3 endpoints, sin migraciones propias (esquema compartido), 7 RF + 3 RNF + 4 CE + 2 HU.
 
 ## Project Structure
 
@@ -55,7 +55,7 @@ src/main/java/unimagdeportes/
 src/test/java/unimagdeportes/{contract/rules,integration/rules,unit}/
 ```
 
-**Structure Decision**: `UsageParameters` se creó en la fase Foundational de UC01 (`V5`); este UC solo la expone y edita.
+**Structure Decision**: `UsageParameters` pertenece al esquema compartido; este UC solo la expone y edita.
 
 ## Reglas de negocio
 
@@ -80,12 +80,14 @@ Fuente: [`contracts/rules/`](../../techincal-plan/contracts/README.md) (3 archiv
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01 (`SecurityConfig`, `ReauthPolicy`, `V5`).
+- [ ] **T001** Verificar prerrequisitos: UC01 (`SecurityConfig`, `ReauthPolicy`) y esquema compartido.
 
 ### Phase 2: Foundational
 
 - [ ] **T002** Crear los DTO de `dto/parameter/`.
 - [ ] **T003** Crear `ParameterMapper`.
+
+**Base disponible:** `UsageParameters`, su repositorio y `ParameterService.current()` leen cuota y umbral; aún faltan las reglas completas, los DTO y las operaciones de administración de este UC.
 
 ### Phase 3: User Stories
 

@@ -95,6 +95,8 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [ ] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
 - [ ] **T004** Configurar los escuchas de eventos base.
 
+**Base disponible:** existen `MailSender` y `SmtpMailSender`; falta integrarlos con notificaciones y verificar la entrega y el envío de adjuntos para este UC.
+
 ### Phase 3: User Stories
 
 - [ ] **T005** [US1/P1] Implementar `ReceiptPdfGenerator`.

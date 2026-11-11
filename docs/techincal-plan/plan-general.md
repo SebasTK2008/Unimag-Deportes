@@ -108,6 +108,8 @@ flowchart LR
 
 Paquetes transversales: `dto`, `mapper`, `security`, `mail`, `scheduler`, `exception`, `config`.
 
+El tratamiento común de errores HTTP de los controllers se concentra en `exception/GlobalExceptionHandler`: transforma `BusinessException`, errores de validación y solicitudes mal formadas al formato `code`, `message` y `details` opcional definido en los contratos; para errores inesperados devuelve `INTERNAL_ERROR` sin exponer el detalle interno. Los filtros de Spring Security operan fuera de los controllers y necesitan sus propios manejadores para producir ese mismo formato.
+
 Dentro de cada capa los archivos se agrupan por **módulo de negocio** (`auth`, `space`, `reservation`, `checkin`, `block`, `parameter`, `quota`, `notification`, `equipment`, `report`, `contact`). Los módulos se hablan **solo mediante sus services**, de modo que si algún día hay que separar uno, la frontera ya existe.
 
 | Concepto compartido | SPEC que lo tocan |
@@ -194,6 +196,8 @@ Unimag-Deportes/
 
 Convenciones: UUID como identificadores, `timestamptz` para instantes (se interpretan en America/Bogota), enums como texto, migraciones versionadas con Flyway. **No hay tabla de franjas, de cuota ni de sesiones**: las dos primeras se derivan (D-06) y la sesión vive en el token JWT, que el servidor no guarda (D-17).
 
+**Decisión de desarrollo:** toda la persistencia se concentra en `src/main/resources/db/migration/V1__shared_schema.sql`, una única migración Flyway editable. Al modificar una migración ya aplicada, Flyway detecta un cambio de checksum: debe coordinarse la recreación de las bases locales o de prueba afectadas, sin borrar datos que deban conservarse. Antes de conservar datos reales o estabilizar un despliegue compartido se acordará una estrategia de evolución del esquema.
+
 **Actualización del prototipo:** la clasificación vigente de parámetros y reglas está en §4 y RN-30, RN-36, RN-37, RN-43 y RN-65 del contexto. Solo cuota y umbral de inasistencias son editables por Administrador. Las reservas conservan las reglas vigentes al crearse; las referencias anteriores a diez minutos de vigencia del código, cierre de check-in al fin de tolerancia o edición administrativa de todos los parámetros deben sustituirse por esas reglas.
 
 Cada reserva conserva los valores necesarios para evaluarla posteriormente: umbral de cancelación y apertura de check-in; el fin de check-in es `end_at`. Al crear se valida la cuota vigente para cada semana y una reserva que cruza semana reparte su duración. Si se reduce el límite no se cancelan reservas confirmadas y el saldo mostrado es `max(0, límite vigente − horas contadas)`. El umbral de sanción es una excepción: se usa el vigente al registrar la inasistencia, no una instantánea de la reserva.
@@ -216,7 +220,7 @@ Se aplica como máximo una suspensión por usuario y mes de inasistencia; las fa
 | `reservation_equipment` | `reservation_id`, `equipment_id`, `quantity` | `PRIMARY KEY(reservation_id, equipment_id)`; `CHECK(quantity > 0)`; claves foráneas a `reservation` y `equipment`; RN-64 |
 | `usage_parameters` | Singleton (`id = 1`): cuota semanal y número de inasistencias para suspender | `CHECK` de rangos; cada guardado sobrescribe. Los demás parámetros son fijos o de despliegue según el contexto §4. |
 | `audit_log` | `id`, `action`, `entity_type`, `entity_id`, `user_id` (nullable), `detail`, `created_at` | RNF-08; sin códigos ni tokens en `detail`. Además de reservas, cancelaciones, check-ins y sanciones, registra `CODE_REQUESTED`, `LOGIN`, `LOGIN_FAILED` y `LOGOUT` (RN-61) |
-| `monthly_suspension` | `user_id`, `absence_month`, `created_at` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; migración V12 de UC10. |
+| `monthly_suspension` | `user_id`, `absence_month`, `created_at` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; incluido en la migración única. |
 
 **Estados de la reserva que no liberan el espacio** (participan en la restricción de exclusión): `CONFIRMED`, `IN_USE`, `COMPLETED`, `NO_SHOW`. Las cancelaciones, incluida `CANCELLED_BY_SUSPENSION`, liberan. Esa misma lista determina qué reservas consumen stock de implementos (RN-65, RN-66).
 
@@ -699,7 +703,7 @@ La columna «Decisión» registra los acuerdos; permanecen pendientes técnicos 
 - **UC06 y UC07-H1 (3)** → dependen de 2 (parámetros y espacios son insumo de todo lo que sigue). UC05-H2 (QR) se agrega aquí porque solo necesita los espacios.
 - **UC02 (4)** → depende de 3. **UC03, UC11-H1, UC08 y UC04-H1 (5)** → dependen de 4 (UC03 incluye UC02) y de 3.
 - **UC04-H2 y UC05-H1 (6)** → dependen de 5 (el check-in también de UC05-H2).
-- **UC07-H2, UC10 y UC11-H2 (7)** → UC07-H2 depende de 5; UC10 de 6 y de las migraciones V10–V11 de la base de UC13 antes de aplicar V12; UC11-H2 se construye de forma **incremental**: el servicio base y `MailSender` en la fase 2, y cada plantilla (recordatorio, cancelación, bloqueo, inasistencia, suspensión) junto al caso de uso que la dispara.
+- **UC07-H2, UC10 y UC11-H2 (7)** → UC07-H2 depende de 5; UC10 de 6 y del esquema compartido; UC11-H2 se construye de forma **incremental**: el servicio base y `MailSender` en la fase 2, y cada plantilla (recordatorio, cancelación, bloqueo, inasistencia, suspensión) junto al caso de uso que la dispara.
 - **UC12 y UC09 (8)** → pueden iniciar después de 5 y completarse al final. **UC13 (9)** → depende de UC03 (fase 5) y de UC07-H1 (fase 3); puede adelantarse en paralelo con las fases 6 a 8. **Polish (N)** → después de las fases deseadas.
 - **En paralelo desde la fase 1**: el trámite de Entra ID con TI (OQ-15), porque es lo más lento y no depende del código.
 
@@ -707,7 +711,7 @@ La columna «Decisión» registra los acuerdos; permanecen pendientes técnicos 
 1 Setup → 2 Foundational (UC01 login por código + JWT + parámetros base + correo base + auditoría)
         → 3 UC06 + UC07-H1 + UC05-H2 → 4 UC02 → 5 UC03/UC11-H1/UC08/UC04-H1 → 6 UC04-H2/UC05-H1
                                                           │
-  └──► base UC13 (V10–V11) → 7 UC07-H2/UC10(V12)/UC11-H2 → 8 UC12/UC09 → 9 resto UC13 → N Polish
+  └──► esquema compartido → 7 UC07-H2/UC10/UC11-H2 → 8 UC12/UC09 → 9 resto UC13 → N Polish
 ```
 
 ### Qué debe contener cada plan específico por SPEC (`docs/features/NNN-…/plan.md`)

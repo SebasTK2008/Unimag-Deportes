@@ -32,7 +32,7 @@ UC10 marca la inasistencia al finalizar la reserva sin check-in y evalúa el umb
 **Project Type**: backend monolítico; job interno [D-07].
 **Performance Goals**: job idempotente cada minuto sobre volumen bajo.
 **Constraints**: sin check-in → `NO_SHOW` con horas contadas; mes calendario y umbral vigente; reservas futuras durante la suspensión se cancelan y liberan recursos; aviso; America/Bogota.
-**Scale/Scope**: sin endpoints; migración `V12` para marca mensual; 6 RF + 2 RNF + 3 CE + 2 HU.
+**Scale/Scope**: sin endpoints; marca mensual en la migración única compartida; 6 RF + 2 RNF + 3 CE + 2 HU.
 
 ## Project Structure
 
@@ -57,7 +57,7 @@ src/main/java/unimagdeportes/
 src/test/java/unimagdeportes/{integration/sanctions,unit/sanctions}/
 ```
 
-**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. `V12__create_monthly_suspension.sql` crea `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado. Se reserva V12 después de V10–V11.
+**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración única compartida incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado.
 
 ## Reglas de negocio
 
@@ -83,9 +83,11 @@ No aplica: UC10 es interno (scheduler), sin endpoints.
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01, UC03, UC05 y la base de UC11-H2; aplicar primero V10–V11 de la base de UC13 para conservar el orden de Flyway antes de V12.
+- [ ] **T001** Verificar UC01, UC03, UC05, la base de UC11-H2 y el esquema compartido.
 - [ ] **T002** Agregar la consulta de reservas `CONFIRMED` con ventana cerrada.
 - [ ] **T003** Agregar la consulta de inasistencias del mes calendario.
+
+**Base disponible:** la migración única crea `monthly_suspension` con clave por usuario y mes; la lógica, persistencia desde Java y pruebas de concurrencia de T011 permanecen pendientes.
 
 ### Phase 2: Foundational
 
@@ -99,7 +101,7 @@ No aplica: UC10 es interno (scheduler), sin endpoints.
 - [ ] **T008** [US1/P1] Integración de inasistencia al cerrar la ventana.
 - [ ] **T009** [US1/P1] Integración de reserva en tolerancia, transición `IN_USE` → `COMPLETED` al finalizar e idempotencia.
 - [ ] **T010** [US2/P2] Implementar `evaluateSuspension()` con umbral vigente y duración configurada.
-- [ ] **T011** [US2/P2] Calcular el conteo por mes calendario y probar el cambio de mes; persistir la marca única por usuario y mes mediante una migración nueva y probar reintentos concurrentes.
+- [ ] **T011** [US2/P2] Calcular el conteo por mes calendario y probar el cambio de mes; persistir la marca única por usuario y mes en el esquema compartido y probar reintentos concurrentes.
 - [ ] **T012** [US2/P2] Actualizar `suspended_until`, auditar y cancelar reservas futuras durante la suspensión, liberando recursos y notificando.
 - [ ] **T013** [US2/P2] Publicar el aviso de suspensión.
 - [ ] **T014** [US2/P2] Integración de suspensión.
