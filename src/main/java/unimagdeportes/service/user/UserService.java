@@ -45,6 +45,13 @@ public class UserService {
     }
 
     @Transactional
+    public AppUser completeProfile(UUID id, String name) {
+        AppUser user = users.findById(id).orElseThrow();
+        user.completeProfile(name.trim());
+        return user;
+    }
+
+    @Transactional
     public AppUser resolveDevUser(String email, String name) {
         AppUser user = resolveOrCreate(email);
         if (user.getName() == null || user.getName().isBlank()) {

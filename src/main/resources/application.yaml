@@ -4,11 +4,34 @@ spring:
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail.smtp.connectiontimeout: 10000
       mail.smtp.timeout: 10000
       mail.smtp.writetimeout: 10000
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  jackson:
+    time-zone: America/Bogota
+
+# Spring Boot reads SPRING_DATASOURCE_URL/USERNAME/PASSWORD outside Compose.
+# Keep forwarded headers disabled unless a trusted reverse proxy is configured.
+server:
+  forward-headers-strategy: none
+
+app:
+  auth:
+    jwt:
+      secret: ${APP_AUTH_JWT_SECRET}
+    code:
+      hmac-secret: ${APP_AUTH_CODE_HMAC_SECRET}
+      validity: ${APP_AUTH_CODE_VALIDITY:PT15M}
+      max-attempts: ${APP_AUTH_CODE_MAX_ATTEMPTS:5}
+    admin-emails: ${APP_AUTH_ADMIN_EMAILS:}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
