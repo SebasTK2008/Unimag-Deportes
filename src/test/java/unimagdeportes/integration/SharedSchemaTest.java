@@ -45,10 +45,42 @@ class SharedSchemaTest {
             assertThatThrownBy(() -> statement.executeUpdate(insert + UUID.randomUUID() + "','" + secondUser + values))
                     .isInstanceOf(SQLException.class).extracting(error -> ((SQLException) error).getSQLState())
                     .isEqualTo("23P01");
-            try (var result = statement.executeQuery("SELECT weekly_quota_hours FROM usage_parameters WHERE id=1")) {
+            try (var result = statement.executeQuery("SELECT p.weekly_quota_hours FROM usage_parameters p "
+                    + "JOIN usage_parameters_head h ON h.current_version_id = p.id WHERE h.id = 1")) {
                 assertThat(result.next()).isTrue();
                 assertThat(result.getInt(1)).isEqualTo(4);
             }
+        }
+    }
+
+    @Test
+    void initialParameterVersionHasDefaultsAndExactlyOneHead() throws SQLException {
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.createStatement();
+                var result = statement.executeQuery("select p.* from usage_parameters p "
+                        + "join usage_parameters_head h on h.current_version_id = p.id where h.id = 1")) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getLong("version_number")).isEqualTo(1);
+            assertThat(result.getInt("weekly_quota_hours")).isEqualTo(4);
+            assertThat(result.getInt("no_show_threshold")).isEqualTo(3);
+            assertThat(result.getObject("created_by")).isNull();
+            assertThat(result.getTimestamp("created_at")).isNotNull();
+            assertThat(result.next()).isFalse();
+        }
+    }
+
+    @Test
+    void parameterVersionsCannotBeOverwrittenOrDeleted() throws SQLException {
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.createStatement()) {
+            for (String sql : new String[]{"update usage_parameters set weekly_quota_hours = 8 where version_number = 1",
+                    "delete from usage_parameters where version_number = 1"}) {
+                assertThatThrownBy(() -> statement.executeUpdate(sql)).isInstanceOf(SQLException.class)
+                        .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23000");
+            }
+            assertThatThrownBy(() -> statement.executeUpdate("update usage_parameters_head set current_version_id = '"
+                    + UUID.randomUUID() + "' where id = 1")).isInstanceOf(SQLException.class)
+                    .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23503");
         }
     }
 

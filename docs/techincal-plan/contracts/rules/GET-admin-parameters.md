@@ -55,4 +55,5 @@ Sin parámetros.
 ## Notas
 
 - Muestra también valores fijos y de despliegue; solo `quota.weeklyHours` y `sanctions.noShowsForSuspension` se editan mediante `PUT /admin/parameters`.
+- Cuota y umbral proceden de la versión vigente; este endpoint no devuelve el historial ni sus metadatos. Véase D-26 del plan técnico.
 - Los parámetros de autenticación viven en `application.properties` y no se exponen ni se editan aquí (OQ-16).

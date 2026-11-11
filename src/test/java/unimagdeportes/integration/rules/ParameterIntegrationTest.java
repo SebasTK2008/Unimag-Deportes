@@ -61,14 +61,21 @@ class ParameterIntegrationTest extends RulesTestSupport {
         assertThat(body(send("GET", "/rules", null, admin))).isEqualTo(expectedRules(5, 2));
         var audit = jdbc.queryForMap("select * from audit_log where action = 'PARAMETERS_UPDATED'");
         assertThat(audit.get("entity_type")).isEqualTo("USAGE_PARAMETERS");
+        assertThat(audit.get("entity_id")).isEqualTo(currentVersionId());
         assertThat(audit.get("user_id")).isEqualTo(UUID.fromString(decoder.decode(admin).getSubject()));
         assertThat(audit.get("created_at")).isEqualTo(java.sql.Timestamp.from(clock.instant()));
         assertThat(audit.toString()).doesNotContain(admin, code("admin@unimagdalena.edu.co"));
+        var version = jdbc.queryForMap("select * from usage_parameters where id = ?", currentVersionId());
+        assertThat(version.get("version_number")).isEqualTo(2L);
+        assertThat(version.get("created_by")).isEqualTo(audit.get("user_id"));
+        assertThat(version.get("created_at")).isEqualTo(audit.get("created_at"));
+        assertThat(versionCount()).isEqualTo(2);
     }
 
     @Test
     void auditFailureRollsBackTheParameterUpdate() throws Exception {
         String admin = administrator();
+        UUID previous = currentVersionId();
         jdbc.execute("create function reject_parameters_audit() returns trigger language plpgsql as $$ "
                 + "begin if NEW.action = 'PARAMETERS_UPDATED' then raise exception 'test audit failure'; end if; return NEW; end $$");
         jdbc.execute("create trigger reject_parameters before insert on audit_log for each row execute function reject_parameters_audit()");
@@ -76,6 +83,8 @@ class ParameterIntegrationTest extends RulesTestSupport {
             error(send("PUT", "/admin/parameters", "{\"quota\":{\"weeklyHours\":5}}", admin), 500, "INTERNAL_ERROR");
             assertThat(parameters.current()).isEqualTo(new ParameterService.CurrentParameters(4, 3));
             assertThat(updateAuditCount()).isZero();
+            assertThat(versionCount()).isEqualTo(1);
+            assertThat(currentVersionId()).isEqualTo(previous);
         } finally {
             jdbc.execute("drop trigger reject_parameters on audit_log");
             jdbc.execute("drop function reject_parameters_audit()");
@@ -123,5 +132,65 @@ class ParameterIntegrationTest extends RulesTestSupport {
         }
         assertThat(parameters.current()).isEqualTo(new ParameterService.CurrentParameters(5, 2));
         assertThat(updateAuditCount()).isEqualTo(2);
+        assertThat(versionCount()).isEqualTo(3);
+        assertThat(jdbc.queryForList("select version_number from usage_parameters order by version_number", Long.class))
+                .containsExactly(1L, 2L, 3L);
+        assertThat(jdbc.queryForObject("select version_number from usage_parameters where id = ?", Long.class,
+                currentVersionId())).isEqualTo(3L);
+    }
+
+    @Test
+    void historyPreservesCompleteSnapshotsEvenWhenReturningToPreviousValues() throws Exception {
+        String admin = administrator();
+        var initial = jdbc.queryForMap("select * from usage_parameters where id = ?", currentVersionId());
+        assertThat(send("PUT", "/admin/parameters", "{\"quota\":{\"weeklyHours\":5}}", admin).statusCode()).isEqualTo(200);
+        UUID secondId = currentVersionId();
+        var second = jdbc.queryForMap("select * from usage_parameters where id = ?", secondId);
+        clock.advance(Duration.ofSeconds(1));
+        assertThat(send("PUT", "/admin/parameters", "{\"quota\":{\"weeklyHours\":4}}", admin).statusCode()).isEqualTo(200);
+        assertThat(currentVersionId()).isNotEqualTo(secondId).isNotEqualTo(initial.get("id"));
+        assertThat(jdbc.queryForMap("select * from usage_parameters where version_number = 1")).isEqualTo(initial);
+        assertThat(jdbc.queryForMap("select * from usage_parameters where id = ?", secondId)).isEqualTo(second);
+        assertThat(jdbc.queryForList("select weekly_quota_hours from usage_parameters order by version_number", Integer.class))
+                .containsExactly(4, 5, 4);
+        assertThat(jdbc.queryForList("select no_show_threshold from usage_parameters order by version_number", Integer.class))
+                .containsExactly(3, 3, 3);
+        assertThat(parameters.current()).isEqualTo(new ParameterService.CurrentParameters(4, 3));
+        assertThat(updateAuditCount()).isEqualTo(2);
+    }
+
+    @Test
+    void requestsWithoutEffectiveChangesPreserveVersionAndAudit() throws Exception {
+        String admin = administrator();
+        UUID initial = currentVersionId();
+        for (String request : new String[]{"{}", "{\"quota\":{},\"sanctions\":{}}",
+                "{\"quota\":{\"weeklyHours\":4},\"sanctions\":{\"noShowsForSuspension\":3}}"}) {
+            var response = send("PUT", "/admin/parameters", request, admin);
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(body(response)).isEqualTo(expectedRules(4, 3));
+        }
+        assertThat(currentVersionId()).isEqualTo(initial);
+        assertThat(versionCount()).isEqualTo(1);
+        assertThat(updateAuditCount()).isZero();
+    }
+
+    @Test
+    void concurrentIdenticalRequestsPublishOnlyOneVersion() throws Exception {
+        String admin = administrator();
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Callable<Integer> update = () -> {
+                assertThat(start.await(10, TimeUnit.SECONDS)).isTrue();
+                return send("PUT", "/admin/parameters", "{\"quota\":{\"weeklyHours\":5}}", admin).statusCode();
+            };
+            var first = executor.submit(update);
+            var second = executor.submit(update);
+            start.countDown();
+            assertThat(first.get(20, TimeUnit.SECONDS)).isEqualTo(200);
+            assertThat(second.get(20, TimeUnit.SECONDS)).isEqualTo(200);
+        }
+        assertThat(parameters.current()).isEqualTo(new ParameterService.CurrentParameters(5, 3));
+        assertThat(versionCount()).isEqualTo(2);
+        assertThat(updateAuditCount()).isEqualTo(1);
     }
 }

@@ -56,6 +56,8 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 
 Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semanal y el número de inasistencias para suspender se editan por el Administrador; los demás valores configurables se establecen por despliegue. Las reservas existentes conservan las reglas vigentes al crearse, salvo el umbral de sanción, que se evalúa con el valor vigente al registrar la inasistencia.
 
+Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos valores, número secuencial, fecha y administrador responsable. La versión inicial contiene 4 horas y 3 inasistencias y no tiene autor administrativo. Las actualizaciones parciales conservan los campos omitidos; una solicitud sin cambios efectivos no crea versión ni registro de modificación. La nueva versión se activa al confirmar la transacción, junto con su auditoría. El historial no versiona valores fijos, de despliegue ni de autenticación.
+
 | Parámetro | Valor |
 |---|---|
 | Cobros monetarios | Ninguno | 

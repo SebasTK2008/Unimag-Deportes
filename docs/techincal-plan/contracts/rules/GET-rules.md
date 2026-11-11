@@ -55,5 +55,6 @@ Sin parámetros.
 ## Notas
 
 - Devuelve los parámetros **de negocio** vigentes; los de autenticación no se exponen aquí (OQ-16).
+- Cuota y umbral se leen de la versión señalada por `usage_parameters_head`. El historial se conserva en base de datos y no cambia la forma de esta respuesta.
 - Solo cuota y umbral de inasistencias provienen de `usage_parameters` y se editan con `PUT /admin/parameters`; los demás son fijos o de despliegue (RF-12).
 - Las reglas de implementos (solicitud opcional y disponibilidad por stock) están en `POST /reservations`; esta consulta cubre cuota, tolerancia, cancelación, check-in y sanciones (RF-09).

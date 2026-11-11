@@ -80,6 +80,8 @@ Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias,
 - **RF-005**: El sistema DEBE almacenar esos dos valores editables; los restantes son fijos o configurables por despliegue según la sección 4.
 - **RF-006**: El sistema DEBE aplicar los valores vigentes a reservas nuevas y conservar las reglas de las reservas existentes.
 - **RF-007**: El sistema DEBE usar los valores por defecto de la sección 4 mientras no se modifiquen.
+- **RF-008**: Cada cambio efectivo DEBE crear una versión inmutable con cuota, umbral, UUID, número secuencial, fecha y administrador responsable, conservando las versiones anteriores. La versión inicial utiliza los valores por defecto y no tiene autor administrativo.
+- **RF-009**: La publicación de una versión, su activación y su auditoría DEBEN ser atómicas. Las actualizaciones parciales concurrentes DEBEN conservar los campos omitidos de la última versión vigente; una solicitud sin cambios efectivos no crea versión ni auditoría de modificación.
 
 ### Requisitos No Funcionales
 
@@ -88,6 +90,9 @@ Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias,
 - **RNF-003**: El inicio de la semana de conteo DEBE expresarse en zona horaria America/Bogota (sección 4 y RNF-07 del contexto).
 
 ### Entidades Clave
+
+- **VersionDeParametros**: Instantánea inmutable de cuota y umbral con `id`, `versionNumber`, `createdAt` y `createdBy`. La numeración ordena el historial; la fecha indica el registro, no una vigencia programada.
+- **ParametrosVigentes**: Referencia única a la versión activa. Las consultas actuales devuelven sus valores sin añadir campos ni endpoints de historial al contrato REST.
 
 - **ParametrosDeUso**: Valores de las reglas consultados en la Historia 1; la Historia 2 edita solo cuota y umbral de inasistencias. Valores iniciales:
   - Tolerancia para reservar una vez iniciada la franja: 10 minutos.
@@ -111,3 +116,5 @@ Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias,
 - **CE-002**: Cobertura, "Las cinco categorías de reglas (cuota, tolerancia, cancelación, check-in y sanciones) están presentes en la consulta".
 - **CE-003**: Configurabilidad, "La cuota semanal y el umbral de inasistencias son editables por Administrador; los demás valores respetan la clasificación de la sección 4".
 - **CE-004**: Aplicación de Cambios, "100% de los cambios guardados se reflejan en las validaciones posteriores y en la consulta de reglas de uso".
+- **CE-005**: Historial, "Cada cambio efectivo conserva una nueva versión completa y sus metadatos; ninguna versión anterior se sobrescribe o elimina mediante actualizaciones de parámetros".
+- **CE-006**: Atomicidad, "Los cambios concurrentes preservan los valores omitidos; un fallo revierte versión, activación y auditoría, y una solicitud sin cambios no añade versiones".

@@ -4,14 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import tools.jackson.databind.JsonNode;
 
 public abstract class RulesTestSupport extends AuthTestSupport {
-    @BeforeEach
     @AfterEach
     void resetParameters() {
-        jdbc.update("update usage_parameters set weekly_quota_hours = 4, no_show_threshold = 3 where id = 1");
+        resetUsageParameters();
     }
 
     protected String reauthenticate(String token) throws Exception {
@@ -44,5 +42,13 @@ public abstract class RulesTestSupport extends AuthTestSupport {
 
     protected int updateAuditCount() {
         return jdbc.queryForObject("select count(*) from audit_log where action = 'PARAMETERS_UPDATED'", Integer.class);
+    }
+
+    protected int versionCount() {
+        return jdbc.queryForObject("select count(*) from usage_parameters", Integer.class);
+    }
+
+    protected java.util.UUID currentVersionId() {
+        return jdbc.queryForObject("select current_version_id from usage_parameters_head where id = 1", java.util.UUID.class);
     }
 }

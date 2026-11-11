@@ -61,10 +61,30 @@ CREATE TABLE reservation_equipment (
     quantity integer NOT NULL CHECK (quantity > 0), PRIMARY KEY (reservation_id, equipment_id)
 );
 CREATE TABLE usage_parameters (
-    id integer PRIMARY KEY CHECK (id = 1), weekly_quota_hours integer NOT NULL CHECK (weekly_quota_hours > 0),
-    no_show_threshold integer NOT NULL CHECK (no_show_threshold > 0)
+    id uuid PRIMARY KEY,
+    version_number bigint NOT NULL UNIQUE CHECK (version_number > 0),
+    weekly_quota_hours integer NOT NULL CHECK (weekly_quota_hours > 0),
+    no_show_threshold integer NOT NULL CHECK (no_show_threshold > 0),
+    created_at timestamptz NOT NULL,
+    created_by uuid REFERENCES app_user(id),
+    CHECK ((version_number = 1 AND created_by IS NULL) OR (version_number > 1 AND created_by IS NOT NULL))
 );
-INSERT INTO usage_parameters (id, weekly_quota_hours, no_show_threshold) VALUES (1, 4, 3);
+CREATE TABLE usage_parameters_head (
+    id integer PRIMARY KEY CHECK (id = 1),
+    current_version_id uuid NOT NULL REFERENCES usage_parameters(id)
+);
+INSERT INTO usage_parameters (id, version_number, weekly_quota_hours, no_show_threshold, created_at, created_by)
+VALUES ('00000000-0000-0000-0000-000000000001', 1, 4, 3, now(), NULL);
+INSERT INTO usage_parameters_head (id, current_version_id)
+VALUES (1, '00000000-0000-0000-0000-000000000001');
+
+CREATE FUNCTION reject_usage_parameters_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'Usage parameter versions are immutable' USING ERRCODE = '23000';
+END;
+$$;
+CREATE TRIGGER usage_parameters_immutable BEFORE UPDATE OR DELETE ON usage_parameters
+FOR EACH ROW EXECUTE FUNCTION reject_usage_parameters_mutation();
 CREATE TABLE audit_log (
     id uuid PRIMARY KEY, action varchar(64) NOT NULL, entity_type varchar(64) NOT NULL,
     entity_id uuid, user_id uuid REFERENCES app_user(id), detail text, created_at timestamptz NOT NULL

@@ -14,7 +14,8 @@ class ConfiguredRulesTest extends RulesTestSupport {
     @Test
     void readsDeploymentSettingsAlongsideDatabaseValuesWithoutMakingThemEditable() throws Exception {
         String admin = administrator();
-        jdbc.update("update usage_parameters set weekly_quota_hours = 8, no_show_threshold = 4 where id = 1");
+        assertThat(send("PUT", "/admin/parameters",
+                "{\"quota\":{\"weeklyHours\":8},\"sanctions\":{\"noShowsForSuspension\":4}}", admin).statusCode()).isEqualTo(200);
         var expected = expectedRules(8, 4);
         ((ObjectNode) expected.get("reservation")).put("bookingToleranceMinutes", 15).put("minAdvanceMinutes", 5);
         ((ObjectNode) expected.get("cancellation")).put("lateThresholdMinutes", 90);

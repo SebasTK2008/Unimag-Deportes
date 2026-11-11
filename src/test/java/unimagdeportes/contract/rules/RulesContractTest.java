@@ -36,7 +36,8 @@ class RulesContractTest extends RulesTestSupport {
         assertThat(body(emptyBlocks)).isEqualTo(expectedRules(5, 2));
         assertThat(body(send("GET", "/rules", null, admin))).isEqualTo(expectedRules(5, 2));
         assertThat(body(send("GET", "/admin/parameters", null, admin))).isEqualTo(expectedRules(5, 2));
-        assertThat(jdbc.queryForObject("select count(*) from usage_parameters", Integer.class)).isEqualTo(1);
+        assertThat(versionCount()).isEqualTo(3);
+        assertThat(updateAuditCount()).isEqualTo(2);
     }
 
     @Test
