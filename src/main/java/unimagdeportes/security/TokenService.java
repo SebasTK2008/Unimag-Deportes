@@ -23,9 +23,22 @@ public class TokenService {
 
     public String issue(AppUser user) {
         Instant now = clock.instant();
-        JwtClaimsSet claims = JwtClaimsSet.builder().subject(user.getId().toString())
+        return issue(user, now, now.plus(Duration.ofHours(24)), null);
+    }
+
+    public String issueReauthenticated(AppUser user, Instant expiresAt) {
+        Instant now = clock.instant();
+        return issue(user, now, expiresAt, now);
+    }
+
+    private String issue(AppUser user, Instant now, Instant expiresAt, Instant reauthAt) {
+        var builder = JwtClaimsSet.builder().subject(user.getId().toString())
                 .claim("email", user.getEmail()).claim("role", user.getRole().name())
-                .issuedAt(now).expiresAt(now.plus(Duration.ofHours(24))).build();
+                .issuedAt(now).expiresAt(expiresAt);
+        if (reauthAt != null) {
+            builder.claim("reauth_at", reauthAt.getEpochSecond());
+        }
+        JwtClaimsSet claims = builder.build();
         return encoder.encode(JwtEncoderParameters.from(
                 JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
     }

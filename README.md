@@ -1,12 +1,35 @@
 # Unimag-Deportes
 Plataforma de reservas de espacios deportivos en la universidad del magdalena
 
-## Desarrollo local (core parcial)
+## Desarrollo local
 
-El backend requiere Java 25, PostgreSQL y una clave JWT externa de al menos 32 bytes. Configure `APP_AUTH_JWT_SECRET` (propiedad `app.auth.jwt.secret`) y `SPRING_PROFILES_ACTIVE=dev` en el entorno; no guarde claves reales en el repositorio. `compose.yaml` define PostgreSQL y Mailpit, y el proyecto incluye integración de Docker Compose para desarrollo. El arranque completo con Docker está pendiente de verificación.
+El backend requiere Java 25, PostgreSQL y dos claves externas independientes de al menos 32 bytes: `APP_AUTH_JWT_SECRET` y `APP_AUTH_CODE_HMAC_SECRET`. No guarde claves reales en el repositorio. `compose.yaml` define PostgreSQL y Mailpit, y el proyecto incluye integración de Docker Compose para desarrollo. Se verificó el JAR con esos servicios: solicitud de código, entrega SMTP, login, perfil y logout.
 
-Con el perfil `dev`, `POST /dev/login` acepta JSON con `email` institucional y `name`, crea el usuario si hace falta y devuelve un JWT en `token`. Este acceso no verifica el control del correo y no existe fuera del perfil `dev`; no sustituye el flujo por código de UC01, que está pendiente. La lista opcional `app.auth.admin-emails` determina el rol inicial de los usuarios nuevos.
+El flujo de UC01 usa `POST /auth/code` y `POST /auth/verify`; luego se completa el nombre mediante `PUT /me/profile` si `needsName` es `true`. Consulte los [contratos de autenticación](docs/techincal-plan/contracts/README.md#autenticación-uc01). El token dura 24 horas y se envía como `Authorization: Bearer`, nunca en cookies. El cliente React, en otro repositorio, conserva el destino de navegación y elimina su token al cerrar sesión.
+
+Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` institucional y `name`, crea el usuario si hace falta y devuelve un JWT en `token`. Este acceso no verifica el control del correo y no existe fuera del perfil `dev`; no debe habilitarse en producción. `APP_AUTH_ADMIN_EMAILS` determina únicamente el rol inicial de los usuarios nuevos.
+
+### Configuración
+
+| Variable | Uso / valor predeterminado |
+|---|---|
+| `APP_AUTH_JWT_SECRET` | Obligatoria; clave HS256 de al menos 32 bytes UTF-8. |
+| `APP_AUTH_CODE_HMAC_SECRET` | Obligatoria; clave HMAC de al menos 32 bytes UTF-8, distinta de la clave JWT. |
+| `APP_AUTH_CODE_VALIDITY` | Duración ISO-8601 positiva; `PT15M`. |
+| `APP_AUTH_CODE_MAX_ATTEMPTS` | Entero positivo; `5`. |
+| `APP_AUTH_ADMIN_EMAILS` | Correos separados por comas; vacío por defecto. |
+| `APP_CORS_ALLOWED_ORIGINS` | Orígenes del cliente separados por comas; vacío por defecto. No usa credenciales de cookies. |
+| `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
+| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
+| `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Conexión externa si no se usa la detección automática de Compose. |
+
+Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
+
+`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye contrato de los siete endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. Se verificaron 47 pruebas sin fallos.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
+
+En producción se requiere HTTPS y HSTS en el punto de entrada. Por defecto no se confía en encabezados reenviados: el límite por IP usa la dirección remota de la conexión. Si existe un proxy, configure explícitamente su confianza y evite que la API sea accesible directamente; no habilite la confianza indiscriminada en `X-Forwarded-For`. No active logs de cuerpos HTTP, credenciales SMTP o tokens.
 
 La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse.

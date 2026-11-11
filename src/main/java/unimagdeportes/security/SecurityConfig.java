@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,6 +32,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import unimagdeportes.model.user.AppUser;
 import unimagdeportes.service.user.UserService;
+import unimagdeportes.service.audit.AuditService;
 
 @Configuration
 public class SecurityConfig {
@@ -70,7 +70,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, UserService users) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, UserService users, Clock clock, AuditService audit) throws Exception {
         var securityErrors = new SecurityErrorHandler();
         return http.csrf(csrf -> csrf.disable()).cors(cors -> { })
                 .headers(headers -> headers.contentSecurityPolicy(csp ->
@@ -78,6 +78,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/dev/login", "/auth/code", "/auth/verify").permitAll()
+                        .requestMatchers("/auth/reauth/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(securityErrors)
@@ -91,17 +92,18 @@ public class SecurityConfig {
                         throw new org.springframework.security.oauth2.core.OAuth2AuthenticationException(
                                 new org.springframework.security.oauth2.core.OAuth2Error("invalid_token"), ex);
                     }
-                    UserPrincipal principal = new UserPrincipal(user.getId(), user.getEmail(), user.getRole());
                     var authorities = new ArrayList<SimpleGrantedAuthority>();
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
                     if (user.getName() == null || user.getName().isBlank()) {
                         authorities.add(new SimpleGrantedAuthority("PROFILE_INCOMPLETE"));
                     }
-                    return (AbstractAuthenticationToken) new UsernamePasswordAuthenticationToken(principal, token,
-                            authorities);
+                    return (AbstractAuthenticationToken) new UserAuthentication(user, token, authorities);
                 })))
+                .addFilterBefore(new AuthAuditFilter(audit),
+                        org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(new ProfileCompletionFilter(),
                         org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new ReauthenticationFilter(clock), ProfileCompletionFilter.class)
                 .build();
     }
 
