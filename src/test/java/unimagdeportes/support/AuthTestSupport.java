@@ -74,7 +74,7 @@ public abstract class AuthTestSupport {
     @RestController
     @Profile("auth-test")
     public static class ProtectedProbe {
-        @RequestMapping({"/test/protected", "/admin/blocks", "/admin/parameters"})
+        @RequestMapping({"/test/protected", "/admin/blocks"})
         ResponseEntity<Void> protectedAction() { return ResponseEntity.noContent().build(); }
     }
 

@@ -80,34 +80,35 @@ Fuente: [`contracts/rules/`](../../techincal-plan/contracts/README.md) (3 archiv
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01 (`SecurityConfig`, `ReauthPolicy`) y esquema compartido.
+- [x] **T001** Verificar prerrequisitos: UC01 (`SecurityConfig`, `ReauthPolicy`) y esquema compartido.
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear los DTO de `dto/parameter/`.
-- [ ] **T003** Crear `ParameterMapper`.
+- [x] **T002** Crear los DTO de `dto/parameter/`.
+- [x] **T003** Crear `ParameterMapper`.
 
-**Base disponible:** `UsageParameters`, su repositorio y `ParameterService.current()` leen cuota y umbral; aún faltan las reglas completas, los DTO y las operaciones de administración de este UC.
+**Base disponible:** `UsageParameters`, su repositorio y `ParameterService.current()` leen cuota y umbral. Ya están implementados los DTO, las reglas completas y las operaciones de administración de este UC.
 
 ### Phase 3: User Stories
 
-- [ ] **T004** [US1/P1] Implementar `ParameterService.getRules()`.
-- [ ] **T005** [US1/P1] Implementar `GET /rules`.
-- [ ] **T006** [US1/P1] Excluir los parámetros de autenticación de la respuesta.
-- [ ] **T007** [US1/P1] Prueba de contrato e integración de la consulta.
-- [ ] **T008** [US2/P1] Implementar `getParameters()` y `updateParameters()`.
-- [ ] **T009** [US2/P1] Validar rangos de cada parámetro de negocio.
-- [ ] **T010** [US2/P1] Exigir `REAUTH_REQUIRED` en el `PUT`.
-- [ ] **T011** [US2/P1] Implementar `GET/PUT /admin/parameters`.
-- [ ] **T012** [US2/P1] Registrar auditoría.
-- [ ] **T013** [US2/P1] Pruebas de contrato de administración.
-- [ ] **T014** [US2/P1] Integración de reautenticación.
+- [x] **T004** [US1/P1] Implementar `ParameterService.getRules()`.
+- [x] **T005** [US1/P1] Implementar `GET /rules`.
+- [x] **T006** [US1/P1] Excluir los parámetros de autenticación de la respuesta.
+- [x] **T007** [US1/P1] Prueba de contrato e integración de la consulta.
+- [x] **T008** [US2/P1] Implementar `getParameters()` y `updateParameters()`.
+- [x] **T009** [US2/P1] Validar rangos de cada parámetro de negocio.
+- [x] **T010** [US2/P1] Exigir `REAUTH_REQUIRED` en el `PUT`.
+- [x] **T011** [US2/P1] Implementar `GET/PUT /admin/parameters`.
+- [x] **T012** [US2/P1] Registrar auditoría.
+- [x] **T013** [US2/P1] Pruebas de contrato de administración.
+- [x] **T014** [US2/P1] Integración de reautenticación.
 - [ ] **T015** [US2/P1] Integración de "rige para operaciones nuevas".
+  - **Parcial:** `ParameterIntegrationTest` verifica que las reservas existentes permanecen intactas y que los nuevos valores se publican. Falta comprobar su aplicación al crear reservas y registrar inasistencias cuando estén implementados los consumidores de UC03 y UC10; el umbral de sanción se evalúa con el valor vigente al registrar la inasistencia.
 
 ### Phase 4: Polish
 
-- [ ] **T016** Revisar valores por defecto contra la sección 4 del contexto.
-- [ ] **T017** Verificar que los parámetros de autenticación nunca se exponen y ejecutar `./mvnw clean verify`.
+- [x] **T016** Revisar valores por defecto contra la sección 4 del contexto.
+- [x] **T017** Verificar que los parámetros de autenticación nunca se exponen y ejecutar `./mvnw clean verify`.
 
 ## Dependencies & Execution Order
 
@@ -125,5 +126,5 @@ UC06 depende de UC01. Es prerrequisito de UC03, UC05, UC08 y UC10, que leen sus 
 
 - [ ] Alineado con SPEC 006 y `contracts/rules/`.
 - [ ] RF/RNF/CE/HU trazados.
-- [ ] Parámetros de autenticación fuera de la API.
-- [ ] Reautenticación aplicada al `PUT`.
+- [x] Parámetros de autenticación fuera de la API.
+- [x] Reautenticación aplicada al `PUT`.

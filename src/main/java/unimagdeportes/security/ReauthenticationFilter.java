@@ -37,7 +37,9 @@ public class ReauthenticationFilter extends OncePerRequestFilter {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setContentType("application/json");
                 response.setCharacterEncoding("UTF-8");
-                response.getWriter().write("{\"code\":\"REAUTH_REQUIRED\",\"message\":\"Debes reautenticarte.\"}");
+                String message = request.getServletPath().equals("/admin/parameters")
+                        ? "Debes reautenticarte para cambiar las reglas." : "Debes reautenticarte.";
+                response.getWriter().write("{\"code\":\"REAUTH_REQUIRED\",\"message\":\"" + message + "\",\"details\":{}}");
                 return;
             }
         }

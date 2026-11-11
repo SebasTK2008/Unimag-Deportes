@@ -25,6 +25,12 @@ server:
   forward-headers-strategy: none
 
 app:
+  rules:
+    booking-tolerance-minutes: ${APP_RULES_BOOKING_TOLERANCE_MINUTES:10}
+    late-cancellation-minutes: ${APP_RULES_LATE_CANCELLATION_MINUTES:60}
+    min-advance-minutes: ${APP_RULES_MIN_ADVANCE_MINUTES:0}
+    checkin-opening-minutes: ${APP_RULES_CHECKIN_OPENING_MINUTES:10}
+    suspension-days: ${APP_RULES_SUSPENSION_DAYS:7}
   auth:
     jwt:
       secret: ${APP_AUTH_JWT_SECRET}

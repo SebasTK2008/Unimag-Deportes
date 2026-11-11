@@ -16,4 +16,9 @@ public class UsageParameters {
 
     public int getWeeklyQuotaHours() { return weeklyQuotaHours; }
     public int getNoShowThreshold() { return noShowThreshold; }
+
+    public void update(Integer weeklyQuotaHours, Integer noShowThreshold) {
+        if (weeklyQuotaHours != null) this.weeklyQuotaHours = weeklyQuotaHours;
+        if (noShowThreshold != null) this.noShowThreshold = noShowThreshold;
+    }
 }
