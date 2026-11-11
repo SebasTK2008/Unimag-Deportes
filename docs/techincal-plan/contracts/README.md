@@ -28,7 +28,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 | `Role` | `USER`, `ADMIN` |
 | `Discipline` | `BASKETBALL`, `VOLLEYBALL`, `FOOTBALL_5`, `FOOTBALL_11`, `TENNIS` |
 | `SpaceStatus` | `ACTIVE`, `MAINTENANCE` |
-| `ReservationStatus` | `CONFIRMED`, `IN_USE`, `COMPLETED`, `CANCELLED_ON_TIME`, `CANCELLED_LATE`, `NO_SHOW`, `CANCELLED_BY_ADMIN` |
+| `ReservationStatus` | `CONFIRMED`, `IN_USE`, `COMPLETED`, `CANCELLED_ON_TIME`, `CANCELLED_LATE`, `NO_SHOW`, `CANCELLED_BY_ADMIN`, `CANCELLED_BY_SUSPENSION` |
 | `SlotStatus` | `FREE`, `OCCUPIED`, `BLOCKED` |
 | `EquipmentStatus` | `AVAILABLE`, `INACTIVE` |
 | `BlockType` | `CLASS`, `EVENT`, `MAINTENANCE` |
@@ -102,7 +102,7 @@ Todos los errores usan el mismo cuerpo:
 | `EQUIPMENT_UNAVAILABLE` | 409 | Implemento inactivo o sin stock suficiente en la franja. | RN-62, RN-65 |
 | `RESERVATION_NOT_CANCELLABLE` | 409 | La reserva ya tiene check-in o no se puede cancelar. | RN-24 |
 | `NO_ACTIVE_RESERVATION` | 404 | No hay reserva del usuario en ese espacio para el check-in. | RN-33 |
-| `CHECKIN_TOO_EARLY` | 409 | Falta más de 10 minutos para el inicio. | RN-36 |
+| `CHECKIN_TOO_EARLY` | 409 | Aún no abrió la ventana aplicable a la reserva. | RN-36 |
 | `CHECKIN_WINDOW_CLOSED` | 409 | La ventana de check-in ya cerró. | RN-36 |
 | `RESERVATION_CANCELLED` | 409 | La reserva fue cancelada. | RN-35 |
 

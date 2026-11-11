@@ -31,7 +31,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
    - **Entonces** la franja aparece ocupada, sin importar la disciplina con la que se hizo la reserva.
 
 4. **Escenario**: Franja libre que ya comenzó.
-   - **Dado** que una franja libre ya comenzó.
+   - **Dado** que una franja libre ya comenzó y la tolerancia configurada es de 10 minutos.
    - **Cuando** se consulta el calendario dentro de los 10 minutos siguientes a su inicio.
    - **Entonces** la franja sigue disponible para reservar; pasada la tolerancia deja de ser reservable aunque siga libre.
 

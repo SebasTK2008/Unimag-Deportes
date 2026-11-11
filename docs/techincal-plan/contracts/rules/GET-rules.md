@@ -18,7 +18,8 @@ Sin parámetros.
     "slotMinutes": 60,
     "maxSlotsPerReservation": 2,
     "maxAdvanceDays": 7,
-    "minAdvanceMinutes": 0
+    "minAdvanceMinutes": 0,
+    "bookingToleranceMinutes": 10
   },
   "quota": {
     "weeklyHours": 4,
@@ -30,15 +31,14 @@ Sin parámetros.
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtToleranceEnd": true,
-    "toleranceBookingMinutes": 10
+    "closesAtReservationEnd": true
   },
   "reminder": {
     "hoursBefore": 2
   },
   "sanctions": {
     "noShowsForSuspension": 3,
-    "windowDays": 30,
+    "window": "CALENDAR_MONTH",
     "suspensionDays": 7
   },
   "emailDomain": "@unimagdalena.edu.co"
@@ -55,5 +55,5 @@ Sin parámetros.
 ## Notas
 
 - Devuelve los parámetros **de negocio** vigentes; los de autenticación no se exponen aquí (OQ-16).
-- Los valores provienen de `usage_parameters` y el Administrador puede cambiarlos con `PUT /admin/parameters` (RF-12).
+- Solo cuota y umbral de inasistencias provienen de `usage_parameters` y se editan con `PUT /admin/parameters`; los demás son fijos o de despliegue (RF-12).
 - Las reglas de implementos (solicitud opcional y disponibilidad por stock) están en `POST /reservations`; esta consulta cubre cuota, tolerancia, cancelación, check-in y sanciones (RF-09).

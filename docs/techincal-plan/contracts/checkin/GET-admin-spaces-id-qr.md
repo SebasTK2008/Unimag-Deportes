@@ -21,13 +21,12 @@ GET /admin/spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/qr
 ### 200 OK
 
 ```http
-Content-Type: image/png
-Content-Disposition: inline; filename="qr-cancha-voleibol-1.png"
+Content-Type: image/svg+xml; charset=UTF-8
 ```
 
-Cuerpo binario: imagen PNG del QR, imprimible.
+Cuerpo: texto SVG UTF-8 generado a partir del QR con ZXing, para que el frontend lo renderice o descargue e imprima.
 
-El QR contiene el enlace fijo `/checkin/{id_espacio}` y no incluye datos del usuario (RN-31, RN-32).
+El QR debe contener una URL absoluta del frontend cuya ruta es `/checkin/{id_espacio}`, sin datos del usuario (RN-31, RN-32). El origen público debe configurarse por despliegue; **pendiente de confirmar** nombre de propiedad y tratamiento de entornos sin HTTPS.
 
 ### 404 Not Found
 

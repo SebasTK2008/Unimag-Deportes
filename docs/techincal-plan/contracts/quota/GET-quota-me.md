@@ -6,6 +6,8 @@
 
 ## Solicitud
 
+Si las horas contadas superan el límite vigente, las reservas existentes se mantienen y las horas disponibles se muestran como cero.
+
 Sin parámetros.
 
 ## Respuestas
@@ -34,5 +36,5 @@ Sin parámetros.
 ## Notas
 
 - La cuota se calcula sobre las reservas que cuentan en la semana, no se almacena como saldo (RN-16, RN-17).
-- Cuentan: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo y cancelada por el administrador (sección 5.4 del contexto).
+- Cuentan: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo, por el administrador o por suspensión (sección 5.4 del contexto).
 - La semana comienza el lunes a las 00:00 en America/Bogota (RNF-07).

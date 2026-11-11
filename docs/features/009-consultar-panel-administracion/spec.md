@@ -51,7 +51,7 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
   Sobre períodos fijos semanal y mensual; el frontend permite elegir cuál ver (OQ-08).
 
 - **¿Qué se cuenta como cancelación tardía o inasistencia?**
-  Lo definido por las reglas del contexto: cancelación tardía es la hecha con menos de 60 minutos de anticipación o con la franja ya iniciada sin check-in (RN-22), e inasistencia es la reserva sin check-in al cerrar la ventana (RN-37).
+  Lo definido por las reglas del contexto: cancelación tardía es la hecha con anticipación inferior al umbral conservado por la reserva o con la franja ya iniciada sin check-in (RN-22), e inasistencia es la reserva sin check-in al cerrar la ventana (RN-37).
 
 ## Requisitos *(obligatorio)*
 

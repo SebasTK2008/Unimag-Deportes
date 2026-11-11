@@ -18,7 +18,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 1. **Escenario**: Solicitud de código con correo institucional.
    - **Dado** que la persona tiene un correo del dominio institucional.
    - **Cuando** solicita su código de acceso.
-   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 10 minutos de vigencia. Si ya había un código vigente, el nuevo lo invalida.
+   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 15 minutos de vigencia por defecto, configurable por despliegue. Si ya había un código vigente, el nuevo lo invalida.
 
 2. **Escenario**: Correo de otro dominio.
    - **Dado** que la persona intenta solicitar el código con un correo que no pertenece al dominio institucional.
@@ -36,9 +36,9 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
    - **Entonces** el sistema rechaza el acceso e informa que debe corregir el código o solicitar uno nuevo.
 
 5. **Escenario**: Límite de intentos por código.
-   - **Dado** que la persona acumuló 5 intentos fallidos con el mismo código.
-   - **Cuando** intenta un sexto intento.
-   - **Entonces** el código queda invalidado y la persona debe solicitar uno nuevo.
+   - **Dado** que la persona acumuló cuatro intentos fallidos con el mismo código, con el límite inicial de cinco.
+   - **Cuando** falla el quinto intento.
+   - **Entonces** el código queda invalidado inmediatamente y la persona debe solicitar uno nuevo.
 
 6. **Escenario**: Límite de solicitudes de código.
    - **Dado** que la persona solicitó un código hace menos de 60 segundos, o ya hizo 5 solicitudes en la última hora con ese correo.
@@ -79,7 +79,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   Sí. Un Usuario suspendido puede consultar disponibilidad y sus reservas, pero no puede crear nuevas hasta que termine la suspensión (RN-05).
 
 - **¿Cuál es el dominio institucional válido?**
-  Es `@unimagdalena.edu.co` (OQ-11) y es un parámetro configurable (ver SPEC 006), no un valor fijo en el código.
+  Es `@unimagdalena.edu.co` (OQ-11), fijo y no editable por el Administrador (sección 4 del contexto).
 
 - **¿Cómo se obtiene el rol de Administrador?**
   No se obtiene por autoservicio: se siembra en la columna `role` de `app_user` desde la lista `app.auth.admin-emails` al aprovisionar el usuario (RN-60, OQ-02). El Administrador inicia sesión con el mismo mecanismo que el Usuario.
@@ -97,7 +97,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   El sistema informa a la persona y le permite solicitar otro código, respetando los límites de solicitud (RN-53, OQ-04). En los demás correos, el fallo se registra y no revierte la operación de negocio (ver SPEC 011).
 
 - **¿Se puede cerrar la sesión de un dispositivo perdido?**
-  No en el prototipo: no hay revocación individual de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas) o hasta que el usuario sea suspendido o cambie su estado (RN-58, OQ-17). Rotar la llave de firma en una emergencia invalida todos los tokens.
+  No en el prototipo: no hay revocación individual de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas). La suspensión no lo invalida: restringe las acciones autorizadas; el rol y la existencia se comprueban en cada petición (RN-58, OQ-17). Rotar la llave de firma en una emergencia invalida todos los tokens.
 
 - **¿El método de acceso es definitivo?**
   No necesariamente. El código de acceso es sustituible por el inicio de sesión con Microsoft de la universidad sin cambiar los demás casos de uso (ver plan técnico, D-08 y D-09).
@@ -108,8 +108,8 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 
 - **RF-001**: El sistema DEBE permitir iniciar sesión con el correo institucional y un código de acceso de un solo uso enviado a ese correo, sin contraseñas ni registro previo (RF-01, RN-49).
 - **RF-002**: El sistema DEBE validar el dominio al solicitar el código, rechazar los correos que no pertenezcan al dominio institucional configurado y no enviar ningún correo en ese caso (RN-01, RN-50).
-- **RF-003**: El sistema DEBE generar el código con 6 dígitos y un generador criptográficamente seguro, con vigencia de 10 minutos y un solo uso; solicitar un código nuevo DEBE invalidar el anterior, y el sistema DEBE guardar únicamente su hash (RN-51).
-- **RF-004**: El sistema DEBE admitir un máximo de 5 intentos fallidos por código y, al superarlos, invalidarlo (RN-52).
+- **RF-003**: El sistema DEBE generar el código con 6 dígitos y un generador criptográficamente seguro, con vigencia configurable de 15 minutos por defecto y un solo uso; solicitar un código nuevo DEBE invalidar el anterior, y el sistema DEBE guardar únicamente su HMAC (RN-51).
+- **RF-004**: El sistema DEBE invalidar el código al alcanzar el límite configurado de intentos fallidos (5 por defecto), sin admitir otro intento (RN-52).
 - **RF-005**: El sistema DEBE exigir al menos 60 segundos entre dos solicitudes de código para el mismo correo, permitir como máximo 5 solicitudes por hora por correo e informar cuánto debe esperar la persona (RN-53).
 - **RF-006**: El sistema DEBE emitir, al verificar un código correcto, un token JWT firmado con vigencia de 24 horas desde su emisión, que incluya como mínimo el identificador del usuario, su correo, su rol, la fecha de emisión y la de expiración (RN-54).
 - **RF-007**: El sistema NO DEBE usar cookies para la sesión: el token se envía en cada petición en el encabezado `Authorization: Bearer` (RN-55).

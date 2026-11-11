@@ -37,12 +37,14 @@ GET /spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/availability?date=2026-11-11&di
       "startAt": "2026-11-11T14:00:00-05:00",
       "endAt": "2026-11-11T15:00:00-05:00",
       "status": "FREE",
+      "bookable": true,
       "reason": null
     },
     {
       "startAt": "2026-11-11T15:00:00-05:00",
       "endAt": "2026-11-11T16:00:00-05:00",
       "status": "BLOCKED",
+      "bookable": false,
       "reason": "Clase de voleibol"
     }
   ]
@@ -50,6 +52,7 @@ GET /spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/availability?date=2026-11-11&di
 ```
 
 - `status`: `FREE`, `OCCUPIED` o `BLOCKED`.
+- `bookable` indica si la franja se puede reservar en el momento de la consulta; una franja `FREE` con tolerancia vencida tiene `bookable: false`.
 - `reason` solo tiene valor cuando la franja está bloqueada (RN-44).
 
 ### 400 Bad Request

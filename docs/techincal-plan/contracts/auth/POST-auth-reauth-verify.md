@@ -51,9 +51,9 @@
 |---|---|---|---|
 | `VALIDATION_ERROR` | 400 | Falta `code` o el formato no es válido. | — |
 | `INVALID_CODE` | 400 | El código no coincide. | RN-51 |
-| `CODE_EXPIRED` | 400 | Pasaron más de 10 minutos. | RN-51 |
+| `CODE_EXPIRED` | 400 | Venció la vigencia configurada del código (15 minutos por defecto). | RN-51 |
 | `CODE_INVALIDATED` | 400 | El código ya se usó o fue reemplazado. | RN-51 |
-| `TOO_MANY_ATTEMPTS` | 400 | Se superaron 5 intentos fallidos. | RN-52 |
+| `TOO_MANY_ATTEMPTS` | 400 | El último intento fallido permitido invalida el código. | RN-52 |
 | `TOKEN_EXPIRED` | 401 | El token presentado venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 

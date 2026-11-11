@@ -16,7 +16,7 @@ UC08 implementa la consulta de horas usadas, disponibles y fecha de reinicio de 
 | RF-004 | límite configurado (UC06) | T004 |
 | RF-005, RF-006 | `WeekCalculator` | T002, T010 |
 | RF-007 | semana de la fecha de la franja | T004, T010 |
-| RNF-001..RNF-003 | DTO, zona horaria | T002, T005 |
+| RNF-001..RNF-002 | DTO, zona horaria | T002, T005 |
 | CE-001..CE-003 | aceptación | T007, T008, T012 |
 | HU1, HU2 | consulta y reinicio | Fase 3 |
 
@@ -31,7 +31,7 @@ UC08 implementa la consulta de horas usadas, disponibles y fecha de reinicio de 
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: consulta agregada rápida y coherente con las reservas.
 **Constraints**: 4 h por defecto (OQ-12); semana de la franja (RN-17); lunes 00:00 America/Bogota (RNF-07); sin saldo persistido (D-06).
-**Scale/Scope**: 1 endpoint, sin migraciones, 7 RF + 3 RNF + 3 CE + 2 HU.
+**Scale/Scope**: 1 endpoint, sin migraciones, 7 RF + 2 RNF + 3 CE + 2 HU.
 
 ## Project Structure
 
@@ -51,20 +51,20 @@ src/main/java/unimagdeportes/
 ├── controller/quota/QuotaController.java
 ├── service/quota/QuotaService.java
 ├── service/policy/WeekCalculator.java
-├── repository/ReservationRepository.java
+├── service/reservation/  # consulta mediante servicio propietario
 └── dto/quota/ · mapper/quota/QuotaMapper.java
 
 src/test/java/unimagdeportes/{contract/quota,integration/quota,unit/policy}/
 ```
 
-**Structure Decision**: sin migraciones propias; reutiliza el repositorio de reservas de UC03. `WeekCalculator` es pura.
+**Structure Decision**: sin migraciones propias; consulta reservas mediante el servicio propietario de UC03. `WeekCalculator` es pura.
 
 ## Reglas de negocio
 
 1. **Horas que cuentan** [sección 5.4]: confirmada, en uso, completada, cancelada tardía e inasistencia.
-2. **No cuentan** [sección 5.4]: cancelada a tiempo y cancelada por administrador.
+2. **No cuentan** [sección 5.4]: cancelada a tiempo, por administrador o por suspensión.
 3. **Semana** [RN-17]: la de la fecha de la franja, no la de creación.
-4. **Cálculo** [RN-16, RN-18]: usadas y disponibles sobre el límite configurado.
+4. **Cálculo** [RN-16, RN-18]: usadas y disponibles sobre el límite vigente; disponibles nunca es menor que cero, aunque existan reservas confirmadas que lo superen.
 5. **Reinicio** [RN-19, D-06]: se cumple al calcular sobre la nueva semana; sin job.
 6. **Zona horaria** [RNF-07]: lunes 00:00 America/Bogota.
 
@@ -98,9 +98,9 @@ Fuente: [`contracts/quota/GET-quota-me.md`](../../techincal-plan/contracts/quota
 - [ ] **T007** [US1/P1] Prueba de contrato.
 - [ ] **T008** [US1/P1] Integración de estados que cuentan y no cuentan.
 - [ ] **T009** [US1/P1] Prueba unitaria de `WeekCalculator`.
-- [ ] **T010** [US2/P2] Calcular la semana por la fecha de la franja y exponer `resetAt`.
-- [ ] **T011** [US2/P2] Verificar que no existe saldo ni job de reinicio.
-- [ ] **T012** [US2/P2] Integración de cambio de semana y reservas anticipadas.
+- [ ] **T010** [US2/P1] Repartir duración por semana y exponer `resetAt`.
+- [ ] **T011** [US2/P1] Verificar que no existe saldo ni job de reinicio.
+- [ ] **T012** [US2/P1] Integración de cambio de semana, cruce semanal y reservas anticipadas.
 
 ### Phase 4: Polish
 

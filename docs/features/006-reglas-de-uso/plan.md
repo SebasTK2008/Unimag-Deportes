@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC06 implementa la consulta de las reglas de uso en lenguaje claro y la edición de los parámetros **de negocio** por el Administrador [SPEC 006 RF-001..RF-007]. Los parámetros viven en `usage_parameters`; los de autenticación quedan en `app.auth.*` y no se exponen (OQ-16). Las acciones sensibles exigen reautenticación reciente [D-21].
+UC06 implementa la consulta de las reglas y la edición de cuota semanal y umbral de inasistencias por el Administrador [SPEC 006]. Solo estos dos valores viven en `usage_parameters`; los demás son fijos o se configuran por despliegue. Las acciones sensibles exigen reautenticación reciente [D-21].
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -59,7 +59,7 @@ src/test/java/unimagdeportes/{contract/rules,integration/rules,unit}/
 
 ## Reglas de negocio
 
-1. **Fuente** [sección 4 del contexto]: los parámetros de negocio salen de `usage_parameters`, nunca del código.
+1. **Fuente** [sección 4 del contexto]: cuota y umbral de inasistencias salen de `usage_parameters`; los demás valores son fijos o de despliegue.
 2. **Consulta** [RF-09]: cuota, tolerancia, cancelación, check-in y sanciones en lenguaje claro.
 3. **Edición** [RF-12]: solo Administrador con reautenticación reciente.
 4. **Autenticación** [OQ-16, D-20]: los parámetros de acceso viven en `application.properties` y no se editan aquí.

@@ -48,7 +48,7 @@ docs/techincal-plan/contracts/reports/   # 2 contratos
 src/main/java/unimagdeportes/
 ├── controller/report/ReportController.java
 ├── service/report/{OccupancyService,IndicatorService}.java
-├── repository/{ReservationRepository,InstitutionalBlockRepository,SpaceRepository,AppUserRepository}.java
+├── service/{reservation,block,space,auth}/  # servicios propietarios
 └── dto/report/ · mapper/report/ReportMapper.java
 
 src/test/java/unimagdeportes/{contract/reports,integration/reports}/

@@ -21,7 +21,7 @@ Enfoque técnico: `ReservationQueryService` para la lectura y `CancellationServi
 | RF-009 | bloqueo con check-in | T013 |
 | RF-010 | evento de notificación | T015 |
 | RNF-001..RNF-003 | DTO, zona horaria, auditoría | T002, T016 |
-| CE-001..CE-005 | aceptación | T018, T019 |
+| CE-001..CE-006 | aceptación y liberación de stock | T014, T018, T019 |
 | HU1, HU2 | consulta y cancelación | Fase 3 |
 
 ## Technical Context
@@ -35,7 +35,7 @@ Enfoque técnico: `ReservationQueryService` para la lectura y `CancellationServi
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: listar y previsualizar sin demora perceptible.
 **Constraints**: solo reservas propias (RN-03); no cancelar con check-in (RN-24); umbral de 60 min (RN-21, RN-22); aviso por correo (RN-26); America/Bogota (RNF-07).
-**Scale/Scope**: 3 endpoints, sin migraciones, 10 RF + 3 RNF + 5 CE + 2 HU.
+**Scale/Scope**: 3 endpoints, sin migraciones, 10 RF + 3 RNF + 6 CE + 2 HU.
 
 ## Project Structure
 
@@ -85,13 +85,13 @@ Fuente: [`contracts/reservations/`](../../techincal-plan/contracts/README.md) (3
 - Contrato: listado, vista previa y cancelación en T018.
 - Integración: privacidad, estados, cancelación a tiempo/tardía y check-in en T009/T019.
 - Unitario: `CancellationPolicy` en T020.
-- Aceptación: CE-001..CE-005 [SPEC 004].
+- Aceptación: CE-001..CE-006, incluido historial y liberación de stock [SPEC 004].
 
 ## Implementation Phases
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC03 y la base de UC11-H2.
+- [ ] **T001** Verificar UC01 y UC03; usar la base de eventos y notificaciones de UC11-H2 creada junto con UC01, sin exigir las plantillas completas.
 
 ### Phase 2: Foundational
 
@@ -127,7 +127,7 @@ Fuente: [`contracts/reservations/`](../../techincal-plan/contracts/README.md) (3
 
 `T001 → T002..T005 → T006..T017 → T018..T020 → T021/T022`.
 
-UC04 depende de UC01, UC03 y la base de UC11-H2. US1 y US2 pueden probarse por separado.
+UC04 depende de UC01, UC03 y la base de UC11-H2. Toda cancelación adquiere primero el bloqueo asesor global de §4.1 del plan general y relee la reserva antes de decidir. US1 y US2 pueden probarse por separado.
 
 ## Notes
 

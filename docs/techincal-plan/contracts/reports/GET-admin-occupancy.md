@@ -55,7 +55,7 @@ GET /admin/occupancy?date=2026-11-11&discipline=VOLLEYBALL
   "code": "VALIDATION_ERROR",
   "message": "La fecha es obligatoria.",
   "details": {
-    "field": "date"
+    "fields": { "date": "valor inválido" }
   }
 }
 ```

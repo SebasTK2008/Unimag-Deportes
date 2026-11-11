@@ -170,11 +170,11 @@ La implementación debe comenzar **únicamente** cuando se cumplan los siguiente
 
 ## 📋 Uso de los templates
 
-Los templates de SPEC y PLAN ubicados en `specs/templates/` proporcionan una estructura estandarizada para la documentación.
+Los templates de SPEC y PLAN ubicados en `docs/templates/` proporcionan una estructura estandarizada para la documentación.
 
 ### ⚠️ Importante
 
-- **No modificar los templates**: Los archivos en `specs/templates/` deben permanecer sin cambios
+- **No modificar los templates**: Los archivos en `docs/templates/` deben permanecer sin cambios
 - **Copiar y completar**: Crea copias de los templates en la carpeta de la feature específica
 - **Mantener la estructura**: Respeta las secciones definidas en los templates para mantener la consistencia del proyecto
 

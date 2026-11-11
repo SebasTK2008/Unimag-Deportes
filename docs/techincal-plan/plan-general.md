@@ -21,7 +21,7 @@ El acceso se hace con un **código de un solo uso enviado al correo instituciona
 ## Technical Context
 
 **Language/Version**: Java (LTS vigente) **[TÉC]**. El `pom.xml` actual usa Java 25.
-**Primary Dependencies**: Spring Boot (estable vigente; el `pom.xml` actual usa 4.1.1): Web MVC (en Boot 4, `spring-boot-starter-webmvc`), Validation, Data JPA, Security (sin estado: soporte de *resource server* con JWT, sin cookies ni Spring Session; el nombre exacto del starter se confirma contra Boot 4), Mail, Scheduling, Actuator, Flyway **[TÉC]**. Lombok (ya en el `pom.xml`) y **MapStruct** (a agregar al `pom.xml` durante la implementación) para el mapeo DTO ↔ entidad (D-24). Librería de PDF a elegir en el plan de UC11.
+**Primary Dependencies**: Spring Boot (estable vigente; el `pom.xml` actual usa 4.1.1): Web MVC, Validation, Data JPA, Security, Mail, Scheduling, Actuator y Flyway. Lombok ya está en `pom.xml`; se agregarán MapStruct 1.6.3 como versión inicial, `com.google.zxing:core:3.5.4` para QR en SVG y `com.github.librepdf:openpdf:3.0.5` para comprobantes. La compatibilidad de las bibliotecas y procesadores de anotaciones con Java 25 debe probarse durante la implementación; si falla, ajustar la versión antes de continuar.
 **Storage**: PostgreSQL (`timestamptz`; extensión `btree_gist` para impedir cruces)
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers (PostgreSQL), servidor de correo de prueba (por ejemplo GreenMail). En desarrollo local, Mailpit para ver los correos reales que genera la aplicación.
 **Target Platform**: Contenedores Docker; Docker Compose en desarrollo (PostgreSQL y Mailpit)
@@ -58,7 +58,7 @@ Cada SPEC agrupa los casos de uso del diagrama que comparten actor, datos y regl
 ## 2. Principios rectores
 
 1. **Cero cruces**: un espacio nunca tiene dos reservas activas en la misma franja. La verificación y el bloqueo ocurren en una sola transacción, respaldada por una restricción en la base de datos (RN-10).
-2. **Reglas configurables**: los parámetros **de negocio** de la sección 4 viven en la base de datos, nunca en el código; los parámetros de autenticación viven en `application.properties` (D-20).
+2. **Reglas configurables**: solo la cuota y el umbral de inasistencias viven en la base de datos; los demás parámetros son fijos o se configuran por despliegue según la sección 4 (D-20).
 3. **Las mismas reglas para todos** los Usuarios (RN-02); no hay cobros monetarios (principio 1).
 4. **La identidad sale siempre del token verificado y del estado actual en la base de datos**, nunca del cuerpo, la URL ni el QR (RN-03, RN-32).
 5. **Datos mínimos del Usuario**: nombre y correo institucional (RNF-09).
@@ -172,16 +172,16 @@ Unimag-Deportes/
 
 | UC | Controller / entrada | Services principales | Persistencia | Invariantes clave |
 |---|---|---|---|---|
-| UC01 | `AuthController` (incluye `/me`) | `AuthService`, `LoginCodeService`, `TokenService`, `UserService` (`resolveOrCreate(email, name)`) | `app_user`, `login_code`, `audit_log` (sin tabla de sesiones) | Dominio institucional (parámetro) validado en el servidor sobre el correo completo (RN-50); código de 6 dígitos guardado como HMAC, de un solo uso, 10 min de vigencia, 5 intentos y el nuevo invalida el anterior (RN-51, RN-52); mínimo 60 s entre solicitudes y máximo 5 por hora por correo, más un límite por IP (RN-53), y misma respuesta exista o no la cuenta; JWT firmado (HS256, algoritmo fijado en el servidor, llave en variable de entorno) con `sub`, `email`, `role`, `iat` y `exp` = 24 h, sin renovación (RN-54, RN-56); sin cookies: el cliente lo guarda y lo envía en `Authorization: Bearer` (RN-55); en cada petición se consulta `app_user` (existencia, rol, suspensión) y no se confía en el token para eso (RN-58); el nombre se pide solo en el primer ingreso (RN-59; sin nombre solo se permiten `/me` y `/auth/*`); el Usuario suspendido puede iniciar sesión (RN-05); token vencido → `401 TOKEN_EXPIRED` y el cliente vuelve a la pantalla de origen tras el login (RN-56); reautenticación del Administrador en acciones sensibles. Detalle en §7.1 |
+| UC01 | `AuthController` (incluye `/me`) | `AuthService`, `LoginCodeService`, `TokenService`, `UserService` | `app_user`, `login_code`, `audit_log` | Dominio fijo, código HMAC de 6 dígitos con vigencia de 15 minutos y 5 intentos por defecto; límite por correo y por IP; JWT HS256 de 24 h, sin cookies ni renovación. Estado vigente en cada petición; sin nombre se permiten `/me`, `PUT /me/profile` y `/auth/*`. Reautenticación del Administrador; detalle en §7.1. |
 | UC02 | `AvailabilityController` | `AvailabilityService` | lectura de `space`, `reservation`, `institutional_block` | Franja libre, ocupada o bloqueada; el espacio compartido se ocupa completo (RN-07); mantenimiento no reservable (RN-09); franja iniciada reservable hasta fin de tolerancia (RN-27, RN-28); motivo visible en bloqueos (RN-44); cambios por SSE (el cliente usa `fetch`, no `EventSource`, ver §5.3); consulta sin sesión: no (OQ-14); horizonte del calendario: 7 días, alineado con la anticipación máxima (OQ-09) |
 | UC03 | `ReservationController` | `ReservationService`, `QuotaService` | `reservation` | Una transacción: bloquear espacio → validar → insertar; 1 o 2 franjas consecutivas; hasta 7 días (OQ-12 cerrado); sin solape propio (RN-11); cuota (4 h por defecto, configurable); no suspendido; comprobante después del commit (UC11-H1) |
 | UC04 | `ReservationController` | H1 `ReservationQueryService` · H2 `CancellationService`, `CancellationPolicy` | `reservation` | H1: solo las reservas del Usuario del token, todos los estados, acción de cancelar. H2: vista previa con efecto en la cuota (RN-25); 60 min o más = a tiempo, menos = tardía (umbral configurable); no se cancela con check-in (RN-24); notifica (RN-26); no hay cancelación manual del Administrador |
-| UC05 | `CheckInController` · `SpaceController` (QR, admin) | H1 `CheckInService`, `CheckInWindowPolicy` · H2 `QrService` | `reservation` (H1); H2 se deriva del id del espacio | H1: el Usuario del token debe ser el dueño de la reserva en ese espacio (RN-33); sin token vigente (o expirado), el cliente lleva al login y vuelve a `/checkin/{id_espacio}`; si el QR se abre en otro navegador no hay token y se inicia sesión de nuevo (RN-34); ventana desde 10 min antes hasta fin de tolerancia; reservas hechas en tolerancia: 10 min desde su creación (RN-30); motivo de rechazo visible (RN-35). H2: QR estático con enlace fijo `/checkin/{id_espacio}`, sin datos del Usuario (RN-31, RN-32); imprimible |
-| UC06 | `ParameterController` (H1 Usuario, H2 admin) | `ParameterService` | `usage_parameters` | H1: lenguaje claro, valores vigentes, sin números fijos en el código. H2: solo Administrador **con reautenticación reciente**; edita los parámetros de la sección 4 (sin cobros); los cambios rigen solo para operaciones nuevas (OQ-05); los parámetros de autenticación quedan fuera de `usage_parameters` (OQ-16) |
-| UC07 | `SpaceController` (H1, admin) · `BlockController` (H2, admin) | H1 `SpaceService` · H2 `BlockService` | `space`, `space_discipline`, `institutional_block`, `reservation` | H1: atributos de RN-06; franjas de 60 min derivadas del horario de operación (RN-08); mantenimiento no reservable. H2: exige reautenticación reciente (cancela reservas en masa); prioridad sobre reservas libres (RN-42); cancela las afectadas con estado `CANCELLED_BY_ADMIN`, no cuentan cuota y avisa con motivo (RN-43); los bloqueos recurrentes se materializan en una fila por franja (OQ-06); bloquea el espacio durante la operación |
+| UC05 | `CheckInController` · `SpaceController` (QR, admin) | H1 `CheckInService`, `CheckInWindowPolicy` · H2 `QrService` | `reservation` | Ventana desde apertura configurada hasta el fin de la reserva, exclusivo; se selecciona la próxima reserva aplicable del usuario por inicio. QR estático; login y retorno al espacio si no hay sesión. |
+| UC06 | `ParameterController` | `ParameterService` | `usage_parameters` | Consulta de reglas; Administrador reautenticado edita únicamente cuota y umbral de inasistencias. Las reservas conservan las reglas existentes al crearse. |
+| UC07 | `SpaceController` · `BlockController` | `SpaceService` · `BlockService` | `space`, `space_discipline`, `institutional_block`, `reservation` | Franjas fijas de 60 min; bloqueos puntuales y recurrentes en una fila por franja. Rechazo atómico si afecta una reserva en curso; las reservas futuras afectadas se cancelan sin cuota y se avisa. |
 | UC08 | `QuotaController` | `QuotaService`, `WeekCalculator` | lectura de `reservation` | H1: horas usadas = reservas que cuentan en la semana (lunes 00:00 America/Bogota); disponibles = cuota − usadas; fecha de reinicio = próximo lunes. H2: sin job; la cuota se calcula sobre la semana de la fecha de la franja (RN-17) |
 | UC09 | `ReportController` (admin) | H1 `OccupancyService` · H2 `IndicatorService` | consultas sobre `reservation`, `institutional_block`, `space`, `app_user` | Solo lectura; H1 con filtros por fecha, disciplina y espacio; H2: reservas, cancelaciones tardías, inasistencias y suspendidos, con períodos fijos semanal y mensual seleccionables en el frontend (OQ-08) |
-| UC10 | `ReservationLifecycleJob` | `SanctionService` | `reservation`, `app_user` | Sin check-in al cerrar la ventana → `NO_SHOW` con horas contadas; 3 en 30 días (ventana rodante) → suspende 7 días y reinicia el contador; reservas futuras se mantienen (RN-37 a RN-40, OQ-07) |
+| UC10 | `ReservationLifecycleJob` | `SanctionService` | `reservation`, `app_user` | Sin check-in al finalizar → `NO_SHOW`; conteo por mes calendario, umbral vigente al registrar y cancelación de reservas futuras durante la suspensión con liberación y aviso. |
 | UC11 | llamadas internas · `ReminderJob` | H1 `ReceiptService` · H2 `NotificationService` + `MailSender` | `reservation.reminder_sent_at` | H1: PDF con espacio, fecha, hora, nombre, implementos solicitados, reglas de cancelación y canal de contacto (RN-45, RN-48, OQ-20), al correo del Usuario. H2: recordatorio 2 h antes con enlace para cancelar (RN-46); cancelación, bloqueo, inasistencia y suspensión (RN-47); todos con canal de contacto (RN-48); falla de entrega: se registra y no revierte la operación (OQ-04) |
 | UC12 | `ContactController` | `ContactService` + `MailSender` | — | Envía el mensaje al correo del área de deportes; sin persistir; es el canal de contacto de RN-48 (OQ-10) |
 | UC13 | `EquipmentController` (admin) · `ReservationController` (solicitud) | `EquipmentService` · `ReservationService` | `equipment`, `reservation_equipment` | Catálogo con nombre, disciplina sugerida, existencias y estado; solo los implementos disponibles con stock suficiente se pueden solicitar; la solicitud es opcional, con cantidades, y se valida contra las reservas solapadas en la misma transacción (RN-62 a RN-66) |
@@ -196,24 +196,29 @@ Convenciones: UUID como identificadores, `timestamptz` para instantes (se interp
 
 **Actualización del prototipo:** la clasificación vigente de parámetros y reglas está en §4 y RN-30, RN-36, RN-37, RN-43 y RN-65 del contexto. Solo cuota y umbral de inasistencias son editables por Administrador. Las reservas conservan las reglas vigentes al crearse; las referencias anteriores a diez minutos de vigencia del código, cierre de check-in al fin de tolerancia o edición administrativa de todos los parámetros deben sustituirse por esas reglas.
 
-Cada reserva conserva una instantánea de los valores necesarios para evaluarla posteriormente: límite semanal aplicable, umbral de cancelación, apertura de check-in y parámetros de sanción aplicables; el fin de check-in es `end_at`. Las validaciones de creación usan los valores vigentes al crearla. Una reserva que cruza semana distribuye su duración por intervalos semanales y valida cada semana; la comparación de cuota de una nueva reserva usa el límite vigente en su creación y no altera reservas ya confirmadas.
+Cada reserva conserva los valores necesarios para evaluarla posteriormente: umbral de cancelación y apertura de check-in; el fin de check-in es `end_at`. Al crear se valida la cuota vigente para cada semana y una reserva que cruza semana reparte su duración. Si se reduce el límite no se cancelan reservas confirmadas y el saldo mostrado es `max(0, límite vigente − horas contadas)`. El umbral de sanción es una excepción: se usa el vigente al registrar la inasistencia, no una instantánea de la reserva.
 
-Para evitar carreras, serializar por usuario la validación e inserción de reservas y las evaluaciones de sanciones; bloquear el espacio y, para implementos, las filas de `equipment` en orden estable por id antes de calcular compromisos e insertar. La edición de stock usa el mismo bloqueo y rechaza valores inferiores al máximo compromiso simultáneo futuro. Definir y respetar un orden global de bloqueos (usuario, espacio, implementos ordenados). La suspensión guarda una marca de corte de inasistencias junto con `suspended_until` en la misma transacción; el conteo solo incluye faltas posteriores a esa marca y dentro de la ventana rodante.
+Para evitar carreras, adquirir primero el bloqueo asesor global descrito abajo y después bloquear filas en orden global (usuario, espacio, implementos por id), antes de calcular compromisos e insertar. La edición de stock usa el mismo protocolo y rechaza valores inferiores al máximo compromiso simultáneo futuro. La suspensión y la cancelación de reservas afectadas se registran atómicamente; las notificaciones se envían después del commit.
+
+Una reserva en curso no puede ser afectada por un bloqueo institucional, tenga o no check-in. Para el prototipo se serializan las operaciones que modifican reservas, check-ins, bloqueos, espacios o stock mediante un único bloqueo asesor transaccional de PostgreSQL, adquirido al inicio de la transacción antes de leer o bloquear filas. Se usa la misma clave fija en todos esos flujos, incluidos cancelaciones y jobs de ciclo de vida y sanción; las restricciones de base de datos se conservan como defensa adicional. Tras adquirirlo, cada operación vuelve a leer y validar el estado y la hora con el `Clock`; el bloqueo institucional rechaza toda la transacción si alguna reserva afectada está en curso y, si no, cancela las futuras y crea las filas atómicamente. Los avisos salen después del commit. El bloqueo se libera al terminar la transacción, también ante rollback. Las consultas de disponibilidad no lo adquieren y sus resultados son orientativos hasta la validación transaccional. Esta serialización sacrifica paralelismo, aceptable para el volumen bajo del prototipo.
+
+Se aplica como máximo una suspensión por usuario y mes de inasistencia; las faltas posteriores del mismo mes se registran y notifican sin otra suspensión por ese mes. Solo se cancelan reservas futuras contenidas por completo en el período de suspensión; las parcialmente solapadas se conservan. Persistir una marca única por usuario y mes de inasistencia para garantizar la regla incluso ante reintentos concurrentes. El mes se determina con el fin programado de la reserva en America/Bogota.
 
 | Tabla | Propósito / columnas relevantes | Restricciones |
 |---|---|---|
-| `app_user` | `id`, `email`, `name` (vacío hasta el primer ingreso), `suspended_until`, `role` **[TÉC]**, `created_at` | `UNIQUE(email)` guardado en minúsculas y sin espacios; solo nombre y correo como datos personales (RNF-09) |
+| `app_user` | `id`, `email`, `name` (vacío hasta el primer ingreso), `suspended_until`, `role`, `created_at` | `UNIQUE(email)` guardado en minúsculas y sin espacios; solo nombre y correo como datos personales (RNF-09) |
 | `login_code` | `id`, `email`, `code_hash` (HMAC con clave del servidor), `expires_at`, `attempts`, `used_at`, `created_at` | Un solo uso; solicitudes contadas por `created_at`; conservar cada registro al menos una hora, incluso si venció o fue usado. El límite fijo por IP exige conservar sus solicitudes durante la ventana de una hora. |
 | `space` | `id`, `name`, `capacity`, `requirements`, `opening_time`, `closing_time` **[TÉC]**, `status` (`ACTIVE`, `MAINTENANCE`) | RN-06 |
 | `space_discipline` | `space_id`, `discipline` (baloncesto, voleibol, fútbol 5, fútbol 11, tenis de campo) | `PRIMARY KEY(space_id, discipline)` |
-| `reservation` | `id`, `user_id`, `space_id`, `start_at`, `end_at`, `status`, `created_at`, `checked_in_at`, `reminder_sent_at` | `CHECK(end_at > start_at)`; **restricción de exclusión**: mismo `space_id` con rangos que se solapan solo entre estados que no liberan el espacio; **segunda exclusión** equivalente por `user_id` (RN-11) |
+| `reservation` | `id`, `user_id`, `space_id`, `start_at`, `end_at`, `status`, `created_at`, `checked_in_at`, `reminder_sent_at`, instantánea de umbral de cancelación y apertura de check-in | `CHECK(end_at > start_at)`; restricciones de exclusión por espacio y por usuario para rangos que se solapan; RN-11. |
 | `institutional_block` | `id`, `space_id`, `type` (clases y grupos formativos, eventos o torneos, mantenimiento), `reason`, `start_at`, `end_at`, `recurrence_group` (nullable; agrupa las ocurrencias de un bloqueo recurrente) | Índice por `(space_id, start_at)`; los bloqueos recurrentes se materializan en una fila por franja (OQ-06) |
 | `equipment` | `id`, `name`, `discipline` (nullable, sugerencia), `stock`, `status` (`AVAILABLE`, `INACTIVE`) | `UNIQUE(name)`; `CHECK(stock >= 0)`; RN-62 |
 | `reservation_equipment` | `reservation_id`, `equipment_id`, `quantity` | `PRIMARY KEY(reservation_id, equipment_id)`; `CHECK(quantity > 0)`; claves foráneas a `reservation` y `equipment`; RN-64 |
 | `usage_parameters` | Singleton (`id = 1`): cuota semanal y número de inasistencias para suspender | `CHECK` de rangos; cada guardado sobrescribe. Los demás parámetros son fijos o de despliegue según el contexto §4. |
 | `audit_log` | `id`, `action`, `entity_type`, `entity_id`, `user_id` (nullable), `detail`, `created_at` | RNF-08; sin códigos ni tokens en `detail`. Además de reservas, cancelaciones, check-ins y sanciones, registra `CODE_REQUESTED`, `LOGIN`, `LOGIN_FAILED` y `LOGOUT` (RN-61) |
+| `monthly_suspension` | `user_id`, `absence_month`, `created_at` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; migración V12 de UC10. |
 
-**Estados de la reserva que no liberan el espacio** (participan en la restricción de exclusión): `CONFIRMED`, `IN_USE`, `COMPLETED`, `NO_SHOW`. Las tres cancelaciones liberan. Esa misma lista determina qué reservas consumen stock de implementos (RN-65, RN-66).
+**Estados de la reserva que no liberan el espacio** (participan en la restricción de exclusión): `CONFIRMED`, `IN_USE`, `COMPLETED`, `NO_SHOW`. Las cancelaciones, incluida `CANCELLED_BY_SUSPENSION`, liberan. Esa misma lista determina qué reservas consumen stock de implementos (RN-65, RN-66).
 
 **Por qué dos mecanismos para no cruzar** (D-04, D-05): la restricción de exclusión impide dos reservas solapadas en la tabla `reservation`. Como los bloqueos viven en otra tabla, además se bloquea la fila del espacio durante las operaciones de reservar y bloquear.
 
@@ -376,7 +381,7 @@ sequenceDiagram
   U->>C: POST /auth/code (correo, la interfaz completa el dominio)
   C->>A: solicitar código
   A->>A: valida dominio contra el parámetro y los límites de solicitud
-  A->>DB: guarda el HMAC del código (10 min, 5 intentos)
+  A->>DB: guarda el HMAC del código (15 min y 5 intentos por defecto)
   A->>M: envía el código solo si el dominio es permitido
   C-->>U: 202 con la misma respuesta exista o no la cuenta
   U->>C: POST /auth/verify (correo, código)
@@ -426,7 +431,7 @@ Este índice solo fija las rutas y los roles. El contrato detallado de cada endp
 | `GET /equipment/availability?startAt=&endAt=` | UC13 | Usuario, Administrador |
 | `POST /admin/equipment`, `PUT /admin/equipment/{id}` | UC13 | Administrador |
 
-Sin endpoint propio: UC08-H2, UC10 y UC11 (internos). `POST /reservations` acepta, de forma opcional, una lista de implementos solicitados con su cantidad y valida el stock disponible en la franja (UC13). `GET /equipment/availability` evalúa la ventana `startAt`–`endAt` solicitada (una franja o un rango) y devuelve la disponibilidad por solape con las reservas activas (RN-65). Los bloqueos recurrentes se fijan al crearse: no hay edición por `recurrence_group` en el prototipo; para cambiarlos se crea un bloqueo nuevo.
+Sin endpoint propio: UC08-H2, UC10 y UC11 (internos). `POST /reservations` acepta, de forma opcional, una lista de implementos solicitados con su cantidad y valida el stock disponible en la franja (UC13). `GET /equipment/availability` evalúa la ventana `startAt`–`endAt` solicitada (una franja o un rango) y devuelve la disponibilidad por solape con las reservas activas (RN-65). Los bloqueos creados son inmutables en el prototipo: no hay edición, eliminación ni sustitución; crear otro bloqueo no retira el anterior. Corregir uno requiere intervención operativa directa fuera de la API, con respaldo y auditoría manual.
 
 Códigos de error de autenticación: `401 TOKEN_EXPIRED` (el cliente pide iniciar sesión y regresa a la pantalla de origen), `401 TOKEN_INVALID`, `403 PROFILE_INCOMPLETE`, `403 REAUTH_REQUIRED`.
 
@@ -448,13 +453,13 @@ Con Microsoft (§7.1.5), `/auth/code`, `/auth/verify` y `/auth/reauth/*` se reem
 
 **Por qué código y no enlace mágico**: el flujo del QR (RN-34) empieza en el celular, y el enlace de un correo suele abrirse en otro navegador o en un WebView. Como el token no se guarda en cookies, ese navegador no tendría la sesión ni el destino. Con código, todo ocurre en la misma pestaña.
 
-**Primer ingreso**: el código no trae el nombre y el comprobante lo necesita (RN-45, RN-59). Se pide una sola vez (`PUT /me/profile`); mientras falte, el filtro solo deja pasar `/me` y `/auth/*`, y los demás endpoints responden `403 PROFILE_INCOMPLETE`. Con Microsoft el nombre vendrá en el token y este paso desaparece.
+**Primer ingreso**: el código no trae el nombre y el comprobante lo necesita (RN-45, RN-59). Se pide una sola vez (`PUT /me/profile`); mientras falte, el filtro solo deja pasar `/me`, `PUT /me/profile` y `/auth/*`, y los demás endpoints responden `403 PROFILE_INCOMPLETE`. El enlace futuro con Microsoft queda pendiente de definición.
 
 | Regla del código | Valor |
 |---|---|
 | Formato | 6 dígitos, generador criptográficamente seguro **[CONTEXTO, propuesto]** |
 | Almacenamiento | HMAC con clave del servidor (un hash simple de 6 dígitos se rompe por fuerza bruta si la tabla se filtra) |
-| Vigencia | 10 minutos **[CONTEXTO, propuesto]** |
+| Vigencia | 15 minutos por defecto; configurable por despliegue |
 | Uso | Un solo uso; pedir uno nuevo invalida los anteriores del correo |
 | Intentos de verificación | 5 por código **[CONTEXTO, propuesto]** |
 | Solicitudes | Mínimo 60 segundos entre solicitudes y máximo 5 por hora por correo, informando cuánto esperar **[CONTEXTO, propuesto]**; además un límite por IP **[TÉC]** para impedir que se use la plataforma para llenar buzones ajenos |
@@ -501,7 +506,7 @@ Con 5 solicitudes por hora y 5 intentos por código, un atacante tiene 25 intent
 | Token manipulado o forjado | Firma HS256 verificada en cada petición, algoritmo fijado en el servidor (se rechazan `alg: none` y cambios de algoritmo), validación de `exp` |
 | Fuga de la base de datos | Solo se guarda el HMAC de los códigos; no hay tokens ni sesiones en la base de datos, así que no hay nada que permita suplantar |
 | Fuga de la llave de firma | Permite forjar tokens: se guarda fuera del código y de la base de datos. Rotarla invalida todos los tokens emitidos (sirve también como corte de emergencia, con un costo: todos vuelven a iniciar sesión) |
-| Fuerza bruta del código | 5 intentos, 10 minutos, 60 s y 5 solicitudes por hora (§7.1.1) |
+| Fuerza bruta del código | 5 intentos, 15 minutos, 60 s y 5 solicitudes por hora por defecto; 30 solicitudes por IP por hora (§7.1.1) |
 | Llenar buzones ajenos con códigos | Límite por correo y por IP; no se envía a dominios no permitidos |
 | Enumeración de cuentas | Misma respuesta exista o no la cuenta |
 | Redirección abierta (destino de retorno) | Solo se aceptan rutas internas que empiezan con `/` (no `//`); el cliente valida contra sus rutas conocidas |
@@ -552,7 +557,7 @@ Notas para la migración:
 - **Un correo comprometido compromete la cuenta**, durante hasta 24 horas por cada token emitido.
 - **Fricción diaria**: como no hay renovación, el Usuario inicia sesión de nuevo cada 24 horas (RN-56) y debe salir de la app a leer el correo. Con sesión vigente, el login no cuenta en los 5 pasos de la reserva (RNF-01).
 - **El token es legible por cualquier script de la página**: un XSS exitoso lo expone. Se mitiga con CSP y escape, pero no se elimina.
-- **No hay revocación individual**: un token robado o de un equipo perdido vale hasta que expire (máximo 24 h) o hasta que el usuario sea suspendido (OQ-17).
+- **No hay revocación individual**: un token robado o de un equipo perdido vale hasta que expire (máximo 24 h). La suspensión restringe la creación de reservas pero no invalida el token (OQ-17).
 - **El QR en otro navegador exige un login nuevo** (RN-34).
 - **Parte del trabajo es desechable**: `LoginCodeService`, `login_code` y los endpoints `/auth/code`, `/auth/verify` y `/auth/reauth/*` desaparecen con Microsoft.
 - **Más trabajo que un login simulado**: Spring Security, filtro JWT, correo y tablas nuevas.
@@ -576,7 +581,7 @@ Notas para la migración:
 Actuator (`/health`), logs con `reservation_id` y `user_id`. Métricas mínimas: fallos de envío de correo, ejecuciones de jobs y reservas por estado. De autenticación: códigos enviados y fallidos, verificaciones fallidas (un pico indica abuso) y tokens rechazados por expirados o inválidos (un pico de inválidos indica manipulación o una llave mal rotada).
 
 ### 7.4 Configuración **[TÉC]**
-En `application.properties` (por entorno): zona horaria `America/Bogota`, datos del servidor de correo y los parámetros de seguridad de acceso de la tabla siguiente. Los parámetros de negocio de la sección 4 **no** van aquí: viven en `usage_parameters` y los edita el Administrador (UC06-H2). Los de seguridad de acceso se dejan fuera de `usage_parameters` a propósito (D-20; ver OQ-16). Las claves de autenticación de la tabla llevan el prefijo `app.auth.`; la de CORS conserva `app.cors.`. El dominio de correo permitido sí es un parámetro de negocio y vive en `usage_parameters`.
+En configuración por entorno se establecen el servidor de correo y los valores configurables por despliegue de la sección 4 del contexto. Solo la cuota semanal y el umbral de inasistencias viven en `usage_parameters` y los edita el Administrador. El dominio institucional, la zona horaria y demás valores identificados como fijos no son editables. Las claves de autenticación de la tabla llevan el prefijo `app.auth.`; la de CORS conserva `app.cors.`.
 
 | Clave | Valor inicial | Nota |
 |---|---|---|
@@ -605,6 +610,7 @@ stateDiagram-v2
   CONFIRMED --> IN_USE: check-in
   CONFIRMED --> NO_SHOW: ventana cerrada sin check-in
   CONFIRMED --> CANCELLED_BY_ADMIN: bloqueo institucional
+  CONFIRMED --> CANCELLED_BY_SUSPENSION: suspensión
   IN_USE --> COMPLETED: termina la franja
 ```
 
@@ -617,8 +623,9 @@ stateDiagram-v2
 | `CANCELLED_LATE` | Sí | Sí |
 | `NO_SHOW` | Sí | — |
 | `CANCELLED_BY_ADMIN` | No | Sí |
+| `CANCELLED_BY_SUSPENSION` | No | Sí |
 
-Los cambios de estado los hacen solo los services: `CancellationService` (cancelaciones), `CheckInService` (`IN_USE`), `BlockService` (`CANCELLED_BY_ADMIN`) y `SanctionService`/`ReservationLifecycleJob` (`NO_SHOW`, `COMPLETED`).
+Los cambios de estado los hacen solo los services: `CancellationService` (cancelaciones), `CheckInService` (`IN_USE`), `BlockService` (`CANCELLED_BY_ADMIN`) y `SanctionService`/`ReservationLifecycleJob` (`NO_SHOW`, `COMPLETED`, `CANCELLED_BY_SUSPENSION`).
 
 ---
 
@@ -656,7 +663,7 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 
 ## 10. Puntos abiertos resueltos (OQ)
 
-**Estado: todos cerrados (2026-11-10).** La columna «Decisión» registra el cierre.
+La columna «Decisión» registra los acuerdos; permanecen pendientes técnicos indicados en §4.1.
 
 | ID | Punto | Afecta | Decisión |
 |---|---|---|---|
@@ -665,8 +672,8 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 | OQ-03 | **[Cerrado 2026-10-18]** El login por código y el token JWT de 24 h sin cookies ya están en el contexto (RF-01, RF-22, RN-49 a RN-61) y la SPEC 001 se actualizó | UC01 | Mantener el login por código y documentarlo como sustituible por Microsoft |
 | OQ-04 | Comportamiento si falla el envío de correo (comprobante, avisos, código de acceso) | UC01, UC11 | **[Cerrado 2026-11-10]** Registrar el fallo y no revertir la operación; en el código de acceso, informar y permitir reintentar |
 | OQ-05 | Efecto de cambiar parámetros o de poner un espacio en mantenimiento sobre reservas existentes; y diferencia entre el estado "en mantenimiento" del espacio y el bloqueo institucional de tipo mantenimiento | UC06-H2, UC07 | **[Cerrado 2026-11-10]** Rige para operaciones nuevas; poner un espacio en mantenimiento no cancela reservas existentes |
-| OQ-06 | Estructura del horario de operación y de la recurrencia de los bloqueos | UC07 | **[Cerrado 2026-11-10]** `opening_time`/`closing_time` simples; los bloqueos recurrentes se **materializan** en una fila por franja. El grupo no se reutiliza para editar en el prototipo: para cambiarlos se crea un bloqueo nuevo |
-| OQ-07 | Conteo de inasistencias después de una suspensión | UC10 | **[Cerrado 2026-11-10]** Ventana rodante de 30 días; una suspensión reinicia el contador de inasistencias |
+| OQ-06 | Estructura del horario de operación y de la recurrencia de los bloqueos | UC07 | **[Cerrado 2026-11-10]** `opening_time`/`closing_time` simples; los bloqueos recurrentes se **materializan** en una fila por franja. Son inmutables en el prototipo; crear otro no modifica el anterior. |
+| OQ-07 | Conteo de inasistencias después de una suspensión | UC10 | **Actualizado:** conteo por mes calendario, reinicio el día 1 y umbral vigente al registrar la inasistencia; cancelación de reservas futuras durante la suspensión. |
 | OQ-08 | Período de los indicadores | UC09-H2 | **[Cerrado 2026-11-10]** Períodos fijos semanal y mensual; el frontend permite elegir cuál ver |
 | OQ-09 | Horizonte del calendario frente al límite de anticipación para reservar | UC02 | **[Cerrado 2026-11-10]** Horizonte de 7 días, alineado con la anticipación máxima |
 | OQ-10 | Si el canal de contacto de RN-48 es el formulario de UC12 | UC11, UC12 | **[Cerrado 2026-11-10]** Sí; el canal es el formulario de UC12 |
@@ -692,7 +699,7 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 - **UC06 y UC07-H1 (3)** → dependen de 2 (parámetros y espacios son insumo de todo lo que sigue). UC05-H2 (QR) se agrega aquí porque solo necesita los espacios.
 - **UC02 (4)** → depende de 3. **UC03, UC11-H1, UC08 y UC04-H1 (5)** → dependen de 4 (UC03 incluye UC02) y de 3.
 - **UC04-H2 y UC05-H1 (6)** → dependen de 5 (el check-in también de UC05-H2).
-- **UC07-H2, UC10 y UC11-H2 (7)** → UC07-H2 depende de 5; UC10 de 6; UC11-H2 se construye de forma **incremental**: el servicio base y `MailSender` en la fase 2, y cada plantilla (recordatorio, cancelación, bloqueo, inasistencia, suspensión) junto al caso de uso que la dispara.
+- **UC07-H2, UC10 y UC11-H2 (7)** → UC07-H2 depende de 5; UC10 de 6 y de las migraciones V10–V11 de la base de UC13 antes de aplicar V12; UC11-H2 se construye de forma **incremental**: el servicio base y `MailSender` en la fase 2, y cada plantilla (recordatorio, cancelación, bloqueo, inasistencia, suspensión) junto al caso de uso que la dispara.
 - **UC12 y UC09 (8)** → pueden iniciar después de 5 y completarse al final. **UC13 (9)** → depende de UC03 (fase 5) y de UC07-H1 (fase 3); puede adelantarse en paralelo con las fases 6 a 8. **Polish (N)** → después de las fases deseadas.
 - **En paralelo desde la fase 1**: el trámite de Entra ID con TI (OQ-15), porque es lo más lento y no depende del código.
 
@@ -700,7 +707,7 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 1 Setup → 2 Foundational (UC01 login por código + JWT + parámetros base + correo base + auditoría)
         → 3 UC06 + UC07-H1 + UC05-H2 → 4 UC02 → 5 UC03/UC11-H1/UC08/UC04-H1 → 6 UC04-H2/UC05-H1
                                                           │
-                                                          └──► 7 UC07-H2/UC10/UC11-H2 ──► 8 UC12/UC09 ──► 9 UC13 ──► N Polish
+  └──► base UC13 (V10–V11) → 7 UC07-H2/UC10(V12)/UC11-H2 → 8 UC12/UC09 → 9 resto UC13 → N Polish
 ```
 
 ### Qué debe contener cada plan específico por SPEC (`docs/features/NNN-…/plan.md`)

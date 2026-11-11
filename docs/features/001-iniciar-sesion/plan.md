@@ -37,7 +37,7 @@ Este plan crea además la infraestructura compartida (estructura, Flyway, correo
 **Target Platform**: contenedores Docker; Docker Compose en desarrollo.
 **Project Type**: backend monolítico en n capas [D-02]; cliente React en otro repositorio [D-25].
 **Performance Goals**: login sin fricción en el celular (RNF-01); una sola consulta a `app_user` por petición [D-19].
-**Constraints**: código de 6 dígitos como HMAC, un uso, 10 min, 5 intentos y límites de reenvío (RN-51..RN-53); JWT de 24 h sin cookies ni renovación (RN-54..RN-56); estado vigente (RN-58); datos mínimos (RNF-09); auditoría sin secretos (RNF-08); America/Bogota (RNF-07); CSP y escape (RNF-10).
+**Constraints**: código de 6 dígitos como HMAC, un uso, 15 min y 5 intentos por defecto, configurables por despliegue; límites de reenvío (RN-51..RN-53); JWT de 24 h sin cookies ni renovación (RN-54..RN-56); estado vigente (RN-58); datos mínimos (RNF-09); auditoría sin secretos (RNF-08); America/Bogota (RNF-07); CSP y escape (RNF-10).
 **Scale/Scope**: 7 endpoints, 4 entidades base, 5 migraciones, 17 RF + 5 RNF + 7 CE + 1 HU [SPEC 001].
 
 ## Project Structure
@@ -80,11 +80,11 @@ src/test/java/unimagdeportes/{contract/auth,integration/auth,unit/policy,securit
 ## Reglas de negocio
 
 1. **Dominio** [RN-50]: el servidor valida el correo completo; fuera del dominio no se envía nada.
-2. **Código** [RN-51]: 6 dígitos, generación segura, HMAC, 10 minutos, un uso; el nuevo invalida el anterior.
+2. **Código** [RN-51]: 6 dígitos, generación segura, HMAC, 15 minutos por defecto y un uso; el nuevo invalida el anterior.
 3. **Límites** [RN-52, RN-53]: 5 intentos; 60 s entre solicitudes y 5 por hora.
 4. **Token** [RN-54..RN-56]: HS256, 24 h, sin cookies ni renovación; `401 TOKEN_EXPIRED`.
 5. **Estado vigente** [RN-58]: rol y suspensión se leen de la base por petición.
-6. **Primer ingreso** [RN-59]: nombre obligatorio; sin él solo `/me` y `/auth/*`.
+6. **Primer ingreso** [RN-59]: nombre obligatorio; sin él solo `/me`, `PUT /me/profile` y `/auth/*`.
 7. **Administrador** [RN-60]: rol sembrado desde `app.auth.admin-emails` (OQ-02).
 8. **Auditoría** [RN-61]: solicitudes, login y logout sin códigos ni tokens.
 
@@ -103,7 +103,7 @@ Fuente: [`contracts/auth/`](../../techincal-plan/contracts/README.md) (7 archivo
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar la estructura de paquetes y agregar MapStruct al `pom.xml`.
+- [ ] **T001** Verificar la estructura de paquetes y agregar MapStruct 1.6.3 al `pom.xml`, incluidos sus procesadores junto con Lombok; comprobar compatibilidad con Java 25 y ajustar si falla.
 - [ ] **T002** Configurar `application.properties` (datasource, correo, `America/Bogota`, `app.auth.*`, `app.cors.allowed-origins`).
 - [ ] **T003** Configurar `compose.yaml` con PostgreSQL y Mailpit.
 - [ ] **T004** Configurar Flyway y `V1__enable_extensions.sql`.

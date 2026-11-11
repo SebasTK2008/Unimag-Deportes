@@ -69,7 +69,7 @@
 
 ## Notas
 
-- Los bloqueos recurrentes se materializan en una fila por franja bloqueada y se agrupan por `recurrenceGroup` (OQ-06). No se editan por grupo en el prototipo: para cambiarlos se crea un bloqueo nuevo (OQ-06).
-- Los bloqueos tienen prioridad sobre las reservas libres y cancelan las afectadas con estado `CANCELLED_BY_ADMIN`; esas horas no cuentan contra la cuota (RN-42, RN-43).
+- Los bloqueos recurrentes se materializan en una fila por franja bloqueada y se agrupan por `recurrenceGroup` (OQ-06). El prototipo no ofrece edición, eliminación ni sustitución de bloqueos; crear otro no retira el anterior. Su corrección requiere intervención operativa directa fuera de la API, con respaldo y auditoría manual.
+- Los bloqueos tienen prioridad sobre reservas futuras, que pasan a `CANCELLED_BY_ADMIN` sin contar cuota; si alguna reserva está en curso se rechaza toda la operación (RN-42, RN-43).
 - Las franjas bloqueadas se muestran como no disponibles con el motivo (RN-44).
 - Cada reserva cancelada genera un aviso por correo (RN-43, RN-47).

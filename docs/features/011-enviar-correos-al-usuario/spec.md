@@ -43,9 +43,11 @@ Como el sistema, al ocurrir un evento relevante sobre la reserva de un Usuario, 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Recordatorio previo a la reserva.
-   - **Dado** que una reserva está confirmada.
+   - **Dado** que una reserva está confirmada y se creó al menos dos horas antes del inicio.
    - **Cuando** faltan 2 horas para su inicio.
    - **Entonces** el Usuario recibe un recordatorio con un enlace para cancelar.
+
+   Si la reserva se crea con menos de dos horas de anticipación, el recordatorio se omite.
 
 2. **Escenario**: Cancelación.
    - **Dado** que se cancela una reserva.
@@ -62,6 +64,8 @@ Como el sistema, al ocurrir un evento relevante sobre la reserva de un Usuario, 
    - **Cuando** el sistema lo procesa.
    - **Entonces** el Usuario recibe un correo; el de suspensión indica la fecha en que podrá reservar de nuevo.
 
+   Las reservas futuras canceladas durante la suspensión también generan una notificación por correo.
+
 ---
 
 ### Historia de Usuario 3 - Recibir el código de acceso para iniciar sesión (Prioridad: P1)
@@ -77,7 +81,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 1. **Escenario**: Envío del código de acceso.
    - **Dado** que una persona solicitó un código con un correo del dominio institucional y la solicitud cumplió las validaciones y límites de la SPEC 001.
    - **Cuando** el sistema genera el código.
-   - **Entonces** el Servicio de correo entrega a ese correo un mensaje con el código de 6 dígitos, su vigencia de 10 minutos y la indicación de que no debe compartirse con nadie.
+   - **Entonces** el Servicio de correo entrega a ese correo un mensaje con el código de 6 dígitos, su vigencia configurada (15 minutos por defecto) y la indicación de que no debe compartirse con nadie.
 
 2. **Escenario**: Correo de otro dominio.
    - **Dado** que la solicitud se hizo con un correo que no pertenece al dominio institucional.
@@ -123,7 +127,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
   No en claro. El código solo viaja en el correo; el sistema guarda únicamente su hash (RN-51, RNF-09 del contexto) y el código no aparece en los registros de auditoría.
 
 - **¿Los valores del código son definitivos?**
-  La longitud (6 dígitos), la vigencia (10 minutos), los intentos (5) y los límites de reenvío (60 segundos y 5 solicitudes por hora) son los valores iniciales de la configuración `app.auth.*`, fuera de `usage_parameters` y no editables por el Administrador (OQ-16). El correo debe mostrar siempre los valores vigentes configurados.
+  La longitud es fija (6 dígitos); vigencia (15 minutos), intentos (5) y límites por correo (60 segundos y 5 por hora) se configuran por despliegue. El límite por IP es fijo (30 por hora). No son editables por Administrador. El correo muestra la vigencia configurada.
 
 ## Requisitos *(obligatorio)*
 

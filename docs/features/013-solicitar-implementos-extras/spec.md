@@ -54,7 +54,7 @@ Como Usuario autenticado, quiero solicitar opcionalmente uno o varios implemento
   Puede pedir varios implementos, cada uno con su cantidad. No hay un límite adicional por reserva: la cantidad queda acotada por el stock disponible en la franja (OQ-18).
 
 - **¿Cómo se calcula la disponibilidad de un implemento?**
-  `stock` menos la suma de las cantidades solicitadas por reservas activas (las que no liberan el espacio) que se solapan en el tiempo con la franja (RN-65). No se almacena un saldo por franja (RN-66).
+  `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante el intervalo (RN-65). Reservas consecutivas no se suman entre sí. No se almacena un saldo por franja (RN-66).
 
 - **¿Qué pasa si dos reservas se solapan en el tiempo?**
   Consumen el mismo stock: la segunda solo se confirma si todavía hay unidades disponibles para su franja.

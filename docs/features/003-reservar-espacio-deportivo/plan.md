@@ -23,6 +23,7 @@ Enfoque técnico: `ReservationService` transaccional que bloquea la fila del esp
 | RF-010 | tolerancia y check-in posterior (UC05) | T005, T009 |
 | RF-011 | confirmación inmediata | T008 |
 | RF-012 | evento de comprobante (UC11) | T012 |
+| RF-013 | integración de implementos en UC13 | T008, T009 |
 | RNF-001..RNF-005 | flujo, zona horaria, auditoría | T002, T013 |
 | CE-001..CE-003 | aceptación | T014..T018 |
 | HU1 | reserva de una o dos franjas | Fase 3 |
@@ -38,7 +39,7 @@ Enfoque técnico: `ReservationService` transaccional que bloquea la fila del esp
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: confirmación inmediata y cero cruces con solicitudes simultáneas (RN-10).
 **Constraints**: 1–2 franjas (RN-15); 7 días (OQ-12); cuota 4 h (RN-18); sin solape propio (RN-11); sin suspensión (RN-40); America/Bogota (RNF-07).
-**Scale/Scope**: 1 endpoint, 1 entidad, 1 migración, 12 RF + 5 RNF + 3 CE + 1 HU.
+**Scale/Scope**: 1 endpoint, 1 entidad, 1 migración, 13 RF + 5 RNF + 3 CE + 1 HU.
 
 ## Project Structure
 
@@ -59,7 +60,8 @@ src/main/java/unimagdeportes/
 ├── service/reservation/ReservationService.java
 ├── service/quota/QuotaService.java
 ├── service/policy/{BookingWindowPolicy,QuotaPolicy}.java
-├── repository/{ReservationRepository,SpaceRepository}.java
+├── repository/ReservationRepository.java
+├── service/space/SpaceService.java
 ├── model/{Reservation,ReservationStatus}.java
 ├── dto/reservation/ · mapper/reservation/ReservationMapper.java
 └── event/ReservationCreatedEvent.java
@@ -96,7 +98,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC06, UC07-H1/H2 y UC02.
+- [ ] **T001** Verificar UC01, UC06, UC07-H1, la tabla de bloqueos V8 y la base de consulta de UC02; integrar UC07-H2 después de UC03.
 
 ### Phase 2: Foundational
 
@@ -109,7 +111,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 
 ### Phase 3: User Stories
 
-- [ ] **T008** [US1/P1] Implementar `ReservationService` (bloquear → validar → insertar).
+- [ ] **T008** [US1/P1] Implementar `ReservationService`: adquirir primero el bloqueo asesor global de §4.1 del plan general, bloquear usuario y espacio, validar cuota por semana, conservar reglas y luego insertar; integrar implementos en UC13.
 - [ ] **T009** [US1/P1] Validar suspensión, mantenimiento, bloqueos, solape y cuota.
 - [ ] **T010** [US1/P1] Crear DTO y `ReservationMapper`.
 - [ ] **T011** [US1/P1] Implementar `POST /reservations` en `ReservationController`.
@@ -131,7 +133,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 
 `T001 → T002..T007 → T008..T013 → T014..T019 → T020/T021`.
 
-UC03 depende de UC01, UC06, UC07 y UC02. UC13 depende de UC03 para adjuntar implementos.
+UC03 depende de UC01, UC06, UC07-H1 y V8, y de la base de UC02; UC07-H2 se integra después de UC03. UC13 depende de UC03 para adjuntar implementos.
 
 ## Notes
 

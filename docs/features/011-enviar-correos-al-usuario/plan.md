@@ -24,7 +24,7 @@ UC11 implementa los correos de la plataforma: comprobante PDF de la reserva, not
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Mail, Scheduling, Data JPA. PDF: `TODO: elegir librería` (se decide en implementación). Plantillas de correo.
+**Primary Dependencies**: Spring Boot 4.1.1: Mail, Scheduling, Data JPA. PDF: `com.github.librepdf:openpdf:3.0.5`; dependencia pendiente de agregar. Plantillas de correo.
 **Storage**: PostgreSQL; `reservation.reminder_sent_at` para el recordatorio.
 **Messaging**: eventos internos después del commit; sin colas [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers, GreenMail; Mailpit en local.
@@ -53,7 +53,7 @@ src/main/java/unimagdeportes/
 ├── service/notification/{ReceiptService,NotificationService}.java
 ├── scheduler/ReminderJob.java
 ├── event/{ReservationCreatedEvent,ReservationCancelledEvent,SanctionAppliedEvent,BlockCreatedEvent}.java
-├── repository/ReservationRepository.java
+├── service/reservation/  # consulta mediante servicio propietario
 └── dto/mail/
 
 src/test/java/unimagdeportes/{integration/mail,unit/mail}/
@@ -87,8 +87,8 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC03, UC04, UC07 y UC10.
-- [ ] **T002** Elegir y documentar la librería de PDF.
+- [ ] **T001** Verificar UC01 y UC03 para el comprobante; crear la base de eventos y notificaciones junto con UC01. Integrar las plantillas y pruebas de UC04, UC07 y UC10 cuando estén disponibles, sin exigirlos para iniciar la base.
+- [ ] **T002** Agregar OpenPDF y verificar la versión compatible.
 
 ### Phase 2: Foundational
 
@@ -101,7 +101,7 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [ ] **T006** [US1/P1] Implementar `ReceiptService` y su escucha de `ReservationCreatedEvent`.
 - [ ] **T007** [US1/P1] Crear DTO de comprobante.
 - [ ] **T008** [US1/P1] Incluir el canal de contacto.
-- [ ] **T009** [US1/P1] Integración de comprobante con y sin implementos y verificación de envío post-commit.
+- [ ] **T009** [US1/P1] Integración de comprobante sin implementos y envío post-commit; añadir la prueba con implementos al integrar UC13.
 - [ ] **T010** [US2/P1] Implementar `NotificationService` y sus escuchas.
 - [ ] **T011** [US2/P1] Crear las plantillas de correo.
 - [ ] **T012** [US2/P1] Implementar `ReminderJob` (2 h antes, idempotente).
@@ -121,11 +121,12 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 
 `T001/T002 → T003/T004 → T005..T009 → T010..T015 → T016..T018 → T019/T020`.
 
-UC11 depende de UC01, UC03, UC04, UC07 y UC10. UC11-H3 (código) se implementa en la fase Foundational de UC01.
+UC11-H3 y la base de correo y eventos se implementan con UC01; UC11-H1 requiere UC03 y se integra con UC13 para implementos. Las plantillas de UC11-H2 se integran incrementalmente con UC04, UC07 y UC10; esas funciones no bloquean la base de UC11-H2.
 
 ## Notes
 
 - `[US1]`, `[US2]` y `[US3]` permiten implementar cada correo por separado.
+- T016–T018 integran y verifican el correo del código implementado en UC01; no duplican la implementación original.
 - El comprobante incluye los implementos (OQ-20).
 - No hay endpoint propio.
 

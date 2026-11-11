@@ -55,14 +55,14 @@ src/main/java/unimagdeportes/
 ├── controller/availability/AvailabilityController.java
 ├── service/availability/AvailabilityService.java
 ├── service/policy/SlotCatalogPolicy.java
-├── repository/{SpaceRepository,ReservationRepository,InstitutionalBlockRepository}.java
+├── service/{space,reservation,block}/  # servicios propietarios
 ├── dto/availability/ · mapper/availability/AvailabilityMapper.java
 └── config/SseConfig.java
 
 src/test/java/unimagdeportes/{contract/availability,integration/availability,unit/policy}/
 ```
 
-**Structure Decision**: módulo de solo lectura que consulta otros módulos por sus services/repositorios y publica eventos SSE [PLAN §3.4]. Las franjas se derivan del horario y no se persisten [§12].
+**Structure Decision**: módulo de solo lectura que consulta otros módulos únicamente mediante sus services y publica eventos SSE [PLAN §3.4]. Las franjas se derivan del horario y no se persisten [§12].
 
 ## Reglas de negocio
 
@@ -89,7 +89,7 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC06, UC07 (espacios y bloqueos) y UC03.
+- [ ] **T001** Verificar UC01, UC06 y UC07-H1; integrar ocupación y bloqueos cuando UC03 y UC07-H2 estén disponibles, sin consultar tablas aún inexistentes.
 - [ ] **T002** Verificar `SseConfig` con `fetch` y encabezado `Authorization`.
 
 ### Phase 2: Foundational
@@ -118,7 +118,7 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 
 `T001/T002 → T003..T006 → T007..T011 → T012/T013 → T014/T015`.
 
-UC02 depende de UC01, UC06, UC07 y UC03, y es `<<include>>` de UC03 [PLAN §1]. UC03 y el cliente React consumen su salida.
+La base de UC02 depende de UC01, UC06 y UC07-H1; la integración de reservas y bloqueos se completa con UC03 y UC07-H2. UC03 consume la consulta base de UC02; no se requiere la tabla de reservas antes de V9.
 
 ## Notes
 

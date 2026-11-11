@@ -38,17 +38,17 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 
 **Por qué esta prioridad**: Libera espacios para otros Usuarios y distingue la cancelación a tiempo de la tardía, que evita acaparar franjas y usar la cancha sin descontar horas (RN-23).
 
-**Prueba Independiente**: Cancelar reservas con 60 minutos o más de anticipación, con menos de 60 minutos y con check-in registrado, y validar el efecto sobre el espacio y la cuota en cada caso.
+**Prueba Independiente**: Cancelar reservas con anticipación igual o superior al umbral conservado, inferior a él y con check-in registrado, y validar el efecto sobre el espacio y la cuota en cada caso.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Cancelación a tiempo.
-   - **Dado** que faltan 60 minutos o más para el inicio de la franja.
+   - **Dado** que la reserva conserva un umbral de 60 minutos y faltan 60 minutos o más para el inicio de la franja.
    - **Cuando** el Usuario confirma la cancelación.
    - **Entonces** el espacio queda libre y las horas se devuelven a la cuota.
 
 2. **Escenario**: Cancelación tardía.
-   - **Dado** que faltan menos de 60 minutos para el inicio, o la franja ya empezó sin check-in.
+   - **Dado** que la reserva conserva un umbral de 60 minutos y faltan menos de 60 minutos para el inicio, o la franja ya empezó sin check-in.
    - **Cuando** el Usuario confirma la cancelación.
    - **Entonces** el espacio queda disponible para otros Usuarios, pero las horas siguen contando como usadas.
 
@@ -69,16 +69,16 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 
 **Regla de cancelación** (RN-21, RN-22):
 
-- **A tiempo**: faltan 60 minutos o más. Estado "Cancelada a tiempo"; no cuenta contra la cuota.
-- **Tardía**: faltan menos de 60 minutos, o la franja ya empezó sin check-in. Estado "Cancelada tardía"; sí cuenta contra la cuota.
+- **A tiempo**: la anticipación es igual o superior al umbral conservado por la reserva. Estado "Cancelada a tiempo"; no cuenta contra la cuota.
+- **Tardía**: la anticipación es inferior al umbral conservado, o la franja ya empezó sin check-in. Estado "Cancelada tardía"; sí cuenta contra la cuota.
 
 ### Casos Extremos (Edge Cases)
 
 - **¿Qué estados puede mostrar una reserva?**
-  Confirmada, En uso, Completada, Cancelada a tiempo, Cancelada tardía, Inasistencia y Cancelada por administrador (sección 6 del contexto).
+  Confirmada, En uso, Completada, Cancelada a tiempo, Cancelada tardía, Inasistencia, Cancelada por administrador y Cancelada por suspensión.
 
 - **¿Se mantienen las reservas futuras de un Usuario suspendido?**
-  Sí. Se mantienen, aunque el Usuario no puede crear nuevas (RN-40, RN-05).
+  Se cancelan las reservas futuras durante la suspensión, liberando cuota e implementos y notificando; las demás se mantienen (RN-40, RN-05).
 
 - **¿Qué pasa con los implementos solicitados si se cancela la reserva?**
   El registro se conserva como historial y deja de contar para la disponibilidad, por lo que la cancelación libera el stock (RN-66, OQ-19).
@@ -90,7 +90,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
   En cualquier momento, sin autorización del administrador (RN-20), salvo que ya exista check-in (RN-24).
 
 - **¿Qué ocurre justo a 60 minutos del inicio?**
-  Se considera a tiempo: "faltan 60 minutos o más" (RN-21). Con menos de 60 minutos es tardía (umbral configurable, sección 4).
+  Es a tiempo si la reserva conservó un umbral de 60 minutos; en general se compara con el umbral conservado al crearla (RN-21).
 
 ## Requisitos *(obligatorio)*
 
@@ -101,8 +101,8 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 - **RF-003**: El sistema DEBE permitir esta consulta a un Usuario suspendido (RN-05).
 - **RF-004**: El sistema DEBE ofrecer desde "Mis reservas" la acción de cancelar reserva (RN-20).
 - **RF-005**: El sistema DEBE permitir al Usuario cancelar su reserva desde "Mis reservas", sin autorización del administrador (RF-06, RN-20).
-- **RF-006**: El sistema DEBE tratar como cancelación a tiempo la que se hace con 60 minutos o más de anticipación, liberar el espacio y devolver las horas a la cuota (RN-21).
-- **RF-007**: El sistema DEBE tratar como cancelación tardía la que se hace con menos de 60 minutos de anticipación, o cuando la franja ya empezó sin check-in; el espacio queda disponible, pero las horas siguen contando (RN-22).
+- **RF-006**: El sistema DEBE tratar como cancelación a tiempo la que se hace con anticipación igual o superior al umbral conservado por la reserva, liberar el espacio y devolver las horas a la cuota (RN-21).
+- **RF-007**: El sistema DEBE tratar como cancelación tardía la que se hace con anticipación inferior al umbral conservado por la reserva, o cuando la franja ya empezó sin check-in; el espacio queda disponible, pero las horas siguen contando (RN-22).
 - **RF-008**: El sistema DEBE mostrar al Usuario, antes de confirmar, si la cancelación será tardía y qué efecto tendrá sobre su cuota (RN-25, RF-06).
 - **RF-009**: El sistema NO DEBE permitir cancelar una reserva con check-in ya registrado (RN-24).
 - **RF-010**: El sistema DEBE generar una notificación por correo en cada cancelación (RN-26).
@@ -123,7 +123,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 
 - **CE-001**: Exactitud, "100% de las reservas de un Usuario aparecen en 'Mis reservas' con su estado vigente".
 - **CE-002**: Privacidad de Reservas, "0 reservas de otros Usuarios visibles en 'Mis reservas'".
-- **CE-003**: Cumplimiento de Reglas, "100% de las cancelaciones con 60 minutos o más devuelven las horas a la cuota y 100% de las tardías las conservan como usadas".
+- **CE-003**: Cumplimiento de Reglas, "100% de las cancelaciones a tiempo según el umbral conservado por la reserva devuelven las horas a la cuota y 100% de las tardías las conservan como usadas".
 - **CE-004**: Integridad, "0 reservas con check-in registrado canceladas por el Usuario".
 - **CE-005**: Transparencia, "100% de las cancelaciones muestran al Usuario su efecto sobre la cuota antes de confirmarse".
 - **CE-006**: Implementos al cancelar, "100% de las reservas canceladas conservan el registro de implementos y liberan su stock para otras reservas" (RN-66, OQ-19; ver SPEC 013).

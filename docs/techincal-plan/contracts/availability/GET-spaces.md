@@ -44,7 +44,7 @@ GET /spaces?discipline=VOLLEYBALL
   "code": "VALIDATION_ERROR",
   "message": "La disciplina indicada no es válida.",
   "details": {
-    "field": "discipline"
+    "fields": { "discipline": "valor inválido" }
   }
 }
 ```

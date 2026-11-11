@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC07 implementa la gestión de espacios (nombre, disciplinas, aforo, requisitos, horario y estado) y el bloqueo de franjas por clases, eventos o mantenimiento [SPEC 007 RF-001..RF-011]. Los bloqueos recurrentes se materializan en una fila por franja, tienen prioridad sobre las reservas libres y cancelan las afectadas sin descontar cuota.
+UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Los bloqueos se materializan en una fila por franja y cancelan reservas futuras sin descontar cuota; si afectan una reserva en curso se rechaza toda la operación.
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -77,7 +77,7 @@ src/test/java/unimagdeportes/{contract/{spaces,blocks},integration/{spaces,block
 4. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo.
 5. **Bloqueos** [RN-41]: clases, eventos o mantenimiento; puntuales o recurrentes.
 6. **Prioridad** [RN-42]: el bloqueo prevalece sobre la reserva libre.
-7. **Cancelación** [RN-43]: las reservas afectadas pasan a `CANCELLED_BY_ADMIN` sin descontar cuota y se avisa.
+7. **Cancelación** [RN-43]: se rechaza toda la operación si afecta una reserva en curso; las reservas futuras afectadas pasan a `CANCELLED_BY_ADMIN` sin descontar cuota y se avisa.
 8. **Recurrencia** [OQ-06]: materializada por franja con `recurrence_group`; no se edita por grupo.
 9. **Desactivar** [OQ-12]: equivale a `MAINTENANCE`; no cancela reservas existentes (OQ-05).
 
@@ -89,14 +89,14 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 
 - Contrato: espacios y bloqueos en T014/T021.
 - Integración: creación/edición/mantenimiento, recurrencia, cascada y reautenticación en T014/T021.
-- Unitario: materialización de recurrencia en T023.
+- Unitario: materialización de recurrencia en T022.
 - Aceptación: CE-001..CE-006 [SPEC 007].
 
 ## Implementation Phases
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01 y UC03.
+- [ ] **T001** Verificar UC01 para US1; US2 requiere además UC03.
 
 ### Phase 2: Foundational
 
@@ -107,7 +107,7 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 - [ ] **T006** Crear los repositorios de espacio, disciplina y bloqueo.
 - [ ] **T007** Implementar `SpaceService`.
 - [ ] **T008** Implementar `BlockService` con materialización de recurrencia.
-- [ ] **T009** Implementar la cancelación de reservas afectadas.
+- [ ] **T009** Adquirir primero el bloqueo asesor global de §4.1 del plan general; releer y validar reservas y hora, rechazar atómicamente si alguna está en curso y, si no, cancelar futuras y crear bloqueos en la misma transacción.
 
 ### Phase 3: User Stories
 
@@ -122,9 +122,9 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 - [ ] **T018** [US2/P1] Exigir reautenticación (`REAUTH_REQUIRED`).
 - [ ] **T019** [US2/P1] Registrar auditoría de bloqueos y cancelaciones.
 - [ ] **T020** [US2/P1] Pruebas de contrato de bloqueos.
-- [ ] **T021** [US2/P1] Integración de recurrencia y cascada.
+- [ ] **T021** [US2/P1] Integración de recurrencia y cascada; probar carreras con reservas, check-in y cancelación, rechazo íntegro, rollback y ausencia de bloqueos mutuos.
 - [ ] **T022** [US2/P1] Prueba unitaria de materialización.
-- [ ] **T023** [US2/P1] Verificar que "desactivar" equivale a mantenimiento.
+- [ ] **T023** [US1/P1] Verificar que "desactivar" equivale a mantenimiento.
 
 ### Phase 4: Polish
 
@@ -133,14 +133,14 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 
 ## Dependencies & Execution Order
 
-`T001 → T002..T009 → T010..T023 → T024/T025`.
+`T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (V8 se crea en orden con V6–V7; la integración de bloqueo con reservas espera V9).
 
-UC07 depende de UC01 y UC03. US1 crea los espacios; US2 requiere espacios y reservas. UC02 consume espacios y bloqueos.
+UC07-US1 depende de UC01; US2 requiere además UC03. UC02 consume espacios y bloqueos.
 
 ## Notes
 
 - `[US1]` y `[US2]` pueden implementarse por separado (US2 requiere US1).
-- Los bloqueos recurrentes se materializan; no se editan por grupo (OQ-06).
+- Los bloqueos son inmutables en el prototipo; crear otro no retira el anterior (OQ-06).
 - El QR del espacio se implementa en UC05.
 
 ## Checklist de auto-revisión

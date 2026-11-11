@@ -13,7 +13,7 @@
 | `spaceId` | UUID | Sí | Espacio a reservar. |
 | `startAt` | instant | Sí | Inicio de la primera franja, alineado a los bloques de 60 minutos. |
 | `slots` | integer | Sí | Número de franjas consecutivas: `1` o `2`. |
-| `equipment` | array | No | Implementos solicitados. Cada elemento: `equipmentId` (UUID) y `quantity` (entero > 0). |
+| `equipment` | array | No | Implementos solicitados. Cada elemento: `equipmentId` (UUID) y `quantity` (entero > 0). No se admite repetir un `equipmentId`. |
 
 ```json
 {
@@ -98,6 +98,7 @@ La reserva se confirma al instante; el comprobante se envía por correo después
   "code": "QUOTA_EXCEEDED",
   "message": "La reserva supera tu cuota semanal. Te queda 1 hora disponible.",
   "details": {
+    "weekStart": "2026-11-09T00:00:00-05:00",
     "weeklyLimitHours": 4,
     "usedHours": 3,
     "requestedHours": 2,
@@ -122,7 +123,7 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
-| `VALIDATION_ERROR` | 400 | Campos faltantes, `slots` fuera de 1–2 o `startAt` desalineado. | RN-15 |
+| `VALIDATION_ERROR` | 400 | Campos faltantes, `slots` fuera de 1–2, `startAt` desalineado o `equipmentId` repetido. | RN-15, RN-63 |
 | `INVALID_QUANTITY` | 400 | `quantity` menor o igual a cero. | RN-63 |
 | `PROFILE_INCOMPLETE` | 403 | Falta el nombre del primer ingreso. | RN-59 |
 | `SUSPENDED` | 403 | El usuario está suspendido. | RN-40 |
@@ -140,5 +141,5 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 
 - La verificación y el bloqueo de la franja ocurren en una sola transacción; si dos usuarios compiten, gana el primero (RN-10).
 - La cuota se mide en horas reservadas y se calcula sobre la semana de la fecha de la franja (RN-16, RN-17).
-- Los implementos son opcionales. Su disponibilidad es `stock` menos las cantidades de reservas activas que se solapan en el tiempo (RN-65).
+- Los implementos son opcionales. Su disponibilidad es `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante el intervalo (RN-65); reservas consecutivas no se suman entre sí.
 - La identidad del usuario sale del token, nunca del cuerpo (RN-03).

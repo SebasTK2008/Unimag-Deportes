@@ -43,7 +43,7 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 | **Cuota semanal** | Máximo de horas de uso que un usuario puede acumular en una semana. |
 | **Tolerancia** | Minutos después del inicio de una franja en los que aún se puede reservar un espacio libre. |
 | **Check-in** | Confirmación de asistencia escaneando el QR del espacio al ingresar. |
-| **Cancelación tardía** | Cancelación realizada con menos de 1 hora de anticipación. |
+| **Cancelación tardía** | Cancelación realizada con menos anticipación que el umbral conservado por la reserva (60 minutos por defecto). |
 | **Inasistencia** | Reserva en la que el usuario no hizo check-in dentro del plazo. |
 | **Bloqueo institucional** | Franja retirada de la reserva libre por clases, eventos o mantenimiento. |
 | **Código de acceso** | Código numérico de un solo uso, enviado al correo institucional, que el usuario ingresa para iniciar sesión. |
@@ -54,7 +54,7 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 
 ## 4. Parámetros del sistema
 
-Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semanal y el número de inasistencias para suspender se editan por el Administrador; los demás valores configurables se establecen por despliegue. Las reservas existentes conservan las reglas vigentes al crearse; los cambios se aplican a reservas futuras.
+Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semanal y el número de inasistencias para suspender se editan por el Administrador; los demás valores configurables se establecen por despliegue. Las reservas existentes conservan las reglas vigentes al crearse, salvo el umbral de sanción, que se evalúa con el valor vigente al registrar la inasistencia.
 
 | Parámetro | Valor |
 |---|---|
@@ -70,7 +70,7 @@ Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semana
 | Horizonte del calendario | 7 días; fijo |
 | Ventana de check-in | Desde 10 minutos antes del inicio (por despliegue) hasta el fin de la reserva |
 | Recordatorio previo a la reserva | 2 horas antes; fijo; se omite si se crea con menos de 2 horas de anticipación |
-| Suspensión por inasistencias | 3 inasistencias (editable por Administrador) en 30 días (fijo); suspensión de 7 días (por despliegue) |
+| Suspensión por inasistencias | 3 inasistencias (editable por Administrador) por mes calendario; suspensión de 7 días (por despliegue) |
 | Dominio de correo permitido | `@unimagdalena.edu.co`; fijo |
 | Método de autenticación | Correo institucional + código de un solo uso enviado al correo (sin contraseña) |
 | Tipo de sesión | Token JWT, sin cookies |
@@ -134,14 +134,15 @@ Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semana
 | Cancelada tardía | **Sí** |
 | Inasistencia | **Sí** |
 | Cancelada por el administrador | **No** |
+| Cancelada por suspensión | **No** |
 
 ### 5.5 Cancelación
 
 | ID | Regla |
 |---|---|
 | RN-20 | El usuario puede cancelar su reserva **en cualquier momento** desde "Mis reservas", sin autorización del administrador. |
-| RN-21 | **Cancelación a tiempo** (faltan 60 minutos o más para el inicio): el espacio queda libre y las horas se devuelven a la cuota. |
-| RN-22 | **Cancelación tardía** (faltan menos de 60 minutos, o la franja ya empezó sin check-in): el espacio queda disponible para otros usuarios, pero **las horas siguen contando como usadas**. |
+| RN-21 | **Cancelación a tiempo** (la anticipación es igual o superior al umbral conservado por la reserva; 60 minutos por defecto): el espacio queda libre y las horas se devuelven a la cuota. |
+| RN-22 | **Cancelación tardía** (la anticipación es inferior al umbral conservado por la reserva, o la franja ya empezó sin check-in): el espacio queda disponible para otros usuarios, pero **las horas siguen contando como usadas**. |
 | RN-23 | El objetivo de RN-22 es impedir que alguien cancele a último momento y luego use la cancha sin descontar horas. |
 | RN-24 | Una reserva con check-in ya registrado no se puede cancelar. |
 | RN-25 | El sistema muestra al usuario, antes de confirmar la cancelación, si esta será tardía y qué efecto tendrá sobre su cuota. |
@@ -176,9 +177,9 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 | ID | Regla |
 |---|---|
 | RN-37 | Si no hay check-in al finalizar la reserva, pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-16). |
-| RN-38 | El umbral configurado de inasistencias (3 por defecto) en 30 días suspende automáticamente al usuario durante el plazo configurado por despliegue (7 días por defecto). |
+| RN-38 | Las inasistencias se cuentan por mes calendario en America/Bogota y el conteo comienza de nuevo el día 1. Al registrar una inasistencia se evalúa el umbral vigente (3 por defecto); al alcanzarlo se suspende al usuario durante el plazo configurado por despliegue (7 días por defecto). Como máximo se aplica una suspensión por usuario y mes de inasistencia; faltas posteriores del mismo mes se registran y notifican, sin otra suspensión por ese mes. |
 | RN-39 | El usuario recibe un correo cuando se registra una inasistencia y cuando es suspendido, con la fecha en que podrá reservar de nuevo. |
-| RN-40 | Las reservas futuras de un usuario suspendido se mantienen, pero no puede crear nuevas.  |
+| RN-40 | Al suspender se cancelan las reservas futuras contenidas por completo en el período de suspensión; sus horas e implementos se liberan y se notifica por correo. Si solo se solapan parcialmente se conservan, igual que las demás reservas fuera del período. El usuario no puede crear nuevas durante la suspensión. |
 
 ### 5.9 Bloqueos institucionales
 
@@ -186,7 +187,7 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 |---|---|
 | RN-41 | El administrador puede bloquear franjas por **clases y grupos formativos** (bloqueos fijos y recurrentes), **eventos o torneos** (bloqueos puntuales) y **mantenimiento**. |
 | RN-42 | Los bloqueos institucionales tienen prioridad sobre las reservas libres. |
-| RN-43 | Si un bloqueo afecta una reserva en curso se rechaza toda la operación. Las reservas futuras afectadas se cancelan automáticamente, se avisa al usuario y sus horas no cuentan contra la cuota. Los bloqueos puntuales y recurrentes se materializan en una fila por franja. |
+| RN-43 | Si un bloqueo afecta una reserva en curso se rechaza toda la operación, incluso si no tiene check-in. Las reservas futuras afectadas se cancelan automáticamente, se avisa al usuario y sus horas no cuentan contra la cuota. Los bloqueos puntuales y recurrentes se materializan en una fila por franja. |
 | RN-44 | Las franjas bloqueadas aparecen en el calendario como no disponibles, con el motivo visible. |
 
 ### 5.10 Notificaciones
@@ -236,8 +237,8 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
                     ┌─────────────────────────┐
                     │       CONFIRMADA        │
                     └───┬─────────┬─────────┬─┘
-        cancela ≥60 min │         │ cancela │ check-in OK
-                        │         │  <60min │
+        cancela ≥ umbral │         │ cancela │ check-in OK
+                         │         │ < umbral│
                         ▼         ▼         ▼
              CANCELADA A    CANCELADA     EN USO ──► COMPLETADA
                 TIEMPO       TARDÍA
@@ -251,10 +252,11 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | Confirmada | Reserva vigente a la espera de la franja. | No | Sí |
 | En uso | El usuario hizo check-in. | No | Sí |
 | Completada | La franja terminó con asistencia. | — | Sí |
-| Cancelada a tiempo | Cancelada con 60 min o más de anticipación. | Sí | No |
-| Cancelada tardía | Cancelada con menos de 60 min. | Sí | Sí |
+| Cancelada a tiempo | Cancelada con anticipación igual o superior al umbral conservado. | Sí | No |
+| Cancelada tardía | Cancelada con anticipación inferior al umbral conservado. | Sí | Sí |
 | Inasistencia | No hubo check-in en la ventana. | — | Sí |
 | Cancelada por administrador | Cancelada por un bloqueo institucional. | Sí | No |
+| Cancelada por suspensión | Reserva futura cancelada por ocurrir durante la suspensión. | Sí | No |
 
 ---
 
@@ -281,7 +283,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | ID | Funcionalidad | Descripción |
 |---|---|---|
 | RF-11 | Gestionar espacios y franjas | Crear, editar y desactivar espacios; definir disciplina, aforo, requisitos, horario de operación y estado. |
-| RF-12 | Configurar reglas y cuotas | Editar los parámetros de la sección 4. |
+| RF-12 | Configurar reglas y cuotas | Editar la cuota semanal y el umbral de inasistencias de la sección 4. |
 | RF-13 | Bloquear franjas institucionales | Crear bloqueos puntuales o recurrentes con motivo; cancela las reservas afectadas. |
 | RF-14 | Consultar panel de ocupación | Ocupación por espacio y franja, con filtros por fecha, disciplina y espacio. |
 | RF-15 | Consultar indicadores de uso | Reservas, cancelaciones tardías, inasistencias y usuarios suspendidos. |
@@ -328,20 +330,20 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | Ana reserva 2 h el lunes | 2 de 4 |
 | Ana reserva 1 h el miércoles | 3 de 4 |
 | Ana intenta reservar 2 h más el jueves | **Rechazada**: sin cuota |
-| Ana cancela la reserva del miércoles con 5 h de anticipación | 3 de 4 (devuelve 1 h) |
-| Ana reserva 1 h el jueves | 4 de 4 |
+| Ana cancela la reserva del miércoles con 5 h de anticipación | 2 de 4 (devuelve 1 h) |
+| Ana reserva 1 h el jueves | 3 de 4 |
 
-**Escenario B: cancelación tardía**
+**Escenario B: cancelación tardía (umbral de 60 minutos)**
 
 Luis tiene reserva de 4:00 a 5:00 p. m. y cancela a las 3:30 p. m. El espacio queda libre para que otro usuario lo reserve, pero la hora de Luis **sigue contando** en su cuota. No puede usar la cancha sin reserva.
 
-**Escenario C: tolerancia**
+**Escenario C: tolerancia (valor de 10 minutos)**
 
-La cancha de tenis 2 está libre de 2:00 a 3:00 p. m. A las 2:08 p. m. Marta la reserva. Queda confirmada para la franja completa, debe escanear el QR antes de las 2:18 p. m., y se le descuenta 1 hora de cuota. A las 2:11 p. m. otro usuario ya no puede reservarla.
+La cancha de tenis 2 está libre de 2:00 a 3:00 p. m. A las 2:08 p. m. Marta la reserva. Queda confirmada para la franja completa, puede escanear el QR antes de las 3:00 p. m. y se le descuenta 1 hora de cuota. A las 2:11 p. m. otro usuario ya no puede reservarla.
 
 **Escenario D: inasistencia**
 
-Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Al cerrar la ventana de check-in, la reserva pasa a "Inasistencia", su hora sigue contando y recibe un correo. Si acumula 3 inasistencias en 30 días, queda suspendido 7 días.
+Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Al finalizar, la reserva pasa a "Inasistencia" y su hora sigue contando. Si alcanza el umbral vigente en el mes calendario queda suspendido y se cancelan sus reservas futuras durante la suspensión, liberando cuota e implementos y notificándolo.
 
 **Escenario E: bloqueo por evento**
 

@@ -69,7 +69,7 @@ src/test/java/unimagdeportes/{contract/equipment,integration/equipment,integrati
 1. **Catálogo** [RN-62]: nombre, disciplina sugerida, stock y estado; solo disponibles con stock se solicitan.
 2. **Solicitud** [RN-63]: opcional, en la reserva, con cantidades; puede haber varios implementos.
 3. **Asociación** [RN-64]: los implementos quedan asociados a la reserva.
-4. **Disponibilidad** [RN-65]: `stock` menos cantidades de reservas activas solapadas.
+4. **Disponibilidad** [RN-65]: `stock` menos el máximo de unidades comprometidas simultáneamente durante el intervalo.
 5. **Sin saldo** [RN-66, D-23]: se deriva; canceladas liberan stock.
 6. **Comprobante** [OQ-20]: lista los implementos con su cantidad.
 7. **Disciplina** [OQ-21]: solo sugerencia, sin restricción.
@@ -89,7 +89,7 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC03, UC07-H1 y UC11-H1.
+- [ ] **T001** Verificar UC01, UC03 y UC07-H1 para crear la base y V10–V11; UC11-H1 solo es prerrequisito de la integración del comprobante en T010, no de las migraciones.
 
 ### Phase 2: Foundational
 
@@ -101,21 +101,21 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 
 ### Phase 3: User Stories
 
-- [ ] **T007** [US1/P2] Integrar la validación de stock en `ReservationService`.
-- [ ] **T008** [US1/P2] Validar implementos inexistentes, inactivos y cantidades.
+- [ ] **T007** [US1/P2] Integrar la validación de stock en `ReservationService` bajo el bloqueo asesor global de §4.1 del plan general y bloquear las filas de implementos en orden de id.
+- [ ] **T008** [US1/P2] Validar implementos inexistentes, inactivos, identificadores repetidos y cantidades; rechazar duplicados con `VALIDATION_ERROR`.
 - [ ] **T009** [US1/P2] Asociar implementos a la reserva.
 - [ ] **T010** [US1/P2] Extender el comprobante (UC11) con implementos.
 - [ ] **T011** [US1/P2] Extender DTO y mapper de reserva.
 - [ ] **T012** [US1/P2] Prueba de contrato de `POST /reservations` con implementos.
 - [ ] **T013** [US1/P2] Integración de stock insuficiente.
-- [ ] **T014** [US1/P2] Integración de reservas solapadas.
+- [ ] **T014** [US1/P2] Integración de reservas solapadas y simultáneas por el último stock, incluyendo rangos consecutivos y compromisos simultáneos máximos.
 - [ ] **T015** [US1/P2] Integración de liberación al cancelar.
 - [ ] **T016** [US1/P2] Integración de reserva sin implementos.
 - [ ] **T017** [US2/P2] Implementar `EquipmentService` (listar, crear, editar, desactivar).
 - [ ] **T018** [US2/P2] Implementar `GET /equipment` y `GET /equipment/availability`.
 - [ ] **T019** [US2/P2] Implementar `POST /admin/equipment` y `PUT /admin/equipment/{id}`.
 - [ ] **T020** [US2/P2] Restringir administración al rol `ADMIN`.
-- [ ] **T021** [US2/P2] Validar stock no negativo y nombre único.
+- [ ] **T021** [US2/P2] Validar stock no negativo y nombre único; adquirir el mismo bloqueo global y rechazar reducción por debajo del máximo compromiso simultáneo futuro; probar carreras con reservas.
 - [ ] **T022** [US2/P2] Verificar que desactivar no afecta reservas existentes.
 - [ ] **T023** [US2/P2] Pruebas de contrato del catálogo.
 
@@ -126,9 +126,9 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 
 ## Dependencies & Execution Order
 
-`T001 → T002..T006 → T007..T016 → T017..T023 → T024/T025`.
+`T001 → T002..T006 → (T007..T016 y T017..T023 en paralelo cuando compartan la base) → T024/T025`.
 
-UC13 depende de UC01, UC03, UC07-H1 y UC11-H1. US1 y US2 pueden implementarse en paralelo (US2 provee el catálogo).
+La base de UC13 depende de UC01, UC03 y UC07-H1; la integración del comprobante además requiere UC11-H1. V10–V11 preceden a V12 de UC10. La reserva inicial de UC03 funciona sin implementos; el soporte completo del contrato de reserva con implementos se entrega al integrar UC13. US1 y US2 pueden desarrollarse en paralelo tras la base de catálogo, pero las pruebas integradas requieren ambas.
 
 ## Notes
 

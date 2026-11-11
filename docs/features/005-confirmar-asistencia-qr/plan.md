@@ -23,14 +23,14 @@ UC05 implementa el check-in escaneando el QR estático del espacio y la generaci
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security. QR: `TODO: elegir librería` (se decide en implementación) [PLAN §Technical Context].
+**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security. QR: `com.google.zxing:core:3.5.4` para generar la matriz; serialización SVG por verificar. Dependencia pendiente de agregar.
 **Storage**: PostgreSQL; `reservation.checked_in_at` y lectura de `space`.
 **Messaging**: sin eventos propios; el check-in habilita el paso a `COMPLETED` en UC10.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: check-in en pocos segundos desde el celular.
-**Constraints**: ventana de 10 min antes al fin de tolerancia (RN-36); tolerancia con 10 min desde la creación (RN-30); identidad del token (RN-32); QR estático (RN-31); motivos visibles (RN-35); America/Bogota (RNF-07).
+**Constraints**: apertura configurada antes del inicio hasta el fin de la reserva, sin incluirlo (RN-30, RN-36); identidad del token (RN-32); QR estático (RN-31); motivos visibles (RN-35); America/Bogota (RNF-07).
 **Scale/Scope**: 2 endpoints, sin migraciones, 8 RF + 4 RNF + 4 CE + 2 HU.
 
 ## Project Structure
@@ -52,7 +52,7 @@ src/main/java/unimagdeportes/
 ├── controller/space/SpaceController.java
 ├── service/checkin/{CheckInService,QrService}.java
 ├── service/policy/CheckInWindowPolicy.java
-├── repository/{ReservationRepository,SpaceRepository}.java
+├── service/{reservation,space}/  # acceso mediante servicios propietarios
 └── dto/checkin/ · mapper/checkin/CheckInMapper.java
 
 src/test/java/unimagdeportes/{contract/checkin,integration/checkin,unit/policy}/
@@ -62,8 +62,8 @@ src/test/java/unimagdeportes/{contract/checkin,integration/checkin,unit/policy}/
 
 ## Reglas de negocio
 
-1. **Ventana** [RN-36]: desde 10 min antes del inicio hasta el fin de la tolerancia.
-2. **Reserva en tolerancia** [RN-30]: check-in dentro de 10 min desde su creación.
+1. **Ventana** [RN-36]: desde la apertura configurada antes del inicio hasta el fin de la reserva, sin incluirlo.
+2. **Reserva en tolerancia** [RN-30]: sigue la misma ventana; no hay plazo especial.
 3. **Identidad** [RN-31, RN-32]: QR estático por espacio; identidad del token.
 4. **Dueño** [RN-33]: solo el usuario de la reserva puede hacer check-in.
 5. **Sesión** [RN-34]: sin token o en otro navegador, se inicia sesión y se vuelve al check-in.
@@ -95,7 +95,7 @@ Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 arch
 
 ### Phase 3: User Stories
 
-- [ ] **T004** [US1/P1] Implementar `CheckInService`.
+- [ ] **T004** [US1/P1] Implementar `CheckInService`: adquirir primero el bloqueo asesor global de §4.1 del plan general y releer reserva y hora antes de confirmar.
 - [ ] **T005** [US1/P1] Crear DTO y `CheckInMapper`.
 - [ ] **T006** [US1/P1] Implementar `POST /checkin/{spaceId}`.
 - [ ] **T007** [US1/P1] Devolver los motivos de rechazo.
@@ -104,7 +104,7 @@ Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 arch
 - [ ] **T010** [US1/P1] Integración de la ventana.
 - [ ] **T011** [US1/P1] Integración de rechazos.
 - [ ] **T012** [US1/P1] Prueba unitaria de `CheckInWindowPolicy`.
-- [ ] **T013** [US2/P1] Elegir y documentar la librería de QR.
+- [ ] **T013** [US2/P1] Agregar ZXing y verificar generación del QR en SVG.
 - [ ] **T014** [US2/P1] Implementar `QrService`.
 - [ ] **T015** [US2/P1] Implementar `GET /admin/spaces/{id}/qr`.
 - [ ] **T016** [US2/P1] Restringir el endpoint al rol `ADMIN`.

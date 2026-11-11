@@ -65,9 +65,10 @@ Se envían solo los campos que se quieren modificar.
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 | `EQUIPMENT_NOT_FOUND` | 404 | El implemento no existe. | RN-62 |
+| `STOCK_BELOW_COMMITTED` | 409 | El stock propuesto es inferior al máximo compromiso simultáneo futuro. | RN-65 |
 
 ## Notas
 
-- Los cambios de stock rigen para las validaciones posteriores; las reservas existentes se mantienen y no se recalculan (OQ-05).
+- Se rechaza toda reducción por debajo del máximo compromiso simultáneo futuro. La edición y las reservas usan el mismo bloqueo del implemento; las reservas existentes se conservan.
 - Desactivar un implemento impide solicitarlo en reservas nuevas, pero no afecta las solicitudes existentes (OQ-05).
 - La cantidad de una reserva se acota por el stock disponible en su franja, no por un límite adicional (OQ-18).

@@ -48,7 +48,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 7. **Escenario**: Reserva dentro de la tolerancia.
    - **Dado** que una franja libre ya comenzó y no han pasado más de 10 minutos desde su inicio.
    - **Cuando** el Usuario la reserva.
-   - **Entonces** la reserva queda confirmada para la franja completa, cuenta la franja completa contra la cuota y el Usuario debe hacer check-in dentro de los 10 minutos siguientes a la creación de la reserva.
+   - **Entonces** la reserva queda confirmada para la franja completa, cuenta la franja completa contra la cuota y el Usuario puede hacer check-in hasta el fin de la reserva.
 
 8. **Escenario**: Reserva con implementos extras opcionales.
    - **Dado** que el Usuario está reservando una franja libre y existe al menos un implemento disponible con stock suficiente en la franja.
@@ -60,7 +60,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 - La cuota se mide en horas reservadas, no solo en horas usadas. El valor por defecto es de 4 horas por semana y es configurable.
 - La semana de una reserva es la de la fecha de la franja, no la de creación.
 - Antes de confirmar, el sistema suma las horas que ya cuentan en esa semana más las de la nueva reserva; si superan la cuota, rechaza e informa cuántas horas le quedan al Usuario.
-- Cuentan contra la cuota: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo y cancelada por el administrador.
+- Cuentan contra la cuota: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo, por el administrador o por suspensión.
 
 ### Casos Extremos (Edge Cases)
 
@@ -95,7 +95,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 - **RF-007**: El sistema DEBE permitir que una reserva abarque hasta 2 franjas consecutivas del mismo espacio (RN-15).
 - **RF-008**: El sistema DEBE permitir reservar con hasta 7 días de anticipación y hasta el fin de la tolerancia de la franja (RN-14, RN-27, RN-28).
 - **RF-009**: El sistema DEBE aplicar la regla de cuota semanal descrita en esta SPEC, sumando las horas de la semana de la fecha de la franja, y rechazar la reserva informando las horas restantes cuando se supere la cuota (RN-16 a RN-18).
-- **RF-010**: El sistema DEBE, para una reserva hecha dentro de la tolerancia, ocupar la franja completa, contar la franja completa contra la cuota y exigir el check-in dentro de los 10 minutos siguientes a su creación (RN-29, RN-30).
+- **RF-010**: El sistema DEBE, para una reserva hecha dentro de la tolerancia, ocupar y contar la franja completa y permitir el check-in hasta el fin de la reserva (RN-29, RN-30).
 - **RF-011**: El sistema DEBE confirmar la reserva al instante en pantalla, sin aprobación manual, cuando todas las validaciones pasen (RN-13).
 - **RF-012**: El sistema DEBE invocar "Enviar comprobante al correo (PDF)" al confirmar la reserva (ver SPEC 011) (RN-13, RN-45, `<<include>>`).
 - **RF-013**: El sistema DEBE permitir, de forma opcional, asociar uno o varios implementos del catálogo con su cantidad al confirmar la reserva, validando su stock disponible en la franja (RF-23, RN-63, RN-65; ver SPEC 013).
@@ -110,7 +110,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 
 ### Entidades Clave
 
-- **Reserva**: Asignación de una o dos franjas consecutivas de un espacio a un Usuario. Atributos: Usuario, espacio, fecha, franja(s), momento de creación, estado e implementos solicitados (opcional). Estados: Confirmada, En uso, Completada, Cancelada a tiempo, Cancelada tardía, Inasistencia y Cancelada por administrador. Toda reserva nace en estado Confirmada.
+- **Reserva**: Asignación de una o dos franjas consecutivas de un espacio a un Usuario. Atributos: Usuario, espacio, fecha, franja(s), momento de creación, estado e implementos solicitados (opcional). Estados: Confirmada, En uso, Completada, Cancelada a tiempo, Cancelada tardía, Inasistencia, Cancelada por administrador y Cancelada por suspensión. Toda reserva nace en estado Confirmada.
 - Usuario, Espacio/Franja y parámetros de uso se definen en las SPEC 001, 007 y 006 respectivamente.
 
 ## Criterios de Éxito *(obligatorio)*

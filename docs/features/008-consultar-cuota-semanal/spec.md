@@ -34,7 +34,7 @@ Como Usuario, quiero ver en todo momento mis horas usadas, mis horas disponibles
 
 ### Historia de Usuario 2 - Reiniciar la cuota de cada Usuario cada semana (Prioridad: P1)
 
-Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota semanal de los Usuarios al límite configurado, de manera que cada Usuario cuente con sus horas completas en la nueva semana.
+Como el sistema, al comenzar cada semana de conteo, quiero calcular la cuota semanal sobre la nueva semana, descontando las reservas ya hechas para ella.
 
 **Por qué esta prioridad**: La cuota semanal es el único mecanismo de control de uso; su reinicio periódico mantiene el funcionamiento de las reservas.
 
@@ -45,7 +45,7 @@ Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota se
 1. **Escenario**: Inicio de una nueva semana.
    - **Dado** que comienza una nueva semana de conteo.
    - **Cuando** llega el lunes a las 00:00 en zona horaria America/Bogota.
-   - **Entonces** la cuota semanal de los Usuarios vuelve al límite configurado (4 horas por defecto).
+   - **Entonces** se aplica el límite semanal configurado (4 horas por defecto), descontando las reservas que ya cuentan en la nueva semana.
 
 2. **Escenario**: Reservas ya hechas para la semana nueva.
    - **Dado** que un Usuario hizo una reserva para una fecha de la semana siguiente.
@@ -55,13 +55,13 @@ Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota se
 ### Casos Extremos (Edge Cases)
 
 - **¿Qué horas cuentan contra la cuota según el estado de la reserva?**
-  Cuentan: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo y cancelada por el administrador (sección 5.4 del contexto).
+  Cuentan: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo, por el administrador o por suspensión (sección 5.4 del contexto).
 
 - **¿En qué semana se cuenta una reserva?**
   En la de la fecha de la franja, no en la de creación (RN-17). Una reserva creada con anticipación cuenta en la semana de su franja.
 
 - **¿Cuándo comienza la semana de conteo y se reinicia la cuota?**
-  El lunes a las 00:00 en zona horaria America/Bogota (sección 4 del contexto), valor configurable (ver SPEC 006).
+  El lunes a las 00:00 en zona horaria America/Bogota; es fijo (sección 4 del contexto).
 
 ## Requisitos *(obligatorio)*
 
@@ -73,7 +73,7 @@ Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota se
 - **RF-004**: El sistema DEBE usar el límite semanal configurado, 4 horas por defecto (sección 4 del contexto).
 - **RF-005**: El sistema DEBE reiniciar la cuota semanal cada semana al límite configurado (RF-21).
 - **RF-006**: El sistema DEBE iniciar la semana de conteo el lunes a las 00:00 en zona horaria America/Bogota (sección 4 del contexto).
-- **RF-007**: El sistema DEBE contar cada reserva en la semana de la fecha de la franja (RN-17).
+- **RF-007**: El sistema DEBE contar cada parte de una reserva en la semana en que ocurre, repartiendo su duración si cruza el inicio semanal (RN-17).
 
 ### Requisitos No Funcionales
 
@@ -83,6 +83,7 @@ Como el sistema, al comenzar cada semana de conteo, quiero reiniciar la cuota se
 ### Entidades Clave
 
 - **CuotaSemanal (DTO)**: Resultado de la consulta. Contiene horas usadas, horas disponibles y fecha de reinicio. No se persiste como entidad independiente: se obtiene de las Reservas del Usuario (ver SPEC 003) y del límite configurado (SPEC 006). El reinicio semanal (Historia de Usuario 2) la devuelve al límite configurado, descontando las reservas ya hechas para esa semana.
+- Si el límite vigente baja por debajo de las horas ya confirmadas, estas reservas se conservan y las horas disponibles se muestran como cero, nunca negativas.
 
 ## Criterios de Éxito *(obligatorio)*
 

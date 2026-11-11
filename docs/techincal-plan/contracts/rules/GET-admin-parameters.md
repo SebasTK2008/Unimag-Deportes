@@ -18,7 +18,8 @@ Sin parámetros.
     "slotMinutes": 60,
     "maxSlotsPerReservation": 2,
     "maxAdvanceDays": 7,
-    "minAdvanceMinutes": 0
+    "minAdvanceMinutes": 0,
+    "bookingToleranceMinutes": 10
   },
   "quota": {
     "weeklyHours": 4,
@@ -37,7 +38,7 @@ Sin parámetros.
   },
   "sanctions": {
     "noShowsForSuspension": 3,
-    "windowDays": 30,
+    "window": "CALENDAR_MONTH",
     "suspensionDays": 7
   },
   "emailDomain": "@unimagdalena.edu.co"
