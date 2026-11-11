@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC06 - Reglas de uso
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-11 y OQ-16)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -28,9 +29,9 @@ Como Usuario, quiero consultar las reglas de uso (cuota, tolerancia, cancelació
 
 ### Historia de Usuario 2 - Editar los parámetros de las reglas de uso desde la configuración (Prioridad: P1)
 
-Como Administrador, quiero editar desde la configuración los parámetros de uso de la plataforma (cuota, tolerancia, cancelación, anticipación, check-in, recordatorio, suspensión y dominio de correo), de manera que las reglas puedan cambiar sin modificar el código.
+Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias, de manera que esas reglas puedan cambiar sin modificar el código.
 
-**Por qué esta prioridad**: Todas las demás funcionalidades (reservas, cancelaciones, check-in, sanciones, notificaciones) dependen de estos valores, que según el contexto no deben quedar fijos en el código.
+**Por qué esta prioridad**: Las reservas y sanciones dependen de estos valores; los demás parámetros son fijos o se configuran por despliegue según la sección 4 del contexto.
 
 **Prueba Independiente**: Modificar un parámetro (por ejemplo, la cuota semanal) y validar que la plataforma aplica el nuevo valor en las validaciones posteriores y que la consulta de la Historia de Usuario 1 lo refleja.
 
@@ -54,19 +55,19 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 ### Casos Extremos (Edge Cases)
 
 - **¿De dónde provienen los valores que se muestran?**
-  De los parámetros configurables de la sección 4 del contexto (Historia de Usuario 2), que no están fijos en el código. Los valores por defecto son: tolerancia de 10 minutos, cancelación tardía con menos de 60 minutos, cuota de 4 horas por semana, y suspensión de 7 días por 3 inasistencias en 30 días.
+  De los valores fijos, de despliegue y de administración de la sección 4 del contexto. Valores iniciales: tolerancia de 10 minutos, cancelación tardía con menos de 60 minutos, cuota de 4 horas por semana y suspensión de 7 días por 3 inasistencias en el mes calendario.
 
 - **¿Hay multas por incumplir las reglas?**
   No. La sanción es perder las horas y, de repetirse, una suspensión temporal (sección 5.8 del contexto).
 
 - **¿Qué ocurre con las reservas ya existentes cuando cambia un parámetro?**
-  **[Pendiente de definir]** El contexto no establece si los cambios afectan solo a las reservas nuevas o también a las existentes.
+  Los cambios rigen solo para operaciones nuevas; no modifican reservas existentes (OQ-05).
 
 - **¿Los cobros monetarios son un parámetro editable?**
   No. La tabla de parámetros lo lista con valor "Ninguno" y el principio 1 del contexto define que no hay cobros monetarios; esta SPEC no incluye cobros como parámetro editable.
 
 - **¿Quién puede editar los parámetros?**
-  El Administrador, personal del área de deportes (sección 2 del contexto).
+  El Administrador edita únicamente la cuota y el umbral de inasistencias; los valores de despliegue los configura el operador (sección 4 del contexto).
 
 ## Requisitos *(obligatorio)*
 
@@ -74,10 +75,10 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 
 - **RF-001**: El sistema DEBE permitir al Usuario consultar las reglas de uso en lenguaje claro (RF-09).
 - **RF-002**: El sistema DEBE cubrir al menos las reglas de cuota, tolerancia, cancelación, check-in y sanciones (RF-09).
-- **RF-003**: El sistema DEBE mostrar los valores vigentes de los parámetros configurados, sin valores fijos en el código (sección 4 del contexto).
-- **RF-004**: El sistema DEBE permitir al Administrador editar los parámetros de la sección 4 del contexto (RF-12).
-- **RF-005**: El sistema DEBE almacenar los parámetros como configuración editable y NO DEBE dejarlos fijos en el código (sección 4 del contexto).
-- **RF-006**: El sistema DEBE aplicar los valores configurados en las validaciones y reglas de los demás casos de uso.
+- **RF-003**: El sistema DEBE mostrar los valores vigentes de las reglas (sección 4 del contexto).
+- **RF-004**: El sistema DEBE permitir al Administrador editar únicamente la cuota semanal y el umbral de inasistencias (RF-12).
+- **RF-005**: El sistema DEBE almacenar esos dos valores editables; los restantes son fijos o configurables por despliegue según la sección 4.
+- **RF-006**: El sistema DEBE aplicar los valores vigentes a reservas nuevas y conservar las reglas de las reservas existentes.
 - **RF-007**: El sistema DEBE usar los valores por defecto de la sección 4 mientras no se modifiquen.
 
 ### Requisitos No Funcionales
@@ -88,7 +89,7 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 
 ### Entidades Clave
 
-- **ParametrosDeUso**: Conjunto de valores configurables de la plataforma. La Historia de Usuario 1 los consulta y la Historia de Usuario 2 los edita. Atributos y valores por defecto:
+- **ParametrosDeUso**: Valores de las reglas consultados en la Historia 1; la Historia 2 edita solo cuota y umbral de inasistencias. Valores iniciales:
   - Tolerancia para reservar una vez iniciada la franja: 10 minutos.
   - Umbral de cancelación tardía: menos de 60 minutos antes del inicio.
   - Duración de una franja: 60 minutos.
@@ -97,11 +98,10 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
   - Inicio de la semana de conteo: lunes 00:00, zona horaria America/Bogota.
   - Anticipación mínima para reservar: 0 minutos (se permite hasta el fin de la tolerancia).
   - Anticipación máxima para reservar: 7 días.
-  - Ventana de check-in: desde 10 minutos antes del inicio hasta el fin de la tolerancia.
-  - Plazo de check-in en reservas hechas dentro de la tolerancia: 10 minutos desde su creación.
+  - Ventana de check-in: desde la apertura configurada (10 minutos antes por defecto) hasta el fin de la reserva, sin incluir ese instante.
   - Recordatorio previo a la reserva: 2 horas antes del inicio.
-  - Suspensión por inasistencias: 3 inasistencias en 30 días suspenden 7 días.
-  - Dominio de correo permitido: `@unimagdalena.edu.co` (dominio exacto por confirmar).
+  - Suspensión por inasistencias: 3 inasistencias en el mes calendario suspenden 7 días por defecto.
+  - Dominio de correo permitido: `@unimagdalena.edu.co` (OQ-11).
 
 ## Criterios de Éxito *(obligatorio)*
 
@@ -109,5 +109,5 @@ Como Administrador, quiero editar desde la configuración los parámetros de uso
 
 - **CE-001**: Coherencia, "100% de los valores mostrados coinciden con los parámetros vigentes configurados".
 - **CE-002**: Cobertura, "Las cinco categorías de reglas (cuota, tolerancia, cancelación, check-in y sanciones) están presentes en la consulta".
-- **CE-003**: Configurabilidad, "100% de los parámetros de la sección 4 son editables desde la configuración, sin cambios en el código".
+- **CE-003**: Configurabilidad, "La cuota semanal y el umbral de inasistencias son editables por Administrador; los demás valores respetan la clasificación de la sección 4".
 - **CE-004**: Aplicación de Cambios, "100% de los cambios guardados se reflejan en las validaciones posteriores y en la consulta de reglas de uso".

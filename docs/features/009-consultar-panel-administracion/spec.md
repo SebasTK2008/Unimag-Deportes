@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC09 - Consultar panel de administración
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (OQ-08: períodos semanal y mensual)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -47,10 +48,10 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
   La reserva bloquea el espacio completo sin importar la disciplina elegida (RN-07), por lo que la franja se muestra ocupada para cualquiera de sus disciplinas.
 
 - **¿Sobre qué período se calculan los indicadores?**
-  **[Pendiente de definir]** El contexto no establece períodos ni filtros para esta consulta.
+  Sobre períodos fijos semanal y mensual; el frontend permite elegir cuál ver (OQ-08).
 
 - **¿Qué se cuenta como cancelación tardía o inasistencia?**
-  Lo definido por las reglas del contexto: cancelación tardía es la hecha con menos de 60 minutos de anticipación o con la franja ya iniciada sin check-in (RN-22), e inasistencia es la reserva sin check-in al cerrar la ventana (RN-37).
+  Lo definido por las reglas del contexto: cancelación tardía es la hecha con anticipación inferior al umbral conservado por la reserva o con la franja ya iniciada sin check-in (RN-22), e inasistencia es la reserva sin check-in al cerrar la ventana (RN-37).
 
 ## Requisitos *(obligatorio)*
 
@@ -59,6 +60,7 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
 - **RF-001**: El sistema DEBE mostrar al Administrador la ocupación por espacio y franja (RF-14).
 - **RF-002**: El sistema DEBE permitir filtrar la ocupación por fecha, disciplina y espacio (RF-14).
 - **RF-003**: El sistema DEBE mostrar al Administrador los indicadores de reservas, cancelaciones tardías, inasistencias y usuarios suspendidos (RF-15).
+- **RF-004**: El sistema DEBE calcular los indicadores en períodos fijos semanal y mensual, seleccionables desde el frontend (OQ-08).
 
 ### Requisitos No Funcionales
 
@@ -78,3 +80,4 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
 - **CE-001**: Exactitud, "100% de la ocupación mostrada coincide con las reservas y los bloqueos registrados".
 - **CE-002**: Filtrado, "100% de los resultados filtrados cumplen los filtros de fecha, disciplina y espacio aplicados".
 - **CE-003**: Exactitud de Indicadores, "100% de los indicadores mostrados coinciden con los registros de reservas, cancelaciones tardías, inasistencias y suspensiones".
+- **CE-004**: Períodos, "100% de los indicadores se calculan en el período semanal o mensual seleccionado".

@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC01 - Iniciar sesión
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-10-18 (código de acceso de un solo uso y token JWT de 24 horas sin cookies)
+**Última revisión**: 2026-11-10 (cierre de OQ-02, OQ-04, OQ-11 y OQ-17; se mantiene el token JWT de 24 horas sin cookies)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -18,7 +18,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 1. **Escenario**: Solicitud de código con correo institucional.
    - **Dado** que la persona tiene un correo del dominio institucional.
    - **Cuando** solicita su código de acceso.
-   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 10 minutos de vigencia. Si ya había un código vigente, el nuevo lo invalida.
+   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 15 minutos de vigencia por defecto, configurable por despliegue. Si ya había un código vigente, el nuevo lo invalida.
 
 2. **Escenario**: Correo de otro dominio.
    - **Dado** que la persona intenta solicitar el código con un correo que no pertenece al dominio institucional.
@@ -36,9 +36,9 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
    - **Entonces** el sistema rechaza el acceso e informa que debe corregir el código o solicitar uno nuevo.
 
 5. **Escenario**: Límite de intentos por código.
-   - **Dado** que la persona acumuló 5 intentos fallidos con el mismo código.
-   - **Cuando** intenta un sexto intento.
-   - **Entonces** el código queda invalidado y la persona debe solicitar uno nuevo.
+   - **Dado** que la persona acumuló cuatro intentos fallidos con el mismo código, con el límite inicial de cinco.
+   - **Cuando** falla el quinto intento.
+   - **Entonces** el código queda invalidado inmediatamente y la persona debe solicitar uno nuevo.
 
 6. **Escenario**: Límite de solicitudes de código.
    - **Dado** que la persona solicitó un código hace menos de 60 segundos, o ya hizo 5 solicitudes en la última hora con ese correo.
@@ -79,10 +79,10 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   Sí. Un Usuario suspendido puede consultar disponibilidad y sus reservas, pero no puede crear nuevas hasta que termine la suspensión (RN-05).
 
 - **¿Cuál es el dominio institucional válido?**
-  El contexto indica `@unimagdalena.edu.co` y señala que el dominio exacto debe confirmarse. El dominio es un parámetro configurable (ver SPEC 006), no un valor fijo en el código.
+  Es `@unimagdalena.edu.co` (OQ-11), fijo y no editable por el Administrador (sección 4 del contexto).
 
 - **¿Cómo se obtiene el rol de Administrador?**
-  No se obtiene por autoservicio: se asigna a correos institucionales específicos desde la configuración del sistema (RN-60). El Administrador inicia sesión con el mismo mecanismo que el Usuario.
+  No se obtiene por autoservicio: se siembra en la columna `role` de `app_user` desde la lista `app.auth.admin-emails` al aprovisionar el usuario (RN-60, OQ-02). El Administrador inicia sesión con el mismo mecanismo que el Usuario.
 
 - **¿Por qué el token no usa cookies?**
   Por decisión del contexto (RN-55): el cliente guarda el token en el almacenamiento del navegador y lo envía en el encabezado `Authorization: Bearer`. Como consecuencia, el token no se comparte entre navegadores (ver escenario 10).
@@ -94,10 +94,10 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
   Sí. Cada inicio de sesión genera un token independiente (RN-57).
 
 - **¿Qué ocurre si el correo con el código no se puede enviar?**
-  El sistema informa a la persona y le permite solicitar otro código. El comportamiento general ante fallos de correo está pendiente de definir (ver SPEC 011).
+  El sistema informa a la persona y le permite solicitar otro código, respetando los límites de solicitud (RN-53, OQ-04). En los demás correos, el fallo se registra y no revierte la operación de negocio (ver SPEC 011).
 
 - **¿Se puede cerrar la sesión de un dispositivo perdido?**
-  **[Pendiente de definir]** El contexto no define revocación de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas) o hasta que el usuario sea suspendido o cambie su estado (RN-58).
+  No en el prototipo: no hay revocación individual de tokens; un token vigente sigue siendo válido hasta que expire (máximo 24 horas). La suspensión no lo invalida: restringe las acciones autorizadas; el rol y la existencia se comprueban en cada petición (RN-58, OQ-17). Rotar la llave de firma en una emergencia invalida todos los tokens.
 
 - **¿El método de acceso es definitivo?**
   No necesariamente. El código de acceso es sustituible por el inicio de sesión con Microsoft de la universidad sin cambiar los demás casos de uso (ver plan técnico, D-08 y D-09).
@@ -108,8 +108,8 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 
 - **RF-001**: El sistema DEBE permitir iniciar sesión con el correo institucional y un código de acceso de un solo uso enviado a ese correo, sin contraseñas ni registro previo (RF-01, RN-49).
 - **RF-002**: El sistema DEBE validar el dominio al solicitar el código, rechazar los correos que no pertenezcan al dominio institucional configurado y no enviar ningún correo en ese caso (RN-01, RN-50).
-- **RF-003**: El sistema DEBE generar el código con 6 dígitos y un generador criptográficamente seguro, con vigencia de 10 minutos y un solo uso; solicitar un código nuevo DEBE invalidar el anterior, y el sistema DEBE guardar únicamente su hash (RN-51).
-- **RF-004**: El sistema DEBE admitir un máximo de 5 intentos fallidos por código y, al superarlos, invalidarlo (RN-52).
+- **RF-003**: El sistema DEBE generar el código con 6 dígitos y un generador criptográficamente seguro, con vigencia configurable de 15 minutos por defecto y un solo uso; solicitar un código nuevo DEBE invalidar el anterior, y el sistema DEBE guardar únicamente su HMAC (RN-51).
+- **RF-004**: El sistema DEBE invalidar el código al alcanzar el límite configurado de intentos fallidos (5 por defecto), sin admitir otro intento (RN-52).
 - **RF-005**: El sistema DEBE exigir al menos 60 segundos entre dos solicitudes de código para el mismo correo, permitir como máximo 5 solicitudes por hora por correo e informar cuánto debe esperar la persona (RN-53).
 - **RF-006**: El sistema DEBE emitir, al verificar un código correcto, un token JWT firmado con vigencia de 24 horas desde su emisión, que incluya como mínimo el identificador del usuario, su correo, su rol, la fecha de emisión y la de expiración (RN-54).
 - **RF-007**: El sistema NO DEBE usar cookies para la sesión: el token se envía en cada petición en el encabezado `Authorization: Bearer` (RN-55).
@@ -117,7 +117,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 - **RF-009**: El sistema DEBE permitir cerrar sesión eliminando el token del dispositivo, y permitir sesiones abiertas en varios dispositivos a la vez (RN-57).
 - **RF-010**: El sistema DEBE consultar en cada petición el estado vigente del usuario (existencia, rol y suspensión) y NO DEBE deducirlo del token (RN-58).
 - **RF-011**: El sistema DEBE crear el usuario automáticamente al completar su primer inicio de sesión y pedirle su nombre (RN-59).
-- **RF-012**: El sistema DEBE asignar el rol de Administrador solo a correos institucionales específicos definidos en la configuración (RN-60).
+- **RF-012**: El sistema DEBE sembrar el rol de Administrador en `app_user` solo para los correos definidos en `app.auth.admin-emails` (RN-60, OQ-02).
 - **RF-013**: El sistema DEBE aplicar las mismas reglas de acceso a estudiantes, docentes y funcionarios (RN-02).
 - **RF-014**: El sistema DEBE permitir el inicio de sesión de un Usuario suspendido, limitando sus acciones a consultar disponibilidad y sus reservas (RN-05).
 - **RF-015**: El sistema DEBE, ante un escaneo de QR sin sesión vigente, pedir el inicio de sesión y continuar con el check-in una vez autenticada la persona; si el enlace se abre en un navegador distinto, DEBE pedir iniciar sesión de nuevo (RN-34).
@@ -134,7 +134,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 
 ### Entidades Clave
 
-- **Usuario**: Persona con correo institucional que usa la plataforma. Atributos: nombre y correo institucional, además de su rol (Usuario o Administrador) y su estado de suspensión (ver SPEC 010). Su identidad proviene del token verificado en cada petición (RN-32, RN-58).
+- **Usuario**: Persona con correo institucional que usa la plataforma. Atributos: nombre y correo institucional, además de su rol (Usuario o Administrador) y su estado de suspensión (ver SPEC 010). Su identidad proviene del token verificado en cada petición (RN-03, RN-58).
 - **CódigoDeAcceso**: Código numérico de un solo uso enviado al correo institucional. Atributos: correo, hash del código, vencimiento, intentos fallidos y marca de uso. Solo se guarda su hash.
 - **TokenDeSesión (JWT)**: Credencial firmada con vigencia de 24 horas que el cliente conserva en el navegador. No se guarda en el servidor ni en cookies.
 

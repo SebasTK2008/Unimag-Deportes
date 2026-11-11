@@ -37,13 +37,12 @@ Como Usuario con una reserva, quiero escanear con mi celular el código QR del e
 
 5. **Escenario**: Check-in de una reserva hecha dentro de la tolerancia.
    - **Dado** que la reserva fue creada dentro de la tolerancia de la franja.
-   - **Cuando** el Usuario escanea el QR dentro de los 10 minutos siguientes a la creación de la reserva.
+   - **Cuando** el Usuario escanea el QR antes del fin de la reserva.
    - **Entonces** el sistema registra el check-in y la reserva pasa a "En uso".
 
 **Regla de la ventana de check-in** (RN-36, RN-30):
 
-- Reserva general: desde 10 minutos antes del inicio hasta el fin de la tolerancia (10 minutos después del inicio).
-- Reserva creada dentro de la tolerancia: dentro de los 10 minutos siguientes a su creación.
+- Toda reserva: desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable por hora de inicio; una en curso precede a una futura.
 
 ---
 
@@ -95,7 +94,7 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 - **RF-002**: El sistema DEBE comprobar, al escanear, que el Usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in; si todo coincide, la reserva pasa a "En uso" (RN-33).
 - **RF-003**: El sistema DEBE pedir el inicio de sesión cuando no haya una sesión vigente (sin token o con el token expirado) y continuar con el check-in en el mismo espacio una vez autenticado el Usuario; si el enlace se abre en un navegador distinto al de la sesión, DEBE pedir iniciar sesión de nuevo (RN-34).
 - **RF-004**: El sistema DEBE mostrar el motivo cuando el check-in falle: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada (RN-35).
-- **RF-005**: El sistema DEBE aplicar la ventana de check-in desde 10 minutos antes del inicio hasta el fin de la tolerancia (RN-36) y, para reservas creadas dentro de la tolerancia, el plazo de 10 minutos desde su creación (RN-30).
+- **RF-005**: El sistema DEBE aplicar la apertura configurada y permitir el check-in hasta el fin de la reserva, sin incluir ese instante, también para reservas creadas dentro de la tolerancia (RN-30, RN-36).
 - **RF-006**: El sistema DEBE permitir al Administrador generar el QR de cada espacio (RF-16).
 - **RF-007**: El sistema DEBE generar el QR como un código estático que contiene un enlace fijo al espacio, sin identificar al Usuario (RN-31, RN-32).
 - **RF-008**: El sistema DEBE permitir imprimir el QR (RF-16).

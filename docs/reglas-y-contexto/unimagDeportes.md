@@ -1,5 +1,7 @@
 # Unimag Deportes — Reglas de negocio y funcionalidades
 
+**Última revisión**: 2026-11-10 (implementos con stock, cierre de OQ-11, OQ-12, OQ-16 y OQ-20)
+
 
 ---
 
@@ -15,7 +17,7 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 4. **Las reglas se aplican igual para todos** los usuarios.
 5. **Autenticación sin contraseña:** la identidad se verifica con el correo institucional y un código de un solo uso enviado a ese correo. La sesión se mantiene con un **token JWT de 24 horas, sin cookies**. **[Definido]**
 
-**Fuera del alcance:** pagos, alquiler a personas externas a la universidad, inscripción a torneos, reserva de implementos deportivos.
+**Fuera del alcance:** pagos, alquiler a personas externas a la universidad, inscripción a torneos. La solicitud de implementos deportivos al reservar **sí** hace parte del alcance (ver RN-62 a RN-66, RF-23 y RF-24).
 
 ---
 
@@ -37,10 +39,11 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 | **Espacio** | Cancha o área física reservable (por ejemplo, "Cancha de tenis 1"). |
 | **Franja** | Bloque de tiempo reservable de un espacio (por ejemplo, 2:00 p. m. a 3:00 p. m.). |
 | **Reserva** | Asignación de una franja de un espacio a un usuario. |
+| **Implemento** | Elemento del catálogo de implementos deportivos (por ejemplo, un balón de voleibol o de fútbol) con sus existencias (stock), que el Usuario puede solicitar, de forma opcional y con una cantidad, al hacer una reserva. |
 | **Cuota semanal** | Máximo de horas de uso que un usuario puede acumular en una semana. |
 | **Tolerancia** | Minutos después del inicio de una franja en los que aún se puede reservar un espacio libre. |
 | **Check-in** | Confirmación de asistencia escaneando el QR del espacio al ingresar. |
-| **Cancelación tardía** | Cancelación realizada con menos de 1 hora de anticipación. |
+| **Cancelación tardía** | Cancelación realizada con menos anticipación que el umbral conservado por la reserva (60 minutos por defecto). |
 | **Inasistencia** | Reserva en la que el usuario no hizo check-in dentro del plazo. |
 | **Bloqueo institucional** | Franja retirada de la reserva libre por clases, eventos o mantenimiento. |
 | **Código de acceso** | Código numérico de un solo uso, enviado al correo institucional, que el usuario ingresa para iniciar sesión. |
@@ -49,33 +52,34 @@ Unimag Deportes centraliza la reserva de canchas de la universidad para cinco di
 
 ---
 
-## 4. Parámetros configurables
+## 4. Parámetros del sistema
 
-Estos valores **no deben quedar fijos en el código**: el administrador debe poder cambiarlos desde la configuración.
+Los valores son iniciales salvo que se indiquen como fijos. Solo la cuota semanal y el número de inasistencias para suspender se editan por el Administrador; los demás valores configurables se establecen por despliegue. Las reservas existentes conservan las reglas vigentes al crearse, salvo el umbral de sanción, que se evalúa con el valor vigente al registrar la inasistencia.
 
-| Parámetro | Valor | 
-|---|---|---|
+| Parámetro | Valor |
+|---|---|
 | Cobros monetarios | Ninguno | 
-| Tolerancia para reservar una vez iniciada la franja | **10 minutos** | 
-| Umbral de cancelación tardía | **Menos de 60 minutos** antes del inicio | 
-| Duración de una franja | 60 minutos | 
-| Duración máxima de una reserva | 2 franjas consecutivas (2 horas) | 
-| Cuota semanal por usuario | 4 horas por semana | 
-| Inicio de la semana de conteo | Lunes 00:00, zona horaria America/Bogota | 
-| Anticipación mínima para reservar | 0 minutos (se permite hasta el fin de la tolerancia) | 
-| Anticipación máxima para reservar | 10 días | 
-| Ventana de check-in | Desde 10 min antes del inicio hasta el fin de la tolerancia | 
-| Plazo de check-in en reservas hechas dentro de la tolerancia | 10 minutos desde que se crea la reserva | 
-| Recordatorio previo a la reserva | 2 horas antes del inicio | 
-| Suspensión por inasistencias | 3 inasistencias en 30 días suspenden 7 días |
-| Dominio de correo permitido | `@unimagdalena.edu.co` (confirmar dominio exacto) | 
+| Tolerancia para reservar una vez iniciada la franja | 10 minutos; por despliegue |
+| Umbral de cancelación tardía | Menos de 60 minutos antes del inicio; por despliegue |
+| Duración de una franja | 60 minutos; fijo |
+| Duración máxima de una reserva | 2 franjas consecutivas; fijo |
+| Cuota semanal por usuario | 4 horas; editable por Administrador |
+| Inicio de la semana de conteo | Lunes 00:00, America/Bogota; fijo |
+| Anticipación mínima para reservar | 0 minutos; por despliegue |
+| Anticipación máxima para reservar | 7 días; fijo |
+| Horizonte del calendario | 7 días; fijo |
+| Ventana de check-in | Desde 10 minutos antes del inicio (por despliegue) hasta el fin de la reserva |
+| Recordatorio previo a la reserva | 2 horas antes; fijo; se omite si se crea con menos de 2 horas de anticipación |
+| Suspensión por inasistencias | 3 inasistencias (editable por Administrador) por mes calendario; suspensión de 7 días (por despliegue) |
+| Dominio de correo permitido | `@unimagdalena.edu.co`; fijo |
 | Método de autenticación | Correo institucional + código de un solo uso enviado al correo (sin contraseña) |
 | Tipo de sesión | Token JWT, sin cookies |
 | Vigencia de la sesión | **24 horas** desde la emisión del token, sin renovación automática |
-| Longitud del código de acceso | 6 dígitos numéricos *(propuesto, confirmar)* |
-| Vigencia del código de acceso | 10 minutos *(propuesto, confirmar)* |
-| Intentos fallidos por código | 5 *(propuesto, confirmar)* |
-| Reenvío del código | Mínimo 60 segundos entre solicitudes y máximo 5 solicitudes por hora por correo *(propuesto, confirmar)* |
+| Longitud del código de acceso | 6 dígitos numéricos *(valor inicial en `app.auth.*`, OQ-16)* |
+| Vigencia del código de acceso | 15 minutos; configurable por despliegue |
+| Intentos fallidos por código | 5 *(valor inicial en `app.auth.*`, OQ-16)* |
+| Reenvío del código | Mínimo 60 segundos entre solicitudes y máximo 5 solicitudes por hora por correo *(valor inicial en `app.auth.*`, OQ-16)* |
+| Solicitudes de código por IP | Máximo fijo de 30 en una ventana rodante de una hora |
 
 ---
 
@@ -108,15 +112,15 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | RN-11 | Un usuario no puede tener dos reservas que se solapen en el tiempo, aunque sean en espacios distintos. |
 | RN-12 | La reserva solo se confirma si el correo es válido, el usuario no está suspendido, la franja está libre y el usuario tiene cuota suficiente. |
 | RN-13 | Si todas las validaciones pasan, la reserva se confirma al instante en pantalla y se envía el comprobante al correo. No hay aprobación manual. |
-| RN-14 | Solo se puede reservar con hasta 10 días de anticipación.  |
+| RN-14 | Solo se puede reservar con hasta 7 días de anticipación (OQ-12).  |
 | RN-15 | Una reserva puede abarcar hasta 2 franjas consecutivas del mismo espacio.  |
 
 ### 5.4 Cuota semanal
 
 | ID | Regla |
 |---|---|
-| RN-16 | Cada usuario tiene una cuota máxima de horas por semana (3 h por defecto). La cuota se mide en horas reservadas, no solo en horas efectivamente usadas, para evitar acaparar franjas. |
-| RN-17 | La semana de una reserva es la de la **fecha de la franja**, no la fecha en que se creó la reserva. |
+| RN-16 | Cada usuario tiene una cuota máxima de horas por semana (4 h por defecto; OQ-12). La cuota se mide en horas reservadas, no solo en horas efectivamente usadas, para evitar acaparar franjas. |
+| RN-17 | Cada parte de la reserva cuenta en la semana en que ocurre, no en la semana de creación. Una reserva que cruza el lunes 00:00 reparte su duración entre ambas semanas. |
 | RN-18 | Antes de confirmar, el sistema suma las horas que ya cuentan en esa semana más las de la nueva reserva. Si superan la cuota, rechaza la reserva e informa cuántas horas le quedan al usuario. |
 | RN-19 | El usuario puede ver en todo momento sus horas usadas y disponibles de la semana. |
 
@@ -130,14 +134,15 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | Cancelada tardía | **Sí** |
 | Inasistencia | **Sí** |
 | Cancelada por el administrador | **No** |
+| Cancelada por suspensión | **No** |
 
 ### 5.5 Cancelación
 
 | ID | Regla |
 |---|---|
 | RN-20 | El usuario puede cancelar su reserva **en cualquier momento** desde "Mis reservas", sin autorización del administrador. |
-| RN-21 | **Cancelación a tiempo** (faltan 60 minutos o más para el inicio): el espacio queda libre y las horas se devuelven a la cuota. |
-| RN-22 | **Cancelación tardía** (faltan menos de 60 minutos, o la franja ya empezó sin check-in): el espacio queda disponible para otros usuarios, pero **las horas siguen contando como usadas**. |
+| RN-21 | **Cancelación a tiempo** (la anticipación es igual o superior al umbral conservado por la reserva; 60 minutos por defecto): el espacio queda libre y las horas se devuelven a la cuota. |
+| RN-22 | **Cancelación tardía** (la anticipación es inferior al umbral conservado por la reserva, o la franja ya empezó sin check-in): el espacio queda disponible para otros usuarios, pero **las horas siguen contando como usadas**. |
 | RN-23 | El objetivo de RN-22 es impedir que alguien cancele a último momento y luego use la cancha sin descontar horas. |
 | RN-24 | Una reserva con check-in ya registrado no se puede cancelar. |
 | RN-25 | El sistema muestra al usuario, antes de confirmar la cancelación, si esta será tardía y qué efecto tendrá sobre su cuota. |
@@ -147,10 +152,10 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 
 | ID | Regla |
 |---|---|
-| RN-27 | Si un espacio está libre en una franja que ya comenzó, aún se puede reservar hasta **10 minutos después del inicio**. |
+| RN-27 | Si un espacio está libre en una franja que ya comenzó, se puede reservar hasta el fin de la tolerancia configurada por despliegue (10 minutos por defecto). |
 | RN-28 | Pasada la tolerancia, la franja deja de ser reservable aunque siga libre. |
 | RN-29 | Una reserva hecha dentro de la tolerancia ocupa la franja completa y cuenta la franja completa contra la cuota. |
-| RN-30 | Una reserva hecha dentro de la tolerancia debe confirmarse con el QR dentro de los 10 minutos siguientes a su creación.  |
+| RN-30 | Una reserva hecha dentro de la tolerancia sigue la misma ventana de check-in: hasta el fin de la reserva. |
 
 *Ejemplo: en la franja de 2:00 a 3:00 p. m. un espacio libre se puede reservar hasta las 2:10 p. m.
 
@@ -163,7 +168,7 @@ Estos valores **no deben quedar fijos en el código**: el administrador debe pod
 | RN-33 | Al escanear, el sistema comprueba que el usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in. Si todo coincide, la reserva pasa a "En uso". |
 | RN-34 | Si no hay sesión vigente (no hay token o ya expiró), el sistema pide iniciarla con correo y código de acceso y, al terminar, continúa con el check-in en el mismo espacio. Como el token no se guarda en cookies, si el enlace del QR se abre en un navegador distinto al de la sesión, el usuario deberá iniciar sesión de nuevo. |
 | RN-35 | Si el check-in falla, se muestra el motivo: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada. |
-| RN-36 | La ventana de check-in va desde 10 minutos antes del inicio hasta el fin de la tolerancia.  |
+| RN-36 | La ventana de check-in va desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable del usuario en el espacio por hora de inicio. |
 
 ### 5.8 Inasistencias y sanciones
 
@@ -171,10 +176,10 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | ID | Regla |
 |---|---|
-| RN-37 | Si no hay check-in al cerrar la ventana, la reserva pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-16). |
-| RN-38 | Tres inasistencias en 30 días suspenden automáticamente al usuario por 7 días.  |
+| RN-37 | Si no hay check-in al finalizar la reserva, pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-16). |
+| RN-38 | Las inasistencias se cuentan por mes calendario en America/Bogota y el conteo comienza de nuevo el día 1. Al registrar una inasistencia se evalúa el umbral vigente (3 por defecto); al alcanzarlo se suspende al usuario durante el plazo configurado por despliegue (7 días por defecto). Como máximo se aplica una suspensión por usuario y mes de inasistencia; faltas posteriores del mismo mes se registran y notifican, sin otra suspensión por ese mes. |
 | RN-39 | El usuario recibe un correo cuando se registra una inasistencia y cuando es suspendido, con la fecha en que podrá reservar de nuevo. |
-| RN-40 | Las reservas futuras de un usuario suspendido se mantienen, pero no puede crear nuevas.  |
+| RN-40 | Al suspender se cancelan las reservas futuras contenidas por completo en el período de suspensión; sus horas e implementos se liberan y se notifica por correo. Si solo se solapan parcialmente se conservan, igual que las demás reservas fuera del período. El usuario no puede crear nuevas durante la suspensión. |
 
 ### 5.9 Bloqueos institucionales
 
@@ -182,15 +187,15 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 |---|---|
 | RN-41 | El administrador puede bloquear franjas por **clases y grupos formativos** (bloqueos fijos y recurrentes), **eventos o torneos** (bloqueos puntuales) y **mantenimiento**. |
 | RN-42 | Los bloqueos institucionales tienen prioridad sobre las reservas libres. |
-| RN-43 | Si se crea un bloqueo sobre franjas con reservas existentes, esas reservas se cancelan automáticamente, el usuario recibe un aviso con el motivo, y **las horas no cuentan** contra su cuota. |
+| RN-43 | Si un bloqueo afecta una reserva en curso se rechaza toda la operación, incluso si no tiene check-in. Las reservas futuras afectadas se cancelan automáticamente, se avisa al usuario y sus horas no cuentan contra la cuota. Los bloqueos puntuales y recurrentes se materializan en una fila por franja. |
 | RN-44 | Las franjas bloqueadas aparecen en el calendario como no disponibles, con el motivo visible. |
 
 ### 5.10 Notificaciones
 
 | ID | Regla |
 |---|---|
-| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario y reglas de cancelación. |
-| RN-46 | **Recordatorio:** se envía 2 horas antes del inicio, con enlace para cancelar.  |
+| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación (OQ-20). |
+| RN-46 | **Recordatorio:** se envía 2 horas antes del inicio, con enlace para cancelar; se omite si la reserva se crea con menos de 2 horas de anticipación. |
 | RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. |
 | RN-48 | Los correos incluyen un canal para contactar al administrador. |
 
@@ -202,8 +207,8 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 |---|---|
 | RN-49 | El inicio de sesión se hace ingresando el **correo institucional** y un **código de acceso de un solo uso** enviado a ese correo. No existen contraseñas ni registro previo. **[Definido]** |
 | RN-50 | Al solicitar el código, el sistema valida que el correo pertenezca al dominio institucional. Si no pertenece, rechaza la solicitud y no envía ningún correo. |
-| RN-51 | El código tiene 6 dígitos, vence a los 10 minutos y solo puede usarse una vez. Solicitar un código nuevo invalida el anterior. El sistema lo genera con un generador criptográficamente seguro y guarda únicamente su hash, nunca el código en claro. **[Propuesto]** |
-| RN-52 | Cada código admite un máximo de 5 intentos fallidos. Al superarlos, el código se invalida y el usuario debe solicitar uno nuevo. **[Propuesto]** |
+| RN-51 | El código tiene 6 dígitos, vence a los 15 minutos por defecto (configurable por despliegue) y solo puede usarse una vez. Solicitar uno nuevo invalida el anterior. Se genera de forma segura y se guarda solo su HMAC, nunca en claro. |
+| RN-52 | Cada código admite 5 intentos fallidos por defecto, configurable por despliegue. El último fallo permitido invalida inmediatamente el código y exige solicitar uno nuevo. |
 | RN-53 | Para evitar abuso, entre dos solicitudes de código para el mismo correo deben pasar al menos 60 segundos, y se permiten como máximo 5 solicitudes por hora por correo. El sistema informa cuánto debe esperar el usuario. **[Propuesto]** |
 | RN-54 | Si el código es correcto, el sistema emite un **token JWT firmado** con **vigencia de 24 horas** desde su emisión. El token incluye como mínimo el identificador del usuario, su correo, su rol, la fecha de emisión y la de expiración. **[Definido]** |
 | RN-55 | El token **no se guarda en cookies**. El cliente lo conserva en el almacenamiento del navegador y lo envía en cada petición en el encabezado `Authorization: Bearer`. **[Definido]** |
@@ -214,6 +219,16 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RN-60 | El rol de administrador no se obtiene por autoservicio: se asigna a correos institucionales específicos desde la configuración del sistema. **[Propuesto]** |
 | RN-61 | Cada solicitud de código, inicio de sesión exitoso o fallido y cierre de sesión queda en el registro de auditoría (RNF-08). **[Propuesto]** |
 
+### 5.12 Implementos deportivos
+
+| ID | Regla |
+|---|---|
+| RN-62 | El área de deportes mantiene un catálogo de implementos con nombre, disciplina sugerida (opcional), existencias (stock) y estado (disponible o inactivo). Solo los implementos disponibles con stock suficiente se pueden solicitar. |
+| RN-63 | Solicitar implementos es **opcional** y se hace en el mismo momento de la reserva, indicando el implemento y la cantidad. Una reserva puede solicitar varios implementos. |
+| RN-64 | Los implementos solicitados quedan asociados a la reserva y forman parte de su detalle. |
+| RN-65 | La disponibilidad de un implemento para un intervalo es su `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante ese intervalo. Si la cantidad pedida supera la disponibilidad, la reserva se rechaza e informa cuántas unidades quedan. Se rechaza reducir el stock por debajo de cualquier compromiso simultáneo futuro. |
+| RN-66 | La disponibilidad por franja se deriva de las reservas y no se almacena como saldo; las reservas canceladas no cuentan y liberan el stock. |
+
 ---
 
 ## 6. Ciclo de vida de una reserva
@@ -222,8 +237,8 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
                     ┌─────────────────────────┐
                     │       CONFIRMADA        │
                     └───┬─────────┬─────────┬─┘
-        cancela ≥60 min │         │ cancela │ check-in OK
-                        │         │  <60min │
+        cancela ≥ umbral │         │ cancela │ check-in OK
+                         │         │ < umbral│
                         ▼         ▼         ▼
              CANCELADA A    CANCELADA     EN USO ──► COMPLETADA
                 TIEMPO       TARDÍA
@@ -237,10 +252,11 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | Confirmada | Reserva vigente a la espera de la franja. | No | Sí |
 | En uso | El usuario hizo check-in. | No | Sí |
 | Completada | La franja terminó con asistencia. | — | Sí |
-| Cancelada a tiempo | Cancelada con 60 min o más de anticipación. | Sí | No |
-| Cancelada tardía | Cancelada con menos de 60 min. | Sí | Sí |
+| Cancelada a tiempo | Cancelada con anticipación igual o superior al umbral conservado. | Sí | No |
+| Cancelada tardía | Cancelada con anticipación inferior al umbral conservado. | Sí | Sí |
 | Inasistencia | No hubo check-in en la ventana. | — | Sí |
 | Cancelada por administrador | Cancelada por un bloqueo institucional. | Sí | No |
+| Cancelada por suspensión | Reserva futura cancelada por ocurrir durante la suspensión. | Sí | No |
 
 ---
 
@@ -252,7 +268,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 |---|---|---|
 | RF-01 | Iniciar sesión con código por correo | Ingresar el correo institucional, recibir un código de acceso y validarlo; rechaza otros dominios. Emite un token JWT de 24 horas sin cookies. Incluye cerrar sesión. |
 | RF-02 | Consultar disponibilidad | Calendario interactivo en tiempo real por espacio y disciplina; muestra franjas libres, ocupadas y bloqueadas. |
-| RF-03 | Reservar espacio deportivo | Elegir disciplina, espacio, fecha y franja, y confirmar. Valida correo, cuota, suspensión y disponibilidad; bloquea la franja de forma transaccional. |
+| RF-03 | Reservar espacio deportivo | Elegir disciplina, espacio, fecha y franja, y confirmar. Opcionalmente, solicitar implementos del catálogo con su cantidad. Valida correo, cuota, suspensión y disponibilidad; bloquea la franja de forma transaccional. |
 | RF-04 | Recibir comprobante | Pantalla de confirmación y PDF enviado al correo. |
 | RF-05 | Consultar mis reservas | Lista de reservas próximas y pasadas con su estado. |
 | RF-06 | Cancelar reserva | Desde "Mis reservas"; advierte si la cancelación es tardía antes de confirmar. |
@@ -260,17 +276,19 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RF-08 | Confirmar asistencia (QR) | Escanear el QR del espacio al ingresar. |
 | RF-09 | Consultar reglas de uso | Cuota, tolerancia, cancelación, check-in y sanciones, en lenguaje claro. |
 | RF-10 | Contactar administrador | Formulario que envía el mensaje al correo del área de deportes. |
+| RF-23 | Solicitar implementos extras | Al reservar, elegir opcionalmente uno o varios implementos disponibles del catálogo e indicar la cantidad de cada uno; el sistema valida la disponibilidad de la franja. |
 
 ### 7.2 Administrador
 
 | ID | Funcionalidad | Descripción |
 |---|---|---|
 | RF-11 | Gestionar espacios y franjas | Crear, editar y desactivar espacios; definir disciplina, aforo, requisitos, horario de operación y estado. |
-| RF-12 | Configurar reglas y cuotas | Editar los parámetros de la sección 4. |
+| RF-12 | Configurar reglas y cuotas | Editar la cuota semanal y el umbral de inasistencias de la sección 4. |
 | RF-13 | Bloquear franjas institucionales | Crear bloqueos puntuales o recurrentes con motivo; cancela las reservas afectadas. |
 | RF-14 | Consultar panel de ocupación | Ocupación por espacio y franja, con filtros por fecha, disciplina y espacio. |
 | RF-15 | Consultar indicadores de uso | Reservas, cancelaciones tardías, inasistencias y usuarios suspendidos. |
 | RF-16 | Generar códigos QR | Generar e imprimir el QR de cada espacio. |
+| RF-24 | Gestionar implementos | Crear, editar y desactivar los implementos del catálogo, con nombre, disciplina sugerida y existencias (stock). |
 
 ### 7.3 Sistema (automáticas)
 
@@ -312,20 +330,20 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | Ana reserva 2 h el lunes | 2 de 4 |
 | Ana reserva 1 h el miércoles | 3 de 4 |
 | Ana intenta reservar 2 h más el jueves | **Rechazada**: sin cuota |
-| Ana cancela la reserva del miércoles con 5 h de anticipación | 3 de 4 (devuelve 1 h) |
-| Ana reserva 1 h el jueves | 4 de 4 |
+| Ana cancela la reserva del miércoles con 5 h de anticipación | 2 de 4 (devuelve 1 h) |
+| Ana reserva 1 h el jueves | 3 de 4 |
 
-**Escenario B: cancelación tardía**
+**Escenario B: cancelación tardía (umbral de 60 minutos)**
 
 Luis tiene reserva de 4:00 a 5:00 p. m. y cancela a las 3:30 p. m. El espacio queda libre para que otro usuario lo reserve, pero la hora de Luis **sigue contando** en su cuota. No puede usar la cancha sin reserva.
 
-**Escenario C: tolerancia**
+**Escenario C: tolerancia (valor de 10 minutos)**
 
-La cancha de tenis 2 está libre de 2:00 a 3:00 p. m. A las 2:08 p. m. Marta la reserva. Queda confirmada para la franja completa, debe escanear el QR antes de las 2:18 p. m., y se le descuenta 1 hora de cuota. A las 2:11 p. m. otro usuario ya no puede reservarla.
+La cancha de tenis 2 está libre de 2:00 a 3:00 p. m. A las 2:08 p. m. Marta la reserva. Queda confirmada para la franja completa, puede escanear el QR antes de las 3:00 p. m. y se le descuenta 1 hora de cuota. A las 2:11 p. m. otro usuario ya no puede reservarla.
 
 **Escenario D: inasistencia**
 
-Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Al cerrar la ventana de check-in, la reserva pasa a "Inasistencia", su hora sigue contando y recibe un correo. Si acumula 3 inasistencias en 30 días, queda suspendido 7 días.
+Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Al finalizar, la reserva pasa a "Inasistencia" y su hora sigue contando. Si alcanza el umbral vigente en el mes calendario queda suspendido y se cancelan sus reservas futuras durante la suspensión, liberando cuota e implementos y notificándolo.
 
 **Escenario E: bloqueo por evento**
 
@@ -334,5 +352,9 @@ El administrador bloquea el fútbol 11 el sábado para un torneo. Las 4 reservas
 **Escenario F: inicio de sesión con código y sesión expirada**
 
 Sofía abre la aplicación a las 8:00 a. m. e ingresa su correo institucional. Recibe un código de 6 dígitos, lo ingresa y el sistema le entrega un token JWT válido por 24 horas. Reserva sin volver a autenticarse durante todo el día. Al día siguiente a las 8:30 a. m. el token ya expiró; cuando intenta reservar, el sistema le pide iniciar sesión de nuevo con un código nuevo y, al validarlo, la devuelve a la reserva que estaba haciendo. Si escanea el QR de una cancha con un navegador distinto al que usa habitualmente, también deberá iniciar sesión antes de que se registre su check-in.
+
+**Escenario G: reserva con implementos extras**
+
+Andrés reserva la cancha de voleibol de 4:00 a 5:00 p. m. Al confirmar, solicita un balón de voleibol del catálogo. El sistema registra el implemento con su cantidad junto a la reserva y la confirma como siempre.
 
 ---

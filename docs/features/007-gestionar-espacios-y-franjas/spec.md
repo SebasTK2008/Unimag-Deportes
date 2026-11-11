@@ -1,6 +1,7 @@
 # Especificación de Funcionalidad: UC07 - Gestionar espacios y franjas
 
 **Creado**: 2026-10-13  
+**Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-06 y OQ-12; reautenticación en bloqueos)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -52,9 +53,14 @@ Como Administrador, quiero bloquear franjas de un espacio por clases y grupos fo
    - **Entonces** las franjas correspondientes quedan bloqueadas de forma recurrente.
 
 3. **Escenario**: Bloqueo sobre franjas con reservas existentes.
-   - **Dado** que existen reservas en las franjas que se van a bloquear.
+   - **Dado** que existen reservas futuras en las franjas que se van a bloquear y ninguna afectada está en curso.
    - **Cuando** el Administrador crea el bloqueo.
    - **Entonces** esas reservas se cancelan automáticamente con estado "Cancelada por administrador", los Usuarios reciben un aviso con el motivo y las horas no cuentan contra su cuota.
+
+4. **Escenario**: Bloqueo que afecta una reserva en curso.
+   - **Dado** que una reserva afectada está en curso.
+   - **Cuando** el Administrador intenta crear el bloqueo.
+   - **Entonces** se rechaza toda la operación, sin crear franjas ni cancelar reservas.
 
 ### Casos Extremos (Edge Cases)
 
@@ -65,16 +71,16 @@ Como Administrador, quiero bloquear franjas de un espacio por clases y grupos fo
   La reserva bloquea el espacio completo, sin importar la disciplina elegida (RN-07).
 
 - **¿Qué duración tienen las franjas?**
-  60 minutos dentro del horario de operación de cada espacio (RN-08); la duración es un parámetro configurable (ver SPEC 006).
+  60 minutos fijos dentro del horario de operación de cada espacio (RN-08).
 
 - **¿Qué ocurre con las reservas existentes al desactivar un espacio o ponerlo en mantenimiento?**
-  **[Pendiente de definir]** El contexto no lo establece.
+  Los cambios rigen solo para operaciones nuevas: las reservas existentes se mantienen y no se cancelan. "Desactivar" un espacio equivale a pasarlo a mantenimiento (OQ-05, OQ-12).
 
 - **¿Qué diferencia hay entre el estado "en mantenimiento" de un espacio y un bloqueo institucional de tipo mantenimiento?**
-  **[Pendiente de definir]** El contexto contempla ambos (RN-06, RN-09 y RN-41) pero no precisa cuándo se usa cada uno ni si un espacio en mantenimiento cancela las reservas existentes como lo hace un bloqueo (RN-43).
+  Poner el espacio en mantenimiento lo oculta de la reserva futura sin cancelar reservas existentes (OQ-05). Un bloqueo institucional de tipo mantenimiento cancela las reservas futuras afectadas; si afecta una en curso se rechaza toda la operación (RN-43).
 
 - **¿Qué tipos de bloqueo existen?**
-  Clases y grupos formativos (fijos y recurrentes), eventos o torneos (puntuales) y mantenimiento (RN-41).
+  Clases y grupos formativos (fijos y recurrentes), eventos o torneos (puntuales) y mantenimiento (RN-41). Todos se materializan en una fila por franja; los recurrentes se agrupan por `recurrence_group` (OQ-06). El prototipo no permite editarlos ni eliminarlos; crear otro no modifica el anterior y su corrección requiere intervención operativa directa con respaldo y auditoría manual.
 
 - **¿Qué prevalece entre un bloqueo y una reserva libre?**
   El bloqueo institucional (RN-42).
@@ -89,16 +95,17 @@ Como Administrador, quiero bloquear franjas de un espacio por clases y grupos fo
 
 ### Requisitos Funcionales
 
-- **RF-001**: El sistema DEBE permitir al Administrador crear, editar y desactivar espacios (RF-11).
+- **RF-001**: El sistema DEBE permitir al Administrador crear, editar y desactivar espacios; desactivar equivale a pasar a mantenimiento (RF-11, OQ-12).
 - **RF-002**: El sistema DEBE registrar de cada espacio: nombre, disciplina(s), aforo máximo, requisitos de uso, horario de operación y estado (activo o en mantenimiento) (RN-06, RF-11).
 - **RF-003**: El sistema DEBE definir las franjas de cada espacio en bloques de 60 minutos dentro de su horario de operación (RN-08).
 - **RF-004**: El sistema NO DEBE mostrar como reservable un espacio en mantenimiento (RN-09).
 - **RF-005**: El sistema DEBE tratar un espacio compartido entre disciplinas como un único espacio completo para la reserva (RN-07).
 - **RF-006**: El sistema DEBE permitir al Administrador crear bloqueos puntuales o recurrentes, con motivo, por clases y grupos formativos, eventos o torneos, o mantenimiento (RF-13, RN-41).
 - **RF-007**: El sistema DEBE dar a los bloqueos institucionales prioridad sobre las reservas libres (RN-42).
-- **RF-008**: El sistema DEBE cancelar automáticamente las reservas existentes en las franjas bloqueadas, con estado "Cancelada por administrador" (RN-43, RF-13).
+- **RF-008**: El sistema DEBE rechazar atómicamente todo bloqueo que afecte una reserva en curso; en otro caso DEBE cancelar las reservas futuras afectadas con estado "Cancelada por administrador" (RN-43, RF-13).
 - **RF-009**: El sistema DEBE avisar a los Usuarios afectados con el motivo del bloqueo y NO DEBE contar esas horas contra su cuota (RN-43, RN-47).
 - **RF-010**: El sistema DEBE mostrar las franjas bloqueadas como no disponibles, con el motivo visible (RN-44).
+- **RF-011**: El sistema DEBE exigir reautenticación reciente del Administrador para crear bloqueos institucionales (D-21).
 
 ### Requisitos No Funcionales
 
@@ -122,3 +129,4 @@ Como Administrador, quiero bloquear franjas de un espacio por clases y grupos fo
 - **CE-003**: Prioridad Institucional, "0 reservas activas en franjas bloqueadas institucionalmente".
 - **CE-004**: Equidad de Cuota, "100% de las reservas canceladas por un bloqueo no cuentan contra la cuota del Usuario".
 - **CE-005**: Comunicación, "100% de los Usuarios con reservas afectadas reciben un aviso con el motivo".
+- **CE-006**: Seguridad, "0 bloqueos institucionales creados sin reautenticación reciente del Administrador".
