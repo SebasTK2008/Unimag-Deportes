@@ -33,7 +33,7 @@ UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Lo
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: operaciones administrativas poco frecuentes; consultas de disponibilidad eficientes.
 **Constraints**: franjas de 60 min (RN-08); mantenimiento no reservable (RN-09); prioridad de bloqueos (RN-42); cancelación sin cuota (RN-43); reautenticación (D-21); America/Bogota (RNF-07).
-**Scale/Scope**: 4 endpoints, 3 entidades, 3 migraciones (`V6..V8`), 11 RF + 3 RNF + 6 CE + 2 HU.
+**Scale/Scope**: 4 endpoints, 3 entidades, esquema en la migración única compartida, 11 RF + 3 RNF + 6 CE + 2 HU.
 
 ## Project Structure
 
@@ -60,9 +60,7 @@ src/main/java/unimagdeportes/
 ├── dto/{space,block}/ · mapper/{space,block}/
 
 src/main/resources/db/migration/
-├── V6__create_space.sql
-├── V7__create_space_discipline.sql
-└── V8__create_institutional_block.sql
+└── V1__shared_schema.sql
 
 src/test/java/unimagdeportes/{contract/{spaces,blocks},integration/{spaces,blocks},unit/blocks}/
 ```
@@ -100,10 +98,10 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear `Space` y `SpaceStatus`.
+- [x] **T002** Crear `Space` y `SpaceStatus`.
 - [ ] **T003** Crear `SpaceDiscipline`.
-- [ ] **T004** Crear `InstitutionalBlock` y `BlockType`.
-- [ ] **T005** Crear las migraciones `V6..V8`.
+- [x] **T004** Crear `InstitutionalBlock` y `BlockType`.
+- [x] **T005** Verificar espacios, disciplinas y bloqueos en la migración única.
 - [ ] **T006** Crear los repositorios de espacio, disciplina y bloqueo.
 - [ ] **T007** Implementar `SpaceService`.
 - [ ] **T008** Implementar `BlockService` con materialización de recurrencia.
@@ -131,9 +129,11 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 - [ ] **T024** Verificar que los cambios de espacio no cancelan reservas existentes.
 - [ ] **T025** Revisar rendimiento de recurrencias largas y ejecutar `./mvnw clean verify`.
 
+**Avances parciales:** T003 tiene disciplinas como colección JPA en `Space`, sin clase `SpaceDiscipline` independiente; T006 tiene repositorios de espacio y bloqueo. `SpaceService` y `BlockService` solo ofrecen lecturas, por lo que T007–T009 siguen pendientes.
+
 ## Dependencies & Execution Order
 
-`T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (V8 se crea en orden con V6–V7; la integración de bloqueo con reservas espera V9).
+`T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (el esquema es compartido; la integración de bloqueo con reservas espera UC03).
 
 UC07-US1 depende de UC01; US2 requiere además UC03. UC02 consume espacios y bloqueos.
 

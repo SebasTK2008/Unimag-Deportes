@@ -39,7 +39,7 @@ Enfoque técnico: `ReservationService` transaccional que bloquea la fila del esp
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: confirmación inmediata y cero cruces con solicitudes simultáneas (RN-10).
 **Constraints**: 1–2 franjas (RN-15); 7 días (OQ-12); cuota 4 h (RN-18); sin solape propio (RN-11); sin suspensión (RN-40); America/Bogota (RNF-07).
-**Scale/Scope**: 1 endpoint, 1 entidad, 1 migración, 13 RF + 5 RNF + 3 CE + 1 HU.
+**Scale/Scope**: 1 endpoint, 1 entidad, esquema en la migración única compartida, 13 RF + 5 RNF + 3 CE + 1 HU.
 
 ## Project Structure
 
@@ -66,7 +66,7 @@ src/main/java/unimagdeportes/
 ├── dto/reservation/ · mapper/reservation/ReservationMapper.java
 └── event/ReservationCreatedEvent.java
 
-src/main/resources/db/migration/V9__create_reservation.sql
+src/main/resources/db/migration/ (migración única compartida)
 src/test/java/unimagdeportes/{contract/reservation,integration/reservation,unit/policy}/
 ```
 
@@ -98,12 +98,12 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01, UC06, UC07-H1, la tabla de bloqueos V8 y la base de consulta de UC02; integrar UC07-H2 después de UC03.
+- [ ] **T001** Verificar UC01, UC06, UC07-H1, la tabla de bloqueos compartida y la base de consulta de UC02; integrar UC07-H2 después de UC03.
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear `Reservation` y `ReservationStatus`.
-- [ ] **T003** Crear `V9__create_reservation.sql` con las dos restricciones de exclusión.
+- [x] **T002** Crear `Reservation` y `ReservationStatus`.
+- [x] **T003** Verificar las dos restricciones de exclusión de reservas en la migración única.
 - [ ] **T004** Crear `ReservationRepository` (solape y horas por semana).
 - [ ] **T005** Implementar `BookingWindowPolicy`.
 - [ ] **T006** Implementar `QuotaPolicy`.
@@ -129,11 +129,13 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 - [ ] **T020** Revisar mensajes de error contra el catálogo de contratos.
 - [ ] **T021** Revisar índices de solape/cuota y ejecutar `./mvnw clean verify`.
 
+**Avances parciales:** existe `ReservationRepository` sin las consultas de T004 y `ReservationService` solo ofrece lectura; `ReservationLock` está creado, pero aún no se integra al flujo de reserva. `SharedSchemaTest` comprueba ambas restricciones en PostgreSQL, no la concurrencia ni el endpoint.
+
 ## Dependencies & Execution Order
 
 `T001 → T002..T007 → T008..T013 → T014..T019 → T020/T021`.
 
-UC03 depende de UC01, UC06, UC07-H1 y V8, y de la base de UC02; UC07-H2 se integra después de UC03. UC13 depende de UC03 para adjuntar implementos.
+UC03 depende de UC01, UC06, UC07-H1 y el esquema compartido, y de la base de UC02; UC07-H2 se integra después de UC03. UC13 depende de UC03 para adjuntar implementos.
 
 ## Notes
 

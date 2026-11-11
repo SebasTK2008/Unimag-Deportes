@@ -31,7 +31,7 @@ UC13 implementa el catálogo de implementos con existencias y la solicitud opcio
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: validación de stock dentro de la transacción de reserva.
 **Constraints**: solo disponibles (RN-62); cantidades (RN-63); disponibilidad derivada (RN-65); sin saldo y canceladas liberan (RN-66); comprobante (OQ-20); disciplina sugerida (OQ-21); America/Bogota.
-**Scale/Scope**: 4 endpoints, 2 entidades, 2 migraciones (`V10`, `V11`), 6 RF + 2 RNF + 6 CE + 2 HU.
+**Scale/Scope**: 4 endpoints, 2 entidades, esquema en la migración única compartida, 6 RF + 2 RNF + 6 CE + 2 HU.
 
 ## Project Structure
 
@@ -56,8 +56,7 @@ src/main/java/unimagdeportes/
 ├── dto/equipment/ · mapper/equipment/EquipmentMapper.java
 
 src/main/resources/db/migration/
-├── V10__create_equipment.sql
-└── V11__create_reservation_equipment.sql
+└── V1__shared_schema.sql
 
 src/test/java/unimagdeportes/{contract/equipment,integration/equipment,integration/reservation}/
 ```
@@ -89,12 +88,12 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01, UC03 y UC07-H1 para crear la base y V10–V11; UC11-H1 solo es prerrequisito de la integración del comprobante en T010, no de las migraciones.
+- [ ] **T001** Verificar UC01, UC03, UC07-H1 y el esquema compartido; UC11-H1 solo es prerrequisito de la integración del comprobante en T010.
 
 ### Phase 2: Foundational
 
 - [ ] **T002** Crear `Equipment`, `EquipmentStatus` y `ReservationEquipment`.
-- [ ] **T003** Crear las migraciones `V10` y `V11`.
+- [x] **T003** Verificar las tablas de implementos en la migración única.
 - [ ] **T004** Crear `EquipmentRepository` y `ReservationEquipmentRepository`.
 - [ ] **T005** Implementar `EquipmentService` y su consulta de disponibilidad.
 - [ ] **T006** Agregar la consulta de cantidades comprometidas por ventana.
@@ -124,11 +123,13 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 - [ ] **T024** Revisar índices de solape por implemento y rango.
 - [ ] **T025** Verificar que no se almacena saldo por franja y ejecutar `./mvnw clean verify`.
 
+**Avances parciales:** existen `Equipment`, `EquipmentStatus`, `EquipmentRepository` y una lectura por id en `EquipmentService`; faltan la entidad y el repositorio de `ReservationEquipment` y las operaciones de disponibilidad y administración. Las tablas correspondientes están incluidas en la migración aplicada en PostgreSQL.
+
 ## Dependencies & Execution Order
 
 `T001 → T002..T006 → (T007..T016 y T017..T023 en paralelo cuando compartan la base) → T024/T025`.
 
-La base de UC13 depende de UC01, UC03 y UC07-H1; la integración del comprobante además requiere UC11-H1. V10–V11 preceden a V12 de UC10. La reserva inicial de UC03 funciona sin implementos; el soporte completo del contrato de reserva con implementos se entrega al integrar UC13. US1 y US2 pueden desarrollarse en paralelo tras la base de catálogo, pero las pruebas integradas requieren ambas.
+La base de UC13 depende de UC01, UC03 y UC07-H1; la integración del comprobante además requiere UC11-H1. El esquema es compartido con UC10. La reserva inicial de UC03 funciona sin implementos; el soporte completo del contrato de reserva con implementos se entrega al integrar UC13. US1 y US2 pueden desarrollarse en paralelo tras la base de catálogo, pero las pruebas integradas requieren ambas.
 
 ## Notes
 

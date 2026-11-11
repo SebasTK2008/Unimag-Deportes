@@ -38,7 +38,7 @@ Este plan crea además la infraestructura compartida (estructura, Flyway, correo
 **Project Type**: backend monolítico en n capas [D-02]; cliente React en otro repositorio [D-25].
 **Performance Goals**: login sin fricción en el celular (RNF-01); una sola consulta a `app_user` por petición [D-19].
 **Constraints**: código de 6 dígitos como HMAC, un uso, 15 min y 5 intentos por defecto, configurables por despliegue; límites de reenvío (RN-51..RN-53); JWT de 24 h sin cookies ni renovación (RN-54..RN-56); estado vigente (RN-58); datos mínimos (RNF-09); auditoría sin secretos (RNF-08); America/Bogota (RNF-07); CSP y escape (RNF-10).
-**Scale/Scope**: 7 endpoints, 4 entidades base, 5 migraciones, 17 RF + 5 RNF + 7 CE + 1 HU [SPEC 001].
+**Scale/Scope**: 7 endpoints, 4 entidades base, esquema en la migración única compartida, 17 RF + 5 RNF + 7 CE + 1 HU [SPEC 001].
 
 ## Project Structure
 
@@ -66,11 +66,7 @@ src/main/java/unimagdeportes/
 ├── exception/ · config/ClockConfig.java
 
 src/main/resources/db/migration/
-├── V1__enable_extensions.sql
-├── V2__create_app_user.sql
-├── V3__create_login_code.sql
-├── V4__create_audit_log.sql
-└── V5__create_usage_parameters.sql
+└── V1__shared_schema.sql
 
 src/test/java/unimagdeportes/{contract/auth,integration/auth,unit/policy,security}/
 ```
@@ -105,17 +101,17 @@ Fuente: [`contracts/auth/`](../../techincal-plan/contracts/README.md) (7 archivo
 
 - [ ] **T001** Verificar la estructura de paquetes y agregar MapStruct 1.6.3 al `pom.xml`, incluidos sus procesadores junto con Lombok; comprobar compatibilidad con Java 25 y ajustar si falla.
 - [ ] **T002** Configurar `application.properties` (datasource, correo, `America/Bogota`, `app.auth.*`, `app.cors.allowed-origins`).
-- [ ] **T003** Configurar `compose.yaml` con PostgreSQL y Mailpit.
-- [ ] **T004** Configurar Flyway y `V1__enable_extensions.sql`.
+- [x] **T003** Configurar `compose.yaml` con PostgreSQL y Mailpit.
+- [x] **T004** Configurar Flyway y la extensión en la migración única compartida.
 
 ### Phase 2: Foundational
 
-- [ ] **T005** Crear `AppUser` y su repositorio.
+- [x] **T005** Crear `AppUser` y su repositorio.
 - [ ] **T006** Crear `LoginCode` y su repositorio.
-- [ ] **T007** Crear `AuditLog`, su repositorio y `AuditService`.
-- [ ] **T008** Crear `UsageParameters` y su repositorio (base de UC06).
-- [ ] **T009** Crear las migraciones `V2` a `V5`.
-- [ ] **T010** Implementar `MailSender` y `SmtpMailSender`.
+- [x] **T007** Crear `AuditLog`, su repositorio y `AuditService`.
+- [x] **T008** Crear `UsageParameters` y su repositorio (base de UC06).
+- [x] **T009** Incorporar las tablas base en la migración única compartida.
+- [x] **T010** Implementar `MailSender` y `SmtpMailSender`.
 - [ ] **T011** Configurar `Clock` y crear `BusinessException` + `GlobalExceptionHandler`.
 - [ ] **T012** Configurar los mappers MapStruct base.
 - [ ] **T013** Crear `UserPrincipal` y `JwtAuthenticationFilter`.
@@ -142,6 +138,8 @@ Fuente: [`contracts/auth/`](../../techincal-plan/contracts/README.md) (7 archivo
 - [ ] **T028** Verificar que logs y auditoría no contienen códigos ni tokens.
 - [ ] **T029** Documentar variables de entorno y ejecutar `./mvnw clean verify` con Compose.
 
+**Avances parciales:** T002 usa `application.yaml` y tiene configuraciones iniciales; T011 cuenta con reloj y manejador global, pero resta ampliar la cobertura de errores; T013–T014 tienen principal, seguridad y manejo inicial de errores, pendientes de pruebas HTTP; T016 emite JWT de 24 horas, pero falta la emisión reautenticada; T018 tiene `resolveOrCreate` y siembra inicial, pendientes de integración con el login. T010 aún requiere pruebas de entrega y adjuntos para UC11.
+
 ## Dependencies & Execution Order
 
 `T001 → T002..T004 → T005..T009 → T010..T014 → T015..T024 → T025..T027 → T028/T029`.
@@ -160,5 +158,5 @@ UC01 no depende de otros UCs y es prerrequisito de todos [PLAN §11]. Los demás
 - [ ] Alineado con SPEC 001 y `contracts/auth/`.
 - [ ] RF/RNF/CE/HU trazados a componente y tarea.
 - [ ] Sin secretos en logs, auditoría ni URL.
-- [ ] Migraciones `V1..V5` en orden.
+- [x] Migración única compartida aplicada en una base vacía.
 - [ ] Seguridad sin estado, sin cookies, con CORS/CSP.

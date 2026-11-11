@@ -99,6 +99,8 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 - [ ] **T005** Implementar `SlotCatalogPolicy` (franjas, estados y tolerancia).
 - [ ] **T006** Agregar las consultas de ocupación y bloqueos (solo lectura).
 
+**Avance parcial de T006:** `BlockService.overlapping` consulta bloqueos solapados; falta la consulta de ocupación de reservas y su integración en disponibilidad.
+
 ### Phase 3: User Stories
 
 - [ ] **T007** [US1/P1] Implementar `AvailabilityService` (espacios y disponibilidad por fecha).
