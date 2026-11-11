@@ -1,0 +1,82 @@
+name: Maven and Docker Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maven:
+    name: Maven - compilar y probar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 25 y cache de Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Verificar Docker para Testcontainers
+        run: docker info
+
+      - name: Compilar y ejecutar todas las pruebas
+        run: bash ./mvnw --batch-mode --no-transfer-progress clean verify
+
+      - name: Publicar reportes de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  docker:
+    name: Docker - validar servicios de Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Validar configuracion de Compose
+        run: docker compose config --quiet
+
+      - name: Iniciar PostgreSQL y Mailpit
+        run: docker compose up --detach --wait --wait-timeout 120
+
+      - name: Comprobar disponibilidad de PostgreSQL
+        run: |
+          for attempt in {1..30}; do
+            if docker compose exec --no-TTY postgres pg_isready --host=127.0.0.1 --username=myuser --dbname=mydatabase; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL no estuvo disponible dentro del tiempo esperado."
+          exit 1
+
+      - name: Comprobar disponibilidad de Mailpit
+        run: curl --fail --silent --show-error --retry 5 --retry-connrefused --retry-delay 2 --max-time 10 http://localhost:8025/api/v1/messages
+
+      - name: Mostrar logs si falla la validacion
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Detener servicios
+        if: always()
+        run: docker compose down --remove-orphans
