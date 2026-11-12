@@ -25,6 +25,10 @@ server:
   forward-headers-strategy: none
 
 app:
+  mail:
+    contact-url: ${APP_MAIL_CONTACT_URL:}
+    contact-recipient: ${APP_MAIL_CONTACT_RECIPIENT:}
+    cancellation-url: ${APP_MAIL_CANCELLATION_URL:}
   rules:
     booking-tolerance-minutes: ${APP_RULES_BOOKING_TOLERANCE_MINUTES:10}
     late-cancellation-minutes: ${APP_RULES_LATE_CANCELLATION_MINUTES:60}

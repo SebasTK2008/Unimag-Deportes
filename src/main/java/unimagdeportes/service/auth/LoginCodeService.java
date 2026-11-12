@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.mail.MailSender;
+import unimagdeportes.mail.LoginCodeMessage;
 import unimagdeportes.model.auth.LoginCode;
 import unimagdeportes.repository.auth.LoginCodeRepository;
 import unimagdeportes.service.policy.LoginCodePolicy;
@@ -29,12 +30,13 @@ public class LoginCodeService {
     private final LoginCodeRepository codes;
     private final JdbcTemplate jdbc;
     private final MailSender mail;
+    private final LoginCodeMessage message;
     private final Clock clock;
     private final LoginCodePolicy policy;
     private final Duration validity;
     private final int maxAttempts;
 
-    public LoginCodeService(LoginCodeRepository codes, JdbcTemplate jdbc, MailSender mail,
+    public LoginCodeService(LoginCodeRepository codes, JdbcTemplate jdbc, MailSender mail, LoginCodeMessage message,
             Clock clock, @Value("${app.auth.code.hmac-secret}") String secret,
             @Value("${app.auth.code.validity:PT15M}") Duration validity,
             @Value("${app.auth.code.max-attempts:5}") int maxAttempts) {
@@ -44,6 +46,7 @@ public class LoginCodeService {
         this.codes = codes;
         this.jdbc = jdbc;
         this.mail = mail;
+        this.message = message;
         this.clock = clock;
         this.policy = new LoginCodePolicy(new SecureRandom(), secret.getBytes(StandardCharsets.UTF_8));
         this.validity = validity;
@@ -79,8 +82,7 @@ public class LoginCodeService {
         jdbc.update("insert into login_code_request_ip (id, ip_address, created_at) values (?, ?, ?)",
                 UUID.randomUUID(), ip, java.sql.Timestamp.from(now));
         try {
-            mail.send(normalized, "Código de acceso", "Tu código de acceso es " + code
-                    + ". Vence en " + validity.toMinutes() + " minutos. No lo compartas.");
+            mail.send(normalized, "Código de acceso", message.render(code, validity));
         } catch (MailException ex) {
             loginCode.markUsed(now);
             throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "MAIL_DELIVERY_FAILED",
