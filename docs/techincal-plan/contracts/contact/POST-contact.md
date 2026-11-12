@@ -10,7 +10,7 @@
 
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `subject` | string | Sí | Asunto del mensaje. |
+| `subject` | string | Sí | Asunto del mensaje; no admite retornos de carro ni saltos de línea. |
 | `message` | string | Sí | Contenido del mensaje para el área de deportes. |
 
 ```json
@@ -49,9 +49,11 @@
 
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
-| `VALIDATION_ERROR` | 400 | Falta el asunto o el mensaje. | — |
+| `VALIDATION_ERROR` | 400 | Falta el asunto o el mensaje, o el asunto contiene un retorno de carro o salto de línea. | — |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `PROFILE_INCOMPLETE` | 403 | Falta el nombre del primer ingreso. | RN-59 |
+| `CONTACT_NOT_CONFIGURED` | 503 | El destinatario del área de deportes no está configurado. | — |
+| `MAIL_DELIVERY_FAILED` | 503 | No se pudo enviar el mensaje. | — |
 
 ## Notas
 

@@ -14,6 +14,8 @@ class LoginCodeIntegrationTest extends AuthTestSupport {
     @Test
     void normalizesEmailAndCreatesOnlyOneAccount() throws Exception {
         assertThat(requestCode("PERSON@UNIMAGDALENA.EDU.CO").statusCode()).isEqualTo(202);
+        assertThat(mail.bodies.get("person@unimagdalena.edu.co"))
+                .contains("15 minutos", "No lo compartas", "https://client.example/contact");
         var verified = verify("person@unimagdalena.edu.co", code("person@unimagdalena.edu.co"));
         assertThat(verified.statusCode()).isEqualTo(200);
         clock.advance(Duration.ofSeconds(60));

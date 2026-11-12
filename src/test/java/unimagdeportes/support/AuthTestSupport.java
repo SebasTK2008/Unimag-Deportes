@@ -13,6 +13,7 @@ import java.time.ZoneId;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ import unimagdeportes.mail.MailSender;
         "app.auth.jwt.secret=test-only-012345678901234567890123456789",
         "app.auth.code.hmac-secret=test-only-hmac-012345678901234567890123456789",
         "app.auth.admin-emails=admin@unimagdalena.edu.co",
+        "app.mail.contact-url=https://client.example/contact",
+        "app.mail.cancellation-url=https://client.example/reservations/{id}/cancel",
+        "app.mail.contact-recipient=deportes@example.org",
         "app.cors.allowed-origins=https://client.example",
         "spring.docker.compose.enabled=false" })
 @Import({TestcontainersConfiguration.class, AuthTestSupport.Fixtures.class})
@@ -62,6 +66,7 @@ public abstract class AuthTestSupport {
         resetUsageParameters();
         clock.set(START);
         mail.bodies.clear();
+        mail.sentCount.set(0);
         mail.failing = false;
     }
 
@@ -101,9 +106,14 @@ public abstract class AuthTestSupport {
     public static class TestMail implements MailSender {
         public final Map<String, String> bodies = new ConcurrentHashMap<>();
         public volatile boolean failing;
+        public final AtomicInteger sentCount = new AtomicInteger();
         @Override public void send(String recipient, String subject, String body) {
             if (failing) throw new MailSendException("smtp-test-secret");
+            sentCount.incrementAndGet();
             bodies.put(recipient, body);
+        }
+        @Override public void sendWithPdf(String recipient, String subject, String body, String filename, byte[] pdf) {
+            send(recipient, subject, body);
         }
     }
 

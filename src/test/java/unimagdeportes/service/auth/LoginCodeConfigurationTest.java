@@ -8,6 +8,7 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import unimagdeportes.mail.MailSender;
+import unimagdeportes.mail.LoginCodeMessage;
 import unimagdeportes.repository.auth.LoginCodeRepository;
 
 class LoginCodeConfigurationTest {
@@ -22,7 +23,7 @@ class LoginCodeConfigurationTest {
 
     private void assertInvalid(String secret, Duration validity, int attempts) {
         assertThatThrownBy(() -> new LoginCodeService(mock(LoginCodeRepository.class), mock(JdbcTemplate.class),
-                mock(MailSender.class), Clock.systemUTC(), secret, validity, attempts))
+                mock(MailSender.class), new LoginCodeMessage(""), Clock.systemUTC(), secret, validity, attempts))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
