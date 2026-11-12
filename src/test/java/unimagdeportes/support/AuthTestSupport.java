@@ -59,9 +59,20 @@ public abstract class AuthTestSupport {
     @BeforeEach
     void resetState() {
         jdbc.execute("truncate table audit_log, login_code, login_code_request_ip, app_user cascade");
+        resetUsageParameters();
         clock.set(START);
         mail.bodies.clear();
         mail.failing = false;
+    }
+
+    protected void resetUsageParameters() {
+        jdbc.execute("truncate table usage_parameters cascade");
+        jdbc.update("insert into usage_parameters "
+                + "(id, version_number, weekly_quota_hours, no_show_threshold, created_at, created_by) "
+                + "values ('00000000-0000-0000-0000-000000000001', 1, 4, 3, ?, null)",
+                java.sql.Timestamp.from(START));
+        jdbc.update("insert into usage_parameters_head (id, current_version_id) "
+                + "values (1, '00000000-0000-0000-0000-000000000001')");
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -74,7 +85,7 @@ public abstract class AuthTestSupport {
     @RestController
     @Profile("auth-test")
     public static class ProtectedProbe {
-        @RequestMapping({"/test/protected", "/admin/blocks", "/admin/parameters"})
+        @RequestMapping({"/test/protected", "/admin/blocks"})
         ResponseEntity<Void> protectedAction() { return ResponseEntity.noContent().build(); }
     }
 

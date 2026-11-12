@@ -218,7 +218,8 @@ Se aplica como máximo una suspensión por usuario y mes de inasistencia; las fa
 | `institutional_block` | `id`, `space_id`, `type` (clases y grupos formativos, eventos o torneos, mantenimiento), `reason`, `start_at`, `end_at`, `recurrence_group` (nullable; agrupa las ocurrencias de un bloqueo recurrente) | Índice por `(space_id, start_at)`; los bloqueos recurrentes se materializan en una fila por franja (OQ-06) |
 | `equipment` | `id`, `name`, `discipline` (nullable, sugerencia), `stock`, `status` (`AVAILABLE`, `INACTIVE`) | `UNIQUE(name)`; `CHECK(stock >= 0)`; RN-62 |
 | `reservation_equipment` | `reservation_id`, `equipment_id`, `quantity` | `PRIMARY KEY(reservation_id, equipment_id)`; `CHECK(quantity > 0)`; claves foráneas a `reservation` y `equipment`; RN-64 |
-| `usage_parameters` | Singleton (`id = 1`): cuota semanal y número de inasistencias para suspender | `CHECK` de rangos; cada guardado sobrescribe. Los demás parámetros son fijos o de despliegue según el contexto §4. |
+| `usage_parameters` | Versiones inmutables: UUID `id`, `version_number`, cuota, umbral, `created_at`, `created_by` | Número único positivo, valores positivos; autor FK a `app_user`, nulo solo en la versión inicial. Inserción por cambio efectivo; se rechazan UPDATE/DELETE de versiones. D-26 reemplaza D-12. |
+| `usage_parameters_head` | Singleton (`id = 1`) con `current_version_id` FK no nula | Solo almacena la referencia vigente; bloqueo pesimista para serializar publicaciones. |
 | `audit_log` | `id`, `action`, `entity_type`, `entity_id`, `user_id` (nullable), `detail`, `created_at` | RNF-08; sin códigos ni tokens en `detail`. Además de reservas, cancelaciones, check-ins y sanciones, registra `CODE_REQUESTED`, `LOGIN`, `LOGIN_FAILED` y `LOGOUT` (RN-61) |
 | `monthly_suspension` | `user_id`, `absence_month`, `created_at` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; incluido en la migración única. |
 
@@ -293,7 +294,16 @@ erDiagram
         string recurrence_group
     }
     usage_parameters {
+        uuid id PK
+        long version_number UK
+        int weekly_quota_hours
+        int no_show_threshold
+        datetime created_at
+        uuid created_by FK
+    }
+    usage_parameters_head {
         int id PK
+        uuid current_version_id FK
     }
     audit_log {
         uuid id PK
@@ -306,6 +316,8 @@ erDiagram
     }
 
     app_user ||--o{ reservation : crea
+    app_user |o--o{ usage_parameters : registra
+    usage_parameters ||--o| usage_parameters_head : vigente
     space ||--o{ space_discipline : sirve
     space ||--o{ reservation : recibe
     space ||--o{ institutional_block : bloquea
@@ -648,7 +660,7 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 | D-09 | Autenticación aislada en el módulo `auth` y `security`; el resto ve un `UserPrincipal`; reservas ligadas a `app_user.id`; `resolveOrCreate` como punto único de aprovisionamiento y `TokenService` como único emisor de tokens | Acoplar reservas o controllers al mecanismo de login | Migrar a Microsoft cambia cómo se verifica la persona y no toca los casos de uso de negocio (§7.1.5) | UC01 |
 | D-10 | Comprobante y avisos por **evento posterior al commit** + `MailSender` como puerto | Enviar dentro de la transacción | Un fallo de correo no deshace la reserva; se prueba con un servidor falso | UC11 |
 | D-11 | Calendario en vivo con **SSE**, abierto desde el cliente con `fetch` para poder enviar el encabezado `Authorization` | *Polling*; WebSocket; `EventSource` con el token en la URL | RNF-04 con poco código; el `EventSource` nativo no envía encabezados y el token en la URL quedaría en los registros; el *polling* corto es la alternativa si complica | UC02 |
-| D-12 | Parámetros en la tabla singleton `usage_parameters` | `application.properties`; tabla clave-valor | El Administrador los edita sin redespliegue (UC06-H2) | UC06 |
+| D-12 (reemplazada por D-26) | Parámetros en la tabla singleton `usage_parameters` | `application.properties`; tabla clave-valor | El Administrador los edita sin redespliegue (UC06-H2) | UC06 |
 | D-13 | **DTO** propios; las entidades JPA no salen del service | Exponer entidades | La API no se acopla al modelo de datos | Todos |
 | D-14 | `Clock` inyectado con America/Bogota y `timestamptz` | Hora del servidor; `LocalDateTime` | RNF-07; tolerancia y ventanas se prueban sin depender del reloj real | Todos |
 | D-15 | Código en **inglés**, documentación en español (tabla §12) | Todo en español | Coherente con el proyecto anterior **[TÉC]** | Todos |
@@ -662,6 +674,11 @@ Los cambios de estado los hacen solo los services: `CancellationService` (cancel
 | D-23 | **Disponibilidad de implementos derivada de las reservas**, sin saldo por franja | Tabla de saldos o contadores de inventario | Como las reservas tienen rango de tiempo, el stock se consume solo mientras se solapan; derivarlo evita desincronización y sigue el mismo principio de la cuota (D-06). Las canceladas liberan el stock (RN-65, RN-66) | UC13 |
 | D-24 | **Mapeo DTO ↔ entidad con MapStruct** | Mapeo manual; otra librería de mapeo | Evita mapeo repetitivo y errores; el código generado se valida en compilación y no añade reflexión en tiempo de ejecución (decisión del plan, 2026-11-10) | Todos |
 | D-25 | **Cliente web en React en un repositorio aparte**; la API se consume desde otro origen con CORS y `Authorization` | Servir el cliente desde el mismo backend; otro framework | Separa la interfaz del backend y permite desplegarlos por separado; el backend queda como API pura (OQ-01, OQ-13) | Todos |
+| D-26 | **Versiones inmutables de parámetros y referencia vigente**; reemplaza D-12 | Sobrescribir el singleton; historial solo en auditoría | Conservar cuota y umbral de cada cambio junto con autor y fecha. Publicar versión, referencia y auditoría en una transacción, sin cambiar los contratos REST | UC06 |
+
+**D-26 — publicación:** se bloquea `usage_parameters_head` (`id = 1`) antes de leer la versión vigente. Se combinan los campos enviados con los vigentes; si no cambian, se devuelve la configuración sin insertar versión ni auditoría de modificación. En otro caso se inserta una versión con número anterior + 1, UUID y fecha del `Clock`, se cambia la referencia y se registra `PARAMETERS_UPDATED` con el UUID de la versión. El bloqueo se mantiene hasta el commit; no basta con bloquear la última versión, porque esa fila deja de ser la vigente. Los consumidores usan `ParameterService.current()`; no seleccionan una fila por `id = 1` ni por fecha máxima. Se conserva la regla del umbral vigente al registrar inasistencias.
+
+**D-26 — esquema de desarrollo:** se reescribe únicamente `V1__shared_schema.sql`, con versión inicial 1, cuota 4 y umbral 3. La fecha inicial es la de instalación del esquema, no una fecha histórica recuperada. No se añade V2 ni se transfieren automáticamente datos de bases anteriores; su recreación requiere coordinación conforme al README.
 
 ---
 

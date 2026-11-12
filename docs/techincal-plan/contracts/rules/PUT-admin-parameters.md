@@ -10,6 +10,8 @@
 
 Se envían solo los bloques o campos que se quieren modificar; el resto se conserva.
 
+Cada cambio efectivo crea una versión inmutable completa de cuota y umbral, con autor, fecha y número secuencial. La versión se activa junto con su auditoría en una sola transacción. Las solicitudes sin cambios efectivos conservan la versión vigente y no generan auditoría de modificación. La respuesta mantiene su forma actual; no expone metadatos ni historial de versiones.
+
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `quota.weeklyHours` | integer | Cuota semanal por usuario. |
