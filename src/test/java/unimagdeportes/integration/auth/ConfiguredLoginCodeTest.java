@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
 import unimagdeportes.exception.BusinessException;
+import unimagdeportes.mail.LoginCodeMessage;
 import unimagdeportes.repository.auth.LoginCodeRepository;
 import unimagdeportes.service.auth.LoginCodeService;
 import unimagdeportes.support.AuthTestSupport;
@@ -16,14 +17,33 @@ class ConfiguredLoginCodeTest extends AuthTestSupport {
     @Autowired TransactionTemplate transactions;
 
     @Test
+    void missingContactDoesNotSendCodeAndReturnsDeliveryFailure() {
+        var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage(""), clock,
+                "test-config-012345678901234567890123456789", Duration.ofMinutes(15), 5);
+        String email = "missing-contact@unimagdalena.edu.co";
+        BusinessException error = transactions.execute(status -> {
+            try {
+                service.request(email, "127.0.0.1");
+                throw new AssertionError("Se esperaba un rechazo");
+            } catch (BusinessException ex) {
+                return ex;
+            }
+        });
+        assertThat(error.getCode()).isEqualTo("MAIL_DELIVERY_FAILED");
+        assertThat(mail.bodies).doesNotContainKey(email);
+        assertThat(codes.findFirstByEmailOrderByCreatedAtDesc(email).orElseThrow().getUsedAt()).isEqualTo(START);
+    }
+
+    @Test
     void deploymentCanChangeValidityAndAttemptLimit() {
-        var service = new LoginCodeService(codes, jdbc, mail, clock,
+        var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage("https://client.example/contact"), clock,
                 "test-config-012345678901234567890123456789", Duration.ofMinutes(2), 2);
         String email = "configured@unimagdalena.edu.co";
         transactions.executeWithoutResult(status -> service.request(email, "127.0.0.1"));
         var stored = codes.findFirstByEmailOrderByCreatedAtDesc(email).orElseThrow();
         assertThat(stored.getExpiresAt()).isEqualTo(START.plusSeconds(120));
         assertThat(mail.bodies.get(email)).contains("2 minutos");
+        assertThat(mail.bodies.get(email)).contains("https://client.example/contact");
         String wrong = code(email).equals("000000") ? "000001" : "000000";
         assertFailureCommitted(service, email, wrong, "INVALID_CODE");
         assertFailureCommitted(service, email, wrong, "TOO_MANY_ATTEMPTS");

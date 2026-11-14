@@ -33,4 +33,7 @@ public class Reservation {
     public Instant getStartAt() { return startAt; }
     public Instant getEndAt() { return endAt; }
     public ReservationStatus getStatus() { return status; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getReminderSentAt() { return reminderSentAt; }
+    public void markReminderSent(Instant sentAt) { this.reminderSentAt = sentAt; }
 }

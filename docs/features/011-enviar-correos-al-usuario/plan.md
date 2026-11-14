@@ -24,7 +24,7 @@ UC11 implementa los correos de la plataforma: comprobante PDF de la reserva, not
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Mail, Scheduling, Data JPA. PDF: `com.github.librepdf:openpdf:3.0.5`; dependencia pendiente de agregar. Plantillas de correo.
+**Primary Dependencies**: Spring Boot 4.1.1: Mail, Scheduling, Data JPA. PDF: `com.github.librepdf:openpdf:3.0.5`. Plantillas de correo.
 **Storage**: PostgreSQL; `reservation.reminder_sent_at` para el recordatorio.
 **Messaging**: eventos internos después del commit; sin colas [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers, GreenMail; Mailpit en local.
@@ -88,36 +88,42 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 ### Phase 1: Setup
 
 - [ ] **T001** Verificar UC01 y UC03 para el comprobante; crear la base de eventos y notificaciones junto con UC01. Integrar las plantillas y pruebas de UC04, UC07 y UC10 cuando estén disponibles, sin exigirlos para iniciar la base.
-- [ ] **T002** Agregar OpenPDF y verificar la versión compatible.
+- [x] **T002** Agregar OpenPDF y verificar la versión compatible.
 
 ### Phase 2: Foundational
 
-- [ ] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
-- [ ] **T004** Configurar los escuchas de eventos base.
+- [x] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
+- [x] **T004** Configurar los escuchas de eventos base.
 
-**Base disponible:** existen `MailSender` y `SmtpMailSender`; falta integrarlos con notificaciones y verificar la entrega y el envío de adjuntos para este UC.
+**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; su conexión con los productores reales sigue pendiente.
 
 ### Phase 3: User Stories
 
-- [ ] **T005** [US1/P1] Implementar `ReceiptPdfGenerator`.
+- [x] **T005** [US1/P1] Implementar `ReceiptPdfGenerator`.
 - [ ] **T006** [US1/P1] Implementar `ReceiptService` y su escucha de `ReservationCreatedEvent`.
-- [ ] **T007** [US1/P1] Crear DTO de comprobante.
+- [x] **T007** [US1/P1] Crear DTO de comprobante.
 - [ ] **T008** [US1/P1] Incluir el canal de contacto.
 - [ ] **T009** [US1/P1] Integración de comprobante sin implementos y envío post-commit; añadir la prueba con implementos al integrar UC13.
-- [ ] **T010** [US2/P1] Implementar `NotificationService` y sus escuchas.
-- [ ] **T011** [US2/P1] Crear las plantillas de correo.
+- [x] **T010** [US2/P1] Implementar `NotificationService` y sus escuchas.
+- [x] **T011** [US2/P1] Crear las plantillas de correo.
 - [ ] **T012** [US2/P1] Implementar `ReminderJob` (2 h antes, idempotente).
 - [ ] **T013** [US2/P1] Incluir el enlace de cancelación en el recordatorio.
 - [ ] **T014** [US2/P1] Incluir el canal de contacto y registrar fallos sin revertir.
 - [ ] **T015** [US2/P1] Integración de notificaciones por evento.
-- [ ] **T016** [US3/P1] Crear la plantilla del código de acceso.
-- [ ] **T017** [US3/P1] Integrar el envío desde `LoginCodeService`.
+- [x] **T016** [US3/P1] Crear la plantilla del código de acceso.
+- [x] **T017** [US3/P1] Integrar el envío desde `LoginCodeService`.
 - [ ] **T018** [US3/P1] Integración del correo del código y dominio inválido.
 
 ### Phase 4: Polish
 
 - [ ] **T019** Revisar los correos con Mailpit.
 - [ ] **T020** Verificar que un fallo de correo no revierte operaciones y ejecutar `./mvnw clean verify`.
+
+**Avance verificado (2026-11-11):** el generador y DTO se prueban con y sin implementos y zona Bogotá; aún no están conectados a reservas. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
+
+**Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo; falta probarlo con el flujo real de UC03. Las tareas de integración T006, T008, T009 y T012–T015 siguen abiertas mientras falten los productores y las rutas reales. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
+
+**Límite del recordatorio:** el job serializa sus ejecuciones dentro de una instancia. Conforme a `docs/techincal-plan/plan-general.md` §5.2, el despliegue previsto es de una sola instancia; varias instancias requieren coordinación adicional. Si SMTP acepta el mensaje pero falla el marcado posterior o cae el proceso, un reintento puede duplicarlo. No se garantiza entrega exactamente una vez.
 
 ## Dependencies & Execution Order
 
@@ -131,6 +137,7 @@ UC11-H3 y la base de correo y eventos se implementan con UC01; UC11-H1 requiere 
 - T016–T018 integran y verifican el correo del código implementado en UC01; no duplican la implementación original.
 - El comprobante incluye los implementos (OQ-20).
 - No hay endpoint propio.
+- **Pendiente para el despliegue e integración del frontend:** definir el correo del área de deportes y las direcciones del formulario de contacto y del flujo de cancelación. Los endpoints documentados pertenecen a la API y no sustituyen las rutas del frontend; verificar los enlaces cuando estén disponibles.
 
 ## Checklist de auto-revisión
 

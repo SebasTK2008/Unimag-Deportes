@@ -82,21 +82,23 @@ Fuente: [`contracts/contact/POST-contact.md`](../../techincal-plan/contracts/con
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear el DTO de `dto/contact/`.
-- [ ] **T003** Implementar `ContactService`.
+- [x] **T002** Crear el DTO de `dto/contact/`.
+- [x] **T003** Implementar `ContactService`.
 
 ### Phase 3: User Stories
 
-- [ ] **T004** [US1/P2] Implementar `POST /contact`.
-- [ ] **T005** [US1/P2] Enviar al correo del área de deportes.
+- [x] **T004** [US1/P2] Implementar `POST /contact`.
+- [x] **T005** [US1/P2] Enviar al correo del área de deportes.
 - [ ] **T006** [US1/P2] Incluir el enlace a este formulario como canal de contacto.
 - [ ] **T007** [US1/P2] Prueba de contrato.
 - [ ] **T008** [US1/P2] Integración de envío y validación.
 
 ### Phase 4: Polish
 
-- [ ] **T009** Verificar que el mensaje no se persiste.
+- [x] **T009** Verificar que el mensaje no se persiste.
 - [ ] **T010** Revisar manejo de fallos de correo y ejecutar `./mvnw clean verify`.
+
+**Avance verificado (2026-11-11):** `ContactIntegrationTest` comprueba autenticación, validación, entrega al destinatario configurado y fallo SMTP con un adaptador de prueba; el servicio no persiste el mensaje. `./mvnw clean verify` pasó con 72 pruebas. El formulario del cliente, la ruta y el destinatario reales continúan pendientes; T006–T008 siguen abiertas para su verificación completa.
 
 ## Dependencies & Execution Order
 
@@ -109,6 +111,7 @@ UC12 depende de UC01 y UC11.
 - `[US1]` etiqueta la única historia de la SPEC 012.
 - No hay migración ni entidad.
 - El formulario es el canal de contacto de RN-48 (OQ-10).
+- **Pendiente para el despliegue:** definir y configurar la dirección de correo del área de deportes. La ruta del formulario en el frontend aún no está definida.
 
 ## Checklist de auto-revisión
 
