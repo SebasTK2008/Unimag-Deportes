@@ -131,6 +131,24 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 
 **Avances parciales:** T003 tiene disciplinas como colección JPA en `Space`, sin clase `SpaceDiscipline` independiente; T006 tiene repositorios de espacio y bloqueo. `SpaceService` y `BlockService` solo ofrecen lecturas, por lo que T007–T009 siguen pendientes.
 
+### Ampliación pendiente: imágenes de espacios
+
+**Estado:** diseño acordado, todavía no implementado. El esquema y el modelo actuales no almacenan imágenes; los endpoints y sus contratos detallados están pendientes.
+
+- Cada espacio puede tener una imagen de vista previa y una imagen panorámica de 360°. Ambas son independientes y opcionales: el espacio puede crearse sin ellas y conservarse sin ellas después de eliminarlas.
+- El Administrador sube cada imagen mediante un endpoint específico después de crear el espacio; también puede reemplazarla o eliminarla. La consulta individual de imágenes requiere autenticación. El cuerpo de creación del espacio no necesita incluir imágenes.
+- Los archivos se almacenarán en PostgreSQL junto con su tipo de contenido. Se admitirá cualquier formato de archivo de imagen, con un máximo de 30 MB por archivo. Los binarios no se incluirán en los listados ordinarios.
+- La imagen de vista previa se destina a la reserva y la panorámica al espacio al reservar; esta ampliación cubre su almacenamiento y entrega, no la implementación de un visor 360.
+
+**Tareas adicionales:**
+
+- [ ] **T026** Extender el esquema compartido y el modelo para guardar opcionalmente las dos imágenes y sus tipos de contenido; mantener independientes su carga y eliminación.
+- [ ] **T027** Definir e implementar endpoints administrativos específicos para subir o reemplazar cada imagen y para eliminarla, y endpoints autenticados de consulta individual. Documentar los contratos, incluidos los casos de imagen o espacio inexistente.
+- [ ] **T028** Validar que cada archivo sea una imagen y no supere 30 MB; configurar los límites de carga necesarios. Pendiente de definir cómo se reconocerá un archivo de imagen sin excluir formatos y de precisar la equivalencia en bytes de «30 MB» para el contrato y la configuración.
+- [ ] **T029** Probar creación de espacios sin imágenes, carga posterior, reemplazo y eliminación independientes, acceso autenticado y permisos de Administrador, formatos de imagen, límite de tamaño y ausencia de binarios en listados.
+
+T026 precede a T027; T027–T028 preceden a T029. La integración con las vistas de disponibilidad y reserva consume las imágenes individualmente y no forma parte de la implementación de un visor 360.
+
 ## Dependencies & Execution Order
 
 `T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (el esquema es compartido; la integración de bloqueo con reservas espera UC03).

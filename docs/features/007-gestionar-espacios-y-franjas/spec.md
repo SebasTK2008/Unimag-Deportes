@@ -3,6 +3,8 @@
 **Creado**: 2026-10-13  
 **Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-06 y OQ-12; reautenticación en bloqueos)
 
+**Ampliación pendiente:** la gestión de imágenes opcionales de espacios está planificada en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios). Aún no está implementada ni cuenta con contratos de API definitivos.
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### Historia de Usuario 1 - Gestionar los espacios y su horario de operación (Prioridad: P1)

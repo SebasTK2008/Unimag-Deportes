@@ -14,6 +14,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 - Salvo los endpoints públicos, se envía `Authorization: Bearer <token>`.
 - El token se obtiene en `POST /auth/verify` y no viaja en cookies ni en la URL (RN-55).
 - Las solicitudes con cuerpo usan `Content-Type: application/json`.
+- **Pendiente:** la carga de imágenes prevista para UC07 requerirá definir el formato de solicitud y cualquier excepción a esta convención en sus contratos; todavía no está implementada. Véase el [plan de UC07](../../features/007-gestionar-espacios-y-franjas/plan.md#ampliación-pendiente-imágenes-de-espacios).
 
 ### Identificadores y fechas
 

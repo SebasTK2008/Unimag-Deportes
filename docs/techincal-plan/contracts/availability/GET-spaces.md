@@ -61,3 +61,4 @@ GET /spaces?discipline=VOLLEYBALL
 
 - Solo se listan espacios con `status: ACTIVE`; los que están en mantenimiento no aparecen como reservables (RN-09). El Administrador usa `GET /admin/spaces` para verlos todos.
 - Un espacio puede servir varias disciplinas; la reserva bloquea el espacio completo (RN-07).
+- **Pendiente:** se prevé consultar las imágenes opcionales de cada espacio individualmente, sin incluir los archivos binarios en este listado. Véase el [plan de UC07](../../../features/007-gestionar-espacios-y-franjas/plan.md#ampliación-pendiente-imágenes-de-espacios); la consulta de imágenes aún no está implementada.
