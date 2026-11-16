@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -37,6 +38,11 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
     ResponseEntity<ApiError> malformedRequest(Exception exception) {
         return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", "La solicitud no es válida."));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", "La carga supera el límite permitido."));
     }
 
     @ExceptionHandler(Exception.class)
