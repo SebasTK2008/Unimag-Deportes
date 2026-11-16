@@ -29,6 +29,8 @@ server:
   forward-headers-strategy: none
 
 app:
+  checkin:
+    frontend-origin: ${APP_CHECKIN_FRONTEND_ORIGIN:}
   mail:
     contact-url: ${APP_MAIL_CONTACT_URL:}
     contact-recipient: ${APP_MAIL_CONTACT_RECIPIENT:}

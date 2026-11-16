@@ -20,12 +20,17 @@ import unimagdeportes.dto.space.SpaceDtos.SpaceList;
 import unimagdeportes.security.UserPrincipal;
 import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.space.SpaceService.ImageKind;
+import unimagdeportes.service.checkin.QrService;
 
 @RestController
 public class SpaceController {
     private final SpaceService spaces;
+    private final QrService qr;
 
-    public SpaceController(SpaceService spaces) { this.spaces = spaces; }
+    public SpaceController(SpaceService spaces, QrService qr) { this.spaces = spaces; this.qr = qr; }
+
+    @GetMapping(value = "/admin/spaces/{id}/qr", produces = "image/svg+xml;charset=UTF-8")
+    String qr(@PathVariable UUID id) { return qr.generate(id); }
 
     @GetMapping("/admin/spaces")
     SpaceList list() { return new SpaceList(spaces.list()); }
