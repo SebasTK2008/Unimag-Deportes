@@ -126,6 +126,17 @@ class SharedSchemaTest {
         }
     }
 
+    @Test
+    void auditLogIsIndexedByActionAndCreationTimeForIndicators() throws SQLException {
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.createStatement();
+                var result = statement.executeQuery("select indexdef from pg_indexes "
+                        + "where tablename = 'audit_log' and indexname = 'audit_log_action_created_idx'")) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getString(1)).contains("(action, created_at)");
+        }
+    }
+
     private void insertSpace(java.sql.Statement statement, UUID id, String name) throws SQLException {
         UUID preview = UUID.randomUUID();
         UUID panorama = UUID.randomUUID();

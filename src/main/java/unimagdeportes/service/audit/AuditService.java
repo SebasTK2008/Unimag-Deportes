@@ -1,6 +1,8 @@
 package unimagdeportes.service.audit;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,5 +22,17 @@ public class AuditService {
     @Transactional
     public void record(String action, String entityType, UUID entityId, UUID userId) {
         logs.save(new AuditLog(UUID.randomUUID(), action, entityType, entityId, userId, clock.instant()));
+    }
+
+    /** Registros de la acción en el intervalo {@code [from, to)}. */
+    @Transactional(readOnly = true)
+    public long count(String action, Instant from, Instant to) {
+        return logs.countByActionAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(action, from, to);
+    }
+
+    /** Entidades distintas afectadas por la acción en el intervalo {@code [from, to)}. */
+    @Transactional(readOnly = true)
+    public List<UUID> distinctEntities(String action, Instant from, Instant to) {
+        return logs.findDistinctEntityIds(action, from, to);
     }
 }

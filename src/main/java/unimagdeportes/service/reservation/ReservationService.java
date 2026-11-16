@@ -74,6 +74,11 @@ public class ReservationService {
                         reservation.getStatus())).toList();
     }
 
+    @Transactional(readOnly = true)
+    public long countWithStatus(java.util.Collection<UUID> ids, ReservationStatus status) {
+        return ids.isEmpty() ? 0 : reservations.countByIdInAndStatus(ids, status);
+    }
+
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public List<Reservation> checkInCandidates(UUID spaceId, UUID userId) {
         return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId);

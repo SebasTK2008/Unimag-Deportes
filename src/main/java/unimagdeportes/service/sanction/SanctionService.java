@@ -90,16 +90,21 @@ public class SanctionService {
         var range = policy.range(month);
         long noShows = reservations.countByUserIdAndStatusAndEndAtGreaterThanEqualAndEndAtLessThan(
                 user.getId(), ReservationStatus.NO_SHOW, range.start(), range.end());
+        Instant until = policy.suspensionEnd(now, settings.suspensionDays(), user.getSuspendedUntil());
         if (!policy.reachesThreshold(noShows, parameters.current().noShowThreshold())
-                || !monthlySuspensions.register(user.getId(), month, now)) {
+                || !monthlySuspensions.register(user.getId(), month, now, until)) {
             return;
         }
-        Instant until = policy.suspensionEnd(now, settings.suspensionDays(), user.getSuspendedUntil());
         user.suspendUntil(until);
         audit.record("USER_SUSPENDED", "USER", user.getId(), null);
         events.publishEvent(new ReservationNotificationEvent(Type.SUSPENSION, noShow.getId(), user.getEmail(),
                 user.getName(), spaceName, noShow.getStartAt(), null, until));
         cancelReservationsDuringSuspension(user, now, until);
+    }
+
+    @Transactional(readOnly = true)
+    public long countUsersSuspendedDuring(Instant from, Instant to) {
+        return monthlySuspensions.countUsersOverlapping(from, to);
     }
 
     /** Solo las contenidas por completo en la suspensión; las parcialmente solapadas se conservan (RN-40). */
