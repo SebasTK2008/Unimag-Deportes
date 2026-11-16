@@ -100,6 +100,8 @@ Todos los errores usan el mismo cuerpo:
 | `OVERLAPPING_RESERVATION` | 409 | El usuario ya tiene una reserva que se solapa. | RN-11 |
 | `QUOTA_EXCEEDED` | 409 | La reserva supera la cuota semanal disponible. | RN-18 |
 | `EQUIPMENT_UNAVAILABLE` | 409 | Implemento inactivo o sin stock suficiente en la franja. | RN-62, RN-65 |
+| `EQUIPMENT_NAME_ALREADY_EXISTS` | 409 | Ya existe otro implemento con el mismo nombre. | RN-62 |
+| `STOCK_BELOW_COMMITTED` | 409 | Stock propuesto inferior al máximo compromiso simultáneo futuro. | RN-65 |
 | `RESERVATION_NOT_CANCELLABLE` | 409 | La reserva ya tiene check-in o no se puede cancelar. | RN-24 |
 | `NO_ACTIVE_RESERVATION` | 404 | No hay reserva del usuario en ese espacio para el check-in. | RN-33 |
 | `CHECKIN_TOO_EARLY` | 409 | Aún no abrió la ventana aplicable a la reserva. | RN-36 |

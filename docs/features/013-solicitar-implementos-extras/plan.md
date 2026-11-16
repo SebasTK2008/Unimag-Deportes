@@ -11,12 +11,12 @@ UC13 implementa el catálogo de implementos con existencias y la solicitud opcio
 
 | Requisito | Componente | Tareas |
 |---|---|---|
-| RF-001, RF-002 | `ReservationService` + `ReservationEquipment` | T007, T009 |
+| RF-001, RF-002 | `ReservationCreationService` + `EquipmentService` | T007, T009 |
 | RF-003 | validación de stock en la transacción | T007 |
 | RF-004 | solicitud opcional | T007, T016 |
 | RF-005 | `EquipmentService` (catálogo) | T017 |
 | RF-006 | consulta de disponibilidad | T006, T018 |
-| RNF-001..RNF-002 | DTO, mobile-first/WCAG | T011 |
+| RNF-001..RNF-002 | DTO de reserva; aceptación mobile-first/WCAG y pasos en el cliente React externo | T011 |
 | CE-001..CE-006 | aceptación | T012..T016, T023 |
 | HU1, HU2 | solicitud y catálogo | Fase 3 |
 
@@ -50,18 +50,18 @@ docs/techincal-plan/contracts/equipment/   # 4 contratos
 src/main/java/unimagdeportes/
 ├── controller/equipment/EquipmentController.java
 ├── service/equipment/EquipmentService.java
-├── service/reservation/ReservationService.java (integración)
-├── repository/{EquipmentRepository,ReservationEquipmentRepository}.java
-├── model/{Equipment,ReservationEquipment,EquipmentStatus}.java
+├── service/reservation/ReservationCreationService.java (integración)
+├── repository/equipment/{EquipmentRepository,ReservationEquipmentRepository}.java
+├── model/equipment/{Equipment,ReservationEquipment,ReservationEquipmentId,EquipmentStatus}.java
 ├── dto/equipment/ · mapper/equipment/EquipmentMapper.java
 
 src/main/resources/db/migration/
 └── V1__shared_schema.sql
 
-src/test/java/unimagdeportes/{contract/equipment,integration/equipment,integration/reservation}/
+src/test/java/unimagdeportes/{integration/equipment,integration/reservation}/
 ```
 
-**Structure Decision**: el catálogo vive en `equipment`; la validación de stock se integra en `ReservationService` dentro de la misma transacción [PLAN D-22, D-23].
+**Structure Decision**: el catálogo vive en `equipment`; la validación de stock se integra en `ReservationCreationService` dentro de la misma transacción [PLAN D-22, D-23]. La asociación se inserta mediante JDBC; la entidad y el repositorio JPA existen, pero no realizan esa inserción.
 
 ## Reglas de negocio
 
@@ -88,42 +88,46 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01, UC03, UC07-H1 y el esquema compartido; UC11-H1 solo es prerrequisito de la integración del comprobante en T010.
+- [x] **T001** Verificar UC01, UC03, UC07-H1 y el esquema compartido; UC11-H1 solo es prerrequisito de la integración del comprobante en T010.
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear `Equipment`, `EquipmentStatus` y `ReservationEquipment`.
+- [x] **T002** Crear `Equipment`, `EquipmentStatus` y `ReservationEquipment`.
 - [x] **T003** Verificar las tablas de implementos en la migración única.
-- [ ] **T004** Crear `EquipmentRepository` y `ReservationEquipmentRepository`.
-- [ ] **T005** Implementar `EquipmentService` y su consulta de disponibilidad.
-- [ ] **T006** Agregar la consulta de cantidades comprometidas por ventana.
+- [x] **T004** Crear `EquipmentRepository` y `ReservationEquipmentRepository`.
+- [x] **T005** Implementar `EquipmentService` y su consulta de disponibilidad.
+- [x] **T006** Agregar la consulta de cantidades comprometidas por ventana.
 
 ### Phase 3: User Stories
 
-- [ ] **T007** [US1/P2] Integrar la validación de stock en `ReservationService` bajo el bloqueo asesor global de §4.1 del plan general y bloquear las filas de implementos en orden de id.
-- [ ] **T008** [US1/P2] Validar implementos inexistentes, inactivos, identificadores repetidos y cantidades; rechazar duplicados con `VALIDATION_ERROR`.
-- [ ] **T009** [US1/P2] Asociar implementos a la reserva.
-- [ ] **T010** [US1/P2] Extender el comprobante (UC11) con implementos.
-- [ ] **T011** [US1/P2] Extender DTO y mapper de reserva.
+- [x] **T007** [US1/P2] Integrar la validación de stock en `ReservationCreationService` bajo el bloqueo asesor global de §4.1 del plan general y bloquear las filas de implementos en orden de id.
+- [x] **T008** [US1/P2] Validar implementos inexistentes, inactivos, identificadores repetidos y cantidades; rechazar duplicados con `VALIDATION_ERROR`.
+- [x] **T009** [US1/P2] Asociar implementos a la reserva.
+- [x] **T010** [US1/P2] Extender el comprobante (UC11) con implementos.
+- [x] **T011** [US1/P2] Extender DTO y mapper de reserva. La aceptación de los RNF de interfaz corresponde al cliente externo.
 - [ ] **T012** [US1/P2] Prueba de contrato de `POST /reservations` con implementos.
-- [ ] **T013** [US1/P2] Integración de stock insuficiente.
+- [x] **T013** [US1/P2] Integración de stock insuficiente.
 - [ ] **T014** [US1/P2] Integración de reservas solapadas y simultáneas por el último stock, incluyendo rangos consecutivos y compromisos simultáneos máximos.
-- [ ] **T015** [US1/P2] Integración de liberación al cancelar.
-- [ ] **T016** [US1/P2] Integración de reserva sin implementos.
-- [ ] **T017** [US2/P2] Implementar `EquipmentService` (listar, crear, editar, desactivar).
-- [ ] **T018** [US2/P2] Implementar `GET /equipment` y `GET /equipment/availability`.
-- [ ] **T019** [US2/P2] Implementar `POST /admin/equipment` y `PUT /admin/equipment/{id}`.
-- [ ] **T020** [US2/P2] Restringir administración al rol `ADMIN`.
-- [ ] **T021** [US2/P2] Validar stock no negativo y nombre único; adquirir el mismo bloqueo global y rechazar reducción por debajo del máximo compromiso simultáneo futuro; probar carreras con reservas.
-- [ ] **T022** [US2/P2] Verificar que desactivar no afecta reservas existentes.
+- [x] **T015** [US1/P2] Integración de liberación al cancelar.
+- [x] **T016** [US1/P2] Integración de reserva sin implementos.
+- [x] **T017** [US2/P2] Implementar `EquipmentService` (listar, crear, editar, desactivar).
+- [x] **T018** [US2/P2] Implementar `GET /equipment` y `GET /equipment/availability`.
+- [x] **T019** [US2/P2] Implementar `POST /admin/equipment` y `PUT /admin/equipment/{id}`.
+- [x] **T020** [US2/P2] Restringir administración al rol `ADMIN`.
+- [x] **T021** [US2/P2] Validar stock no negativo y nombre único; adquirir el mismo bloqueo global y rechazar reducción por debajo del máximo compromiso simultáneo futuro; probar carreras con reservas.
+- [x] **T022** [US2/P2] Verificar que desactivar no afecta reservas existentes.
 - [ ] **T023** [US2/P2] Pruebas de contrato del catálogo.
 
 ### Phase 4: Polish
 
 - [ ] **T024** Revisar índices de solape por implemento y rango.
-- [ ] **T025** Verificar que no se almacena saldo por franja y ejecutar `./mvnw clean verify`.
+- [x] **T025** Verificar que no se almacena saldo por franja y ejecutar `./mvnw clean verify`.
 
-**Avances parciales:** existen `Equipment`, `EquipmentStatus`, `EquipmentRepository` y `EquipmentService`. La creación de reservas bloquea los implementos por id, calcula el máximo compromiso simultáneo y asocia las cantidades mediante JDBC en la misma transacción; el DTO de reserva y el comprobante incluyen implementos. `ReservationCreationIntegrationTest` cubre asociación y rechazo por stock insuficiente. Faltan la entidad y el repositorio de `ReservationEquipment`, las operaciones de catálogo y disponibilidad y la cobertura integral, incluidas carreras, liberación y comprobante real. Las tablas correspondientes están incluidas en la migración aplicada en PostgreSQL.
+**Avances verificados:** existen las entidades, repositorios, servicio y cuatro endpoints del catálogo. La creación bloquea los implementos por id, calcula el máximo compromiso simultáneo y asocia las cantidades mediante JDBC en la misma transacción. `EquipmentIntegrationTest` cubre nombres duplicados, permisos, actualización parcial, entradas numéricas inválidas, disponibilidad, reservas consecutivas, carreras de reserva y de edición, cancelación y comprobante desde una reserva real. El PDF se captura con el adaptador de correo de prueba, no se acredita entrega SMTP real desde ese flujo. `ReservationCreationIntegrationTest` y `ReservationCancellationIntegrationTest` cubren stock insuficiente y liberación conservando historial.
+
+**Pendiente:** ampliar T012/T023 para cubrir exhaustivamente los contratos y T014 para solapes parciales y máximos simultáneos adicionales; revisar índices con datos representativos en T024. Los RNF de interfaz no se verificaron: el cliente React vive en otro repositorio y su verificación se excluyó de esta ejecución de backend.
+
+**Verificación de backend (2026-11-16):** `.\mvnw.cmd clean verify` terminó con 225 pruebas, sin fallos ni omisiones. `EquipmentIntegrationTest` incluye 10 pruebas; el rechazo de decimales, cadenas numéricas y valores fuera de rango se comprobó para stock y cantidades.
 
 ## Dependencies & Execution Order
 

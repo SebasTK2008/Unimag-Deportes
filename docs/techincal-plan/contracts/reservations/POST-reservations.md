@@ -144,4 +144,5 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 - La verificación y el bloqueo de la franja ocurren en una sola transacción; si dos usuarios compiten, gana el primero (RN-10).
 - La cuota se mide en horas reservadas y se calcula sobre la semana de la fecha de la franja (RN-16, RN-17).
 - Los implementos son opcionales. Su disponibilidad es `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante el intervalo (RN-65); reservas consecutivas no se suman entre sí.
+- `quantity` debe ser un entero JSON de 32 bits; decimales, cadenas numéricas y valores fuera de rango se rechazan con `VALIDATION_ERROR`.
 - La identidad del usuario sale del token, nunca del cuerpo (RN-03).
