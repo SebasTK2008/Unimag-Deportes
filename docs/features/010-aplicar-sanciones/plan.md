@@ -26,7 +26,7 @@ UC10 marca la inasistencia al finalizar la reserva sin check-in y evalúa el umb
 **Language/Version**: Java 25 [PLAN OQ-01].
 **Primary Dependencies**: Spring Boot 4.1.1: Data JPA, Scheduling, Mail; MapStruct [D-24].
 **Storage**: PostgreSQL; actualización de `reservation.status` y `app_user.suspended_until`.
-**Messaging**: evento de sanción después del commit [D-10].
+**Messaging**: `ReservationNotificationEvent` (`NO_SHOW`, `SUSPENSION`, `CANCELLATION`) y `AvailabilityChangedEvent` después del commit [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers; `Clock` inyectado para simular tiempo.
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico; job interno [D-07].
@@ -50,11 +50,13 @@ docs/features/010-aplicar-sanciones/
 src/main/java/unimagdeportes/
 ├── scheduler/ReservationLifecycleJob.java
 ├── service/sanction/SanctionService.java
-├── service/{reservation,auth}/  # servicios propietarios
-├── model/ReservationStatus.java
-└── event/SanctionAppliedEvent.java
+├── service/policy/SanctionPolicy.java
+├── service/{reservation,user}/  # servicios propietarios; ReservationService completa las reservas en uso
+├── repository/sanction/MonthlySuspensionRepository.java
+├── model/reservation/{Reservation,ReservationStatus}.java
+└── event/{ReservationNotificationEvent,AvailabilityChangedEvent}.java   # reutilizados
 
-src/test/java/unimagdeportes/{integration/sanctions,unit/sanctions}/
+src/test/java/unimagdeportes/{integration/sanctions,service/policy,scheduler}/
 ```
 
 **Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración única compartida incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado.
@@ -69,12 +71,23 @@ src/test/java/unimagdeportes/{integration/sanctions,unit/sanctions}/
 6. **Aviso** [RN-39]: correo con la fecha de reactivación.
 7. **Idempotencia** [D-07]: el job puede reintentarse sin duplicar estados.
 
+### Decisiones de implementación
+
+- **Eventos**: se reutiliza `ReservationNotificationEvent` (`NO_SHOW`, `SUSPENSION`) en lugar de un `SanctionAppliedEvent` propio, porque `NotificationService` ya tiene esas plantillas.
+- **Inicio de la suspensión**: dura `APP_RULES_SUSPENSION_DAYS` (7 por defecto) contados desde que el job registra la falta.
+- **Suspensión vigente**: una suspensión nueva nunca acorta una vigente; se conserva la fecha más lejana.
+- **Reservas canceladas por la suspensión**: cada una envía un correo `CANCELLATION` con la fecha y el motivo, y publica `AvailabilityChangedEvent`. Se consideran contenidas las que empiezan después del momento de la suspensión y terminan, como tarde, en su fecha de fin.
+- **Auditoría**: las acciones del sistema se registran sin actor (`user_id` nulo) con los códigos `NO_SHOW_REGISTERED`, `USER_SUSPENDED` y `RESERVATION_CANCELLED_BY_SUSPENSION`.
+- **Bloqueo**: cada reserva se procesa en su propia transacción; se adquiere el bloqueo asesor global, se relee la reserva y se bloquea la fila del usuario antes de modificarla.
+- **Programación**: `APP_JOBS_RESERVATION_LIFECYCLE_CRON` (por defecto, cada minuto); las pruebas lo desactivan con `-` e invocan el job directamente.
+
 ## Contrato REST
 
 No aplica: UC10 es interno (scheduler), sin endpoints.
 
 ## Estrategia de testing
 
+- Unitario: `SanctionPolicy` (mes local, umbral y fin de la suspensión) y aislamiento de fallos del job.
 - Integración: inasistencia, tolerancia e idempotencia en T008.
 - Integración: suspensión, ventana y reservas futuras en T014/T015.
 - Aceptación: CE-001..CE-003 [SPEC 010].
@@ -83,34 +96,47 @@ No aplica: UC10 es interno (scheduler), sin endpoints.
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01, UC03, UC05, la base de UC11-H2 y el esquema compartido.
-- [ ] **T002** Agregar la consulta de reservas `CONFIRMED` con ventana cerrada.
-- [ ] **T003** Agregar la consulta de inasistencias del mes calendario.
+- [x] **T001** Verificar UC01, UC03, UC05, la base de UC11-H2 y el esquema compartido.
+- [x] **T002** Agregar la consulta de reservas `CONFIRMED` con ventana cerrada.
+- [x] **T003** Agregar la consulta de inasistencias del mes calendario.
 
-**Base disponible:** la migración única crea `monthly_suspension` con clave por usuario y mes; la lógica, persistencia desde Java y pruebas de concurrencia de T011 permanecen pendientes.
+**Base disponible:** la migración única crea `monthly_suspension` con clave por usuario y mes; `MonthlySuspensionRepository` la escribe con `on conflict do nothing`.
 
 ### Phase 2: Foundational
 
-- [ ] **T004** Implementar `SanctionService.markNoShow()`.
-- [ ] **T005** Publicar `SanctionAppliedEvent`.
-- [ ] **T006** Implementar `ReservationLifecycleJob` idempotente: adquirir el bloqueo asesor global de §4.1 del plan general, releer estado y hora, marcar `NO_SHOW` o pasar `IN_USE` a `COMPLETED` al finalizar.
-- [ ] **T007** Registrar auditoría de la inasistencia.
+- [x] **T004** Implementar `SanctionService.markNoShow()`.
+- [x] **T005** Publicar los avisos con `ReservationNotificationEvent` (`NO_SHOW`).
+- [x] **T006** Implementar `ReservationLifecycleJob` idempotente: adquirir el bloqueo asesor global de §4.1 del plan general, releer estado y hora, marcar `NO_SHOW` o pasar `IN_USE` a `COMPLETED` al finalizar.
+- [x] **T007** Registrar auditoría de la inasistencia.
 
 ### Phase 3: User Stories
 
-- [ ] **T008** [US1/P1] Integración de inasistencia al cerrar la ventana.
-- [ ] **T009** [US1/P1] Integración de reserva en tolerancia, transición `IN_USE` → `COMPLETED` al finalizar e idempotencia.
-- [ ] **T010** [US2/P2] Implementar `evaluateSuspension()` con umbral vigente y duración configurada.
-- [ ] **T011** [US2/P2] Calcular el conteo por mes calendario y probar el cambio de mes; persistir la marca única por usuario y mes en el esquema compartido y probar reintentos concurrentes.
-- [ ] **T012** [US2/P2] Actualizar `suspended_until`, auditar y cancelar reservas futuras durante la suspensión, liberando recursos y notificando.
-- [ ] **T013** [US2/P2] Publicar el aviso de suspensión.
-- [ ] **T014** [US2/P2] Integración de suspensión.
-- [ ] **T015** [US2/P2] Integración de cambio de mes, cambio de umbral, segunda falta tras suspensión y reservas parcialmente solapadas, verificando liberación y aviso.
+- [x] **T008** [US1/P1] Integración de inasistencia al cerrar la ventana.
+- [x] **T009** [US1/P1] Integración de reserva en tolerancia, transición `IN_USE` → `COMPLETED` al finalizar e idempotencia.
+- [x] **T010** [US2/P2] Implementar `evaluateSuspension()` con umbral vigente y duración configurada.
+- [x] **T011** [US2/P2] Calcular el conteo por mes calendario y probar el cambio de mes; persistir la marca única por usuario y mes en el esquema compartido y probar reintentos concurrentes.
+- [x] **T012** [US2/P2] Actualizar `suspended_until`, auditar y cancelar reservas futuras durante la suspensión, liberando recursos y notificando.
+- [x] **T013** [US2/P2] Publicar el aviso de suspensión.
+- [x] **T014** [US2/P2] Integración de suspensión.
+- [x] **T015** [US2/P2] Integración de cambio de mes, cambio de umbral, segunda falta tras suspensión y reservas parcialmente solapadas, verificando liberación y aviso.
 
 ### Phase 4: Polish
 
-- [ ] **T016** Revisar logs y métricas del job.
-- [ ] **T017** Verificar idempotencia con ejecuciones simultáneas y ejecutar `./mvnw clean verify`.
+- [x] **T016** Revisar logs y métricas del job.
+- [x] **T017** Verificar idempotencia con ejecuciones simultáneas y ejecutar `./mvnw clean verify`.
+
+**Avance:** `ReservationLifecycleIntegrationTest` cubre:
+
+- inasistencia al cerrar la ventana, con las horas contadas;
+- reserva hecha dentro de la tolerancia y paso de `IN_USE` a `COMPLETED`, incluido el check-in en el último instante;
+- idempotencia, y reintentos concurrentes de `markNoShow` que dejan una sola inasistencia, una suspensión y una marca mensual;
+- suspensión por umbral, con reactivación en el correo;
+- cancelación solo de las reservas contenidas, con liberación de cuota, espacio e implementos y aviso de disponibilidad;
+- una suspensión por mes, reinicio del conteo tras una suspensión del mes anterior y límite del mes en America/Bogota;
+- umbral vigente al registrar la falta;
+- fallo de correo sin reversión.
+
+`./mvnw clean verify` terminó con 190 pruebas sin fallos. T016 cubre los logs: el job registra los errores por reserva y un resumen por ejecución cuando procesa reservas. El proyecto no tiene infraestructura de métricas, así que no se añadieron. No hay prueba de reversión de la suspensión si falla una cancelación intermedia: depende de la transacción única de `markNoShow`.
 
 ## Dependencies & Execution Order
 
@@ -126,7 +152,7 @@ UC10 depende de UC01, UC03, UC05 y la base de UC11-H2. UC09 consume el indicador
 
 ## Checklist de auto-revisión
 
-- [ ] Alineado con SPEC 010.
-- [ ] RF/RNF/CE/HU trazados.
-- [ ] Job idempotente y con `Clock` inyectado.
-- [ ] Conteo por mes calendario y umbral vigente al registrar cada inasistencia.
+- [x] Alineado con SPEC 010.
+- [x] RF/RNF/CE/HU trazados.
+- [x] Job idempotente y con `Clock` inyectado.
+- [x] Conteo por mes calendario y umbral vigente al registrar cada inasistencia.

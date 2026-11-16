@@ -55,14 +55,24 @@ src/main/java/unimagdeportes/
 ├── controller/reservation/ReservationController.java
 ├── service/reservation/{ReservationQueryService,CancellationService}.java
 ├── service/policy/CancellationPolicy.java
-├── repository/ReservationRepository.java
+├── service/equipment/EquipmentService.java   # forReservation: implementos de una reserva
+├── repository/reservation/ReservationRepository.java
 ├── dto/reservation/ · mapper/reservation/ReservationMapper.java
-└── event/ReservationCancelledEvent.java
+└── event/{ReservationNotificationEvent,AvailabilityChangedEvent}.java   # reutilizados
 
-src/test/java/unimagdeportes/{contract/reservation,integration/reservation,unit/policy}/
+src/test/java/unimagdeportes/{contract/reservation,integration/reservation,service/policy,service/reservation}/
 ```
 
 **Structure Decision**: se reutilizan controller y repositorio de UC03; la cancelación se aísla en su service y política.
+
+### Decisiones de implementación
+
+- **cancelledAt**: es la hora del `Clock` en el momento de cancelar; se devuelve en la respuesta, pero no se persiste en una columna (sin migraciones). La huella persistida es el registro `RESERVATION_CANCELLED` de `audit_log`.
+- **Evento de correo**: se reutiliza `ReservationNotificationEvent` con `Type.CANCELLATION` en lugar de un `ReservationCancelledEvent` propio [D-10].
+- **Disponibilidad**: la cancelación publica `AvailabilityChangedEvent` [PLAN §5.3].
+- **Mapper**: `ReservationMapper` es un `@Component` manual, como `CheckInMapper`, y no una interfaz MapStruct: combina reserva, nombre del espacio e implementos y convierte a America/Bogota. Es una excepción a D-24.
+- **Stock**: se libera de forma implícita al cambiar el estado, porque `EquipmentService` solo cuenta las reservas en estados activos; las filas de `reservation_equipment` se conservan como historial.
+- **Orden del listado**: `GET /reservations/mine` ordena por `startAt` descendente.
 
 ## Reglas de negocio
 
@@ -84,44 +94,54 @@ Fuente: [`contracts/reservations/`](../../techincal-plan/contracts/README.md) (3
 
 - Contrato: listado, vista previa y cancelación en T018.
 - Integración: privacidad, estados, cancelación a tiempo/tardía y check-in en T009/T019.
-- Unitario: `CancellationPolicy` en T020.
+- Unitario: `CancellationPolicy` en T020; `CancellationService` (bloqueo previo a la lectura y eventos publicados).
 - Aceptación: CE-001..CE-006, incluido historial y liberación de stock [SPEC 004].
 
 ## Implementation Phases
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar UC01 y UC03; usar la base de eventos y notificaciones de UC11-H2 creada junto con UC01, sin exigir las plantillas completas.
+- [x] **T001** Verificar UC01 y UC03; usar la base de eventos y notificaciones de UC11-H2 creada junto con UC01, sin exigir las plantillas completas.
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear los DTO de `dto/reservation/`.
-- [ ] **T003** Extender `ReservationMapper` para listar implementos.
-- [ ] **T004** Implementar `CancellationPolicy`.
-- [ ] **T005** Agregar la consulta de reservas por usuario al repositorio.
+- [x] **T002** Crear los DTO de `dto/reservation/`.
+- [x] **T003** Crear `ReservationMapper` para listar implementos.
+- [x] **T004** Implementar `CancellationPolicy`.
+- [x] **T005** Agregar la consulta de reservas por usuario al repositorio.
 
 ### Phase 3: User Stories
 
-- [ ] **T006** [US1/P1] Implementar `ReservationQueryService`.
-- [ ] **T007** [US1/P1] Implementar `GET /reservations/mine`.
-- [ ] **T008** [US1/P1] Prueba de contrato del listado.
-- [ ] **T009** [US1/P1] Integración de privacidad y estados.
-- [ ] **T010** [US2/P1] Implementar `CancellationService`.
-- [ ] **T011** [US2/P1] Implementar la vista previa con efecto en la cuota.
-- [ ] **T012** [US2/P1] Implementar la cancelación (`CANCELLED_ON_TIME` / `CANCELLED_LATE`).
-- [ ] **T013** [US2/P1] Impedir cancelar con check-in (`RESERVATION_NOT_CANCELLABLE`).
-- [ ] **T014** [US2/P1] Conservar implementos y liberar stock.
-- [ ] **T015** [US2/P1] Publicar `ReservationCancelledEvent`.
-- [ ] **T016** [US2/P1] Registrar auditoría.
-- [ ] **T017** [US2/P1] Implementar los dos endpoints de cancelación.
-- [ ] **T018** [US2/P1] Pruebas de contrato de vista previa y cancelación.
-- [ ] **T019** [US2/P1] Integración de cancelación a tiempo, tardía y con check-in.
-- [ ] **T020** [US2/P1] Prueba unitaria de `CancellationPolicy`.
+- [x] **T006** [US1/P1] Implementar `ReservationQueryService`.
+- [x] **T007** [US1/P1] Implementar `GET /reservations/mine`.
+- [x] **T008** [US1/P1] Prueba de contrato del listado.
+- [x] **T009** [US1/P1] Integración de privacidad y estados.
+- [x] **T010** [US2/P1] Implementar `CancellationService`.
+- [x] **T011** [US2/P1] Implementar la vista previa con efecto en la cuota.
+- [x] **T012** [US2/P1] Implementar la cancelación (`CANCELLED_ON_TIME` / `CANCELLED_LATE`).
+- [x] **T013** [US2/P1] Impedir cancelar con check-in (`RESERVATION_NOT_CANCELLABLE`).
+- [x] **T014** [US2/P1] Conservar implementos y liberar stock.
+- [x] **T015** [US2/P1] Publicar `ReservationNotificationEvent` (`CANCELLATION`) y `AvailabilityChangedEvent`.
+- [x] **T016** [US2/P1] Registrar auditoría.
+- [x] **T017** [US2/P1] Implementar los dos endpoints de cancelación.
+- [x] **T018** [US2/P1] Pruebas de contrato de vista previa y cancelación.
+- [x] **T019** [US2/P1] Integración de cancelación a tiempo, tardía y con check-in.
+- [x] **T020** [US2/P1] Prueba unitaria de `CancellationPolicy`.
 
 ### Phase 4: Polish
 
-- [ ] **T021** Revisar mensajes y efecto en cuota.
-- [ ] **T022** Verificar que un fallo de correo no revierte la cancelación y ejecutar `./mvnw clean verify`.
+- [x] **T021** Revisar mensajes y efecto en cuota.
+- [x] **T022** Verificar que un fallo de correo no revierte la cancelación y ejecutar `./mvnw clean verify`.
+
+**Avance:** los tres endpoints están implementados. `ReservationMineIntegrationTest` cubre la privacidad, los ocho estados de `ReservationStatus` y el usuario suspendido. `ReservationCancellationIntegrationTest` cubre:
+
+- cancelación a tiempo, tardía y con la franja ya iniciada, verificando las horas con `QuotaService`;
+- liberación del espacio y del stock, con historial de implementos;
+- rechazo con check-in, con la reserva ya cancelada o con la franja ya terminada;
+- vista previa sin efectos;
+- fallo de correo sin reversión.
+
+`./mvnw clean verify` terminó con 171 pruebas sin fallos. RNF-001 y CE-005 (mostrar la vista previa antes de confirmar) dependen del cliente React externo.
 
 ## Dependencies & Execution Order
 
@@ -134,10 +154,12 @@ UC04 depende de UC01, UC03 y la base de UC11-H2. Toda cancelación adquiere prim
 - `[US1]` y `[US2]` permiten implementar consulta y cancelación por separado.
 - La cancelación tardía libera el espacio pero mantiene las horas (RN-22).
 - Los implementos cancelados se conservan como historial y liberan stock (OQ-19).
+- Una reserva cuya franja ya terminó (`now >= endAt`) no se puede cancelar ni previsualizar: responde `409 RESERVATION_NOT_CANCELLABLE`, porque su desenlace es `NO_SHOW` (§8 del plan general, RN-23).
+- Pendiente de confirmar: la auditoría registra `RESERVATION_CANCELLED` sin distinguir entre a tiempo y tardía; el tipo se deduce del estado de la reserva.
 
 ## Checklist de auto-revisión
 
-- [ ] Alineado con SPEC 004 y `contracts/reservations/`.
-- [ ] RF/RNF/CE/HU trazados.
-- [ ] Privacidad y bloqueo con check-in cubiertos.
-- [ ] Notificación posterior al commit.
+- [x] Alineado con SPEC 004 y `contracts/reservations/`.
+- [x] RF/RNF/CE/HU trazados.
+- [x] Privacidad y bloqueo con check-in cubiertos.
+- [x] Notificación posterior al commit.

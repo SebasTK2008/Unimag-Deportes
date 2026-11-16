@@ -75,10 +75,12 @@ Cancelación tardía:
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | La reserva no pertenece al usuario. | RN-03 |
 | `RESERVATION_NOT_FOUND` | 404 | La reserva no existe. | — |
-| `RESERVATION_NOT_CANCELLABLE` | 409 | Ya tiene check-in o ya está cancelada. | RN-24 |
+| `RESERVATION_NOT_CANCELLABLE` | 409 | Ya tiene check-in, ya está cancelada o su franja ya terminó. | RN-24, RN-23 |
 
 ## Notas
 
 - El espacio queda libre en ambos casos; solo cambia si las horas cuentan contra la cuota (RN-21, RN-22).
 - Cada cancelación genera una notificación por correo (RN-26).
 - Los implementos quedan como historial y liberan su stock para otras reservas (RN-66, OQ-19).
+- `cancelledAt` es la hora del servidor al cancelar, en America/Bogota; no se persiste en la reserva.
+- La cancelación también notifica el cambio de disponibilidad del espacio (`GET /spaces/{id}/availability/stream`).

@@ -36,9 +36,11 @@ public class NotificationService {
             if (contactUrl.isEmpty()) throw new IllegalStateException("Canal de contacto no configurado");
             String body = switch (event.type()) {
                 case REMINDER -> reminder(event);
-                case CANCELLATION -> "Tu reserva de " + event.spaceName() + " fue cancelada.";
+                case CANCELLATION -> "Tu reserva de " + event.spaceName() + " del " + DATE_TIME.format(event.startAt())
+                        + " fue cancelada." + (event.reason() == null ? "" : " Motivo: " + event.reason() + ".");
                 case BLOCK -> "Tu reserva de " + event.spaceName() + " fue cancelada por un bloqueo: " + event.reason();
-                case NO_SHOW -> "Se registró una inasistencia para tu reserva de " + event.spaceName() + ".";
+                case NO_SHOW -> "Se registró una inasistencia para tu reserva de " + event.spaceName() + " del "
+                        + DATE_TIME.format(event.startAt()) + ". Sus horas siguen contando en tu cuota semanal.";
                 case SUSPENSION -> "Tu cuenta fue suspendida. Podrás reservar de nuevo desde "
                         + DATE_TIME.format(event.suspendedUntil()) + ".";
             };

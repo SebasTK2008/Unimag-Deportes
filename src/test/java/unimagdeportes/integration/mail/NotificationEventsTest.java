@@ -49,8 +49,8 @@ class NotificationEventsTest extends AuthTestSupport {
                 case REMINDER -> assertThat(body).contains(id.toString(), "11/11/2026 07:00");
                 case BLOCK -> assertThat(body).contains("Mantenimiento");
                 case SUSPENSION -> assertThat(body).contains("17/11/2026 00:00");
-                case CANCELLATION -> assertThat(body).contains("cancelada");
-                case NO_SHOW -> assertThat(body).contains("inasistencia");
+                case CANCELLATION -> assertThat(body).contains("cancelada", "11/11/2026 07:00", "Motivo: Mantenimiento");
+                case NO_SHOW -> assertThat(body).contains("inasistencia", "11/11/2026 07:00", "siguen contando");
             }
         }
     }

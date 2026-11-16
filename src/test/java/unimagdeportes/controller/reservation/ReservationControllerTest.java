@@ -17,10 +17,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import unimagdeportes.dto.reservation.ReservationDtos;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.exception.GlobalExceptionHandler;
+import unimagdeportes.service.reservation.CancellationService;
 import unimagdeportes.service.reservation.ReservationCreationService;
+import unimagdeportes.service.reservation.ReservationQueryService;
 
 class ReservationControllerTest {
-    private final ReservationController controller = new ReservationController(mock(ReservationCreationService.class));
+    private final ReservationController controller = new ReservationController(mock(ReservationCreationService.class),
+            mock(ReservationQueryService.class), mock(CancellationService.class));
 
     @Test
     void identifiesMissingOrInvalidFields() {

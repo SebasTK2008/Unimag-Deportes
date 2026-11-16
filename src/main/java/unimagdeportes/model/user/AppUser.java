@@ -42,4 +42,8 @@ public class AppUser {
     public void completeProfile(String name) {
         this.name = name;
     }
+
+    public void suspendUntil(Instant until) {
+        this.suspendedUntil = until;
+    }
 }
