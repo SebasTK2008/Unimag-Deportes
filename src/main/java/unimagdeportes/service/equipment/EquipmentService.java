@@ -81,4 +81,17 @@ public class EquipmentService {
                     reservationId, item.equipmentId(), item.quantity());
         }
     }
+
+    /** Implementos solicitados por una reserva, conservados como historial aunque la reserva se cancele. */
+    @Transactional(readOnly = true)
+    public List<ReservedEquipment> forReservation(UUID reservationId) {
+        return jdbc.query("""
+                select e.id, e.name, re.quantity
+                from reservation_equipment re join equipment e on e.id = re.equipment_id
+                where re.reservation_id = ?
+                order by e.id
+                """, (rs, rowNum) -> new ReservedEquipment(
+                        rs.getObject("id", UUID.class), rs.getString("name"), rs.getInt("quantity")),
+                reservationId);
+    }
 }

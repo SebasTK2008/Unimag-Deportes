@@ -5,8 +5,11 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -15,15 +18,22 @@ import unimagdeportes.dto.reservation.ReservationDtos;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.security.UserPrincipal;
 import unimagdeportes.service.equipment.EquipmentService.RequestedEquipment;
+import unimagdeportes.service.reservation.CancellationService;
 import unimagdeportes.service.reservation.ReservationCreationService;
+import unimagdeportes.service.reservation.ReservationQueryService;
 
 @RestController
 public class ReservationController {
     private static final ZoneId ZONE = ZoneId.of("America/Bogota");
     private final ReservationCreationService reservations;
+    private final ReservationQueryService query;
+    private final CancellationService cancellations;
 
-    public ReservationController(ReservationCreationService reservations) {
+    public ReservationController(ReservationCreationService reservations, ReservationQueryService query,
+            CancellationService cancellations) {
         this.reservations = reservations;
+        this.query = query;
+        this.cancellations = cancellations;
     }
 
     @PostMapping("/reservations")
@@ -71,5 +81,22 @@ public class ReservationController {
                 result.status(), result.createdAt().atZone(ZONE).toOffsetDateTime(), null,
                 result.equipment().stream().map(item -> new ReservationDtos.Equipment(
                         item.equipmentId(), item.name(), item.quantity())).toList());
+    }
+
+    @GetMapping("/reservations/mine")
+    ReservationDtos.MineResponse mine(@AuthenticationPrincipal UserPrincipal principal) {
+        return new ReservationDtos.MineResponse(query.listMine(principal.id()));
+    }
+
+    @GetMapping("/reservations/{id}/cancellation-preview")
+    ReservationDtos.CancellationPreview cancellationPreview(@PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return cancellations.preview(principal.id(), id);
+    }
+
+    @PostMapping("/reservations/{id}/cancellation")
+    ReservationDtos.CancellationResult cancel(@PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return cancellations.cancel(principal.id(), id);
     }
 }

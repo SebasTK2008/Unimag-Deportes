@@ -24,6 +24,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findBySpaceIdAndUserIdOrderByStartAtAsc(UUID spaceId, UUID userId);
 
+    List<Reservation> findByUserIdOrderByStartAtDesc(UUID userId);
+
     boolean existsBySpaceIdAndUserIdNotAndStatusInAndStartAtLessThanEqualAndEndAtGreaterThan(
             UUID spaceId, UUID userId, Collection<ReservationStatus> statuses, Instant now, Instant end);
 }

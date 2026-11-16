@@ -16,4 +16,15 @@ public final class ReservationDtos {
             ReservationStatus status, OffsetDateTime createdAt, OffsetDateTime checkedInAt, List<Equipment> equipment) {
         public Response { equipment = List.copyOf(equipment); }
     }
+
+    public record MineResponse(List<Response> reservations) {
+        public MineResponse { reservations = List.copyOf(reservations); }
+    }
+
+    public record CancellationPreview(UUID reservationId, boolean late, int hoursCounted, String message) { }
+
+    public record CancellationResult(UUID id, ReservationStatus status, OffsetDateTime cancelledAt,
+            int hoursCounted, List<Equipment> equipment) {
+        public CancellationResult { equipment = List.copyOf(equipment); }
+    }
 }
