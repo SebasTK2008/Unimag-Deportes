@@ -46,6 +46,8 @@ import unimagdeportes.mail.MailSender;
         "app.mail.cancellation-url=https://client.example/reservations/{id}/cancel",
         "app.mail.contact-recipient=deportes@example.org",
         "app.cors.allowed-origins=https://client.example",
+        // Las pruebas mueven un reloj compartido; el job se invoca de forma explícita.
+        "app.jobs.reservation-lifecycle-cron=-",
         "spring.docker.compose.enabled=false" })
 @Import({TestcontainersConfiguration.class, AuthTestSupport.Fixtures.class})
 @ActiveProfiles("auth-test")

@@ -154,6 +154,21 @@ public class ReservationService {
                 space.name(), reservation.getStartAt(), null, null));
     }
 
+    @Transactional(readOnly = true)
+    public List<UUID> finishedInUse() {
+        return reservations.findFinishedInUse(clock.instant());
+    }
+
+    /** Idempotente: tras el bloqueo relee la reserva y solo completa las que siguen en uso con la franja terminada. */
+    @Transactional
+    public void complete(UUID id) {
+        lock.acquire();
+        var reservation = reservations.findById(id).orElse(null);
+        if (reservation == null || reservation.getStatus() != ReservationStatus.IN_USE
+                || clock.instant().isBefore(reservation.getEndAt())) return;
+        reservation.complete();
+    }
+
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void markReminderSent(UUID id) {
         reservations.findById(id).ifPresent(reservation -> reservation.markReminderSent(clock.instant()));

@@ -56,4 +56,7 @@ public class Reservation {
     public void cancelByAdministrator() { this.status = ReservationStatus.CANCELLED_BY_ADMIN; }
     public void cancelOnTime() { this.status = ReservationStatus.CANCELLED_ON_TIME; }
     public void cancelLate() { this.status = ReservationStatus.CANCELLED_LATE; }
+    public void cancelBySuspension() { this.status = ReservationStatus.CANCELLED_BY_SUSPENSION; }
+    public void markNoShow() { this.status = ReservationStatus.NO_SHOW; }
+    public void complete() { this.status = ReservationStatus.COMPLETED; }
 }
