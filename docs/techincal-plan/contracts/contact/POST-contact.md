@@ -35,7 +35,7 @@
 ```json
 {
   "code": "VALIDATION_ERROR",
-  "message": "El asunto y el mensaje son obligatorios.",
+  "message": "La solicitud contiene campos inválidos.",
   "details": {
     "fields": {
       "subject": "no puede estar vacío",
@@ -59,3 +59,5 @@
 
 - El mensaje no se persiste: se envía por correo al área de deportes (OQ-10).
 - Este formulario es el canal de contacto que enlazan los correos de la plataforma (RN-48, OQ-10).
+- El destinatario se configura con `APP_MAIL_CONTACT_RECIPIENT=salcendra@unimagdalena.edu.co`; no se obtiene del cuerpo de la solicitud ni de `APP_AUTH_ADMIN_EMAILS`.
+- `APP_MAIL_CONTACT_URL` debe apuntar al formulario del frontend, no al endpoint `POST /contact`. Su URL pública sigue pendiente de confirmar.

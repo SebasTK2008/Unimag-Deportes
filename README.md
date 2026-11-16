@@ -22,7 +22,7 @@ $env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
 
 En macOS/Linux, use `cp .env.example .env` y `SPRING_CONFIG_IMPORT='file:.env[.properties]' ./mvnw spring-boot:run`. Las variables del entorno tienen prioridad sobre el archivo importado. No incluya el prefijo `export` ni comillas de shell en `.env`: se interpreta como un archivo de propiedades de Spring. No active el perfil `dev` en producción; si necesita HTTP para el frontend local, actívelo explícitamente para desarrollo.
 
-Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. `compose.yaml` solo define PostgreSQL y Mailpit para desarrollo; no despliega el backend.
+Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. Por defecto, `compose.yaml` inicia PostgreSQL y Mailpit para desarrollo; el perfil opcional `app` incluye también el backend. No es una configuración de producción.
 
 | Variable | Uso / valor predeterminado |
 |---|---|
@@ -37,15 +37,17 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
 | `APP_MAIL_CONTACT_URL` | URL del formulario de contacto del frontend; pendiente de definir para despliegue. Si está vacía, el código de acceso no se envía y la solicitud responde `503 MAIL_DELIVERY_FAILED`; tampoco se envían comprobantes ni avisos. |
-| `APP_MAIL_CONTACT_RECIPIENT` | Correo del área de deportes, pendiente de definir para despliegue. Sin él, `POST /contact` responde `503 CONTACT_NOT_CONFIGURED`. |
+| `APP_MAIL_CONTACT_RECIPIENT` | Destinatario de UC12: configurar `salcendra@unimagdalena.edu.co` mediante el entorno. Sin valor predeterminado en la aplicación; si está vacío, `POST /contact` responde `503 CONTACT_NOT_CONFIGURED`. No asigna roles de administrador. |
 | `APP_MAIL_CANCELLATION_URL` | URL del flujo de cancelación del frontend con `{id}` como identificador de la reserva; pendiente de definir para despliegue. Sin ella no se envía el recordatorio. |
 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Conexión externa si no se usa la detección automática de Compose. |
 
 Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
 
-`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye pruebas de contrato de los endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. La última verificación terminó con 214 pruebas sin fallos.
+`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye pruebas de contrato de los endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. La última verificación (2026-11-16) terminó con 226 pruebas sin fallos, errores ni omisiones.
 
 Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
+
+UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `frontend.example` de la plantilla son ilustrativas. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
 
