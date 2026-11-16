@@ -90,7 +90,7 @@ public abstract class AuthTestSupport {
     @RestController
     @Profile("auth-test")
     public static class ProtectedProbe {
-        @RequestMapping({"/test/protected", "/admin/blocks"})
+        @RequestMapping("/test/protected")
         ResponseEntity<Void> protectedAction() { return ResponseEntity.noContent().build(); }
     }
 

@@ -122,7 +122,7 @@ class AuthSecurityTest extends AuthTestSupport {
         String reauthenticated = body(verified).get("token").asString();
         for (String path : new String[]{"/admin/blocks", "/admin/parameters"}) {
             assertThat(send(path.endsWith("blocks") ? "POST" : "PUT", path, "{}", reauthenticated).statusCode())
-                    .isEqualTo(path.endsWith("blocks") ? 204 : 200);
+                    .isEqualTo(path.endsWith("blocks") ? 400 : 200);
         }
         assertThat(send("GET", "/me", null, original).statusCode()).isEqualTo(200);
         clock.advance(Duration.ofMinutes(10));

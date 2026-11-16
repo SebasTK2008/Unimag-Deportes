@@ -36,4 +36,5 @@ public class Reservation {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getReminderSentAt() { return reminderSentAt; }
     public void markReminderSent(Instant sentAt) { this.reminderSentAt = sentAt; }
+    public void cancelByAdministrator() { this.status = ReservationStatus.CANCELLED_BY_ADMIN; }
 }
