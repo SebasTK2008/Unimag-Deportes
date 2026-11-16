@@ -43,7 +43,7 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 
 Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
 
-`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye contrato de los siete endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. Se verificaron 47 pruebas sin fallos.
+`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye pruebas de contrato de los endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. La última verificación terminó con 214 pruebas sin fallos.
 
 Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
 
@@ -51,7 +51,7 @@ La CSP configurada en la API restringe sus propias respuestas. La aplicación Re
 
 En producción se requiere HTTPS y HSTS en el punto de entrada. Por defecto no se confía en encabezados reenviados: el límite por IP usa la dirección remota de la conexión. Si existe un proxy, configure explícitamente su confianza y evite que la API sea accesible directamente; no habilite la confianza indiscriminada en `X-Forwarded-For`. No active logs de cuerpos HTTP, credenciales SMTP o tokens.
 
-La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse.
+La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse. El último cambio de este tipo añadió el índice `audit_log_action_created_idx` para los indicadores de UC09; las bases creadas antes deben recrearse.
 
 ### Versionado de reglas (UC06)
 

@@ -38,3 +38,5 @@ Sin parámetros.
 - La cuota se calcula sobre las reservas que cuentan en la semana, no se almacena como saldo (RN-16, RN-17).
 - Cuentan: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo, por el administrador o por suspensión (sección 5.4 del contexto).
 - La semana comienza el lunes a las 00:00 en America/Bogota (RNF-07).
+- `weekStart`/`weekEnd` delimitan la semana vigente `[weekStart, weekEnd)`; `resetAt` coincide con `weekEnd`.
+- Las horas son números enteros: las franjas duran 60 minutos y se alinean a la hora.

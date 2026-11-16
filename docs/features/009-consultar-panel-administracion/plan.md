@@ -22,14 +22,14 @@ UC09 implementa el panel del Administrador: ocupación por espacio y franja con 
 
 **Language/Version**: Java 25 [PLAN OQ-01].
 **Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
-**Storage**: PostgreSQL; consultas sobre `reservation`, `institutional_block`, `space` y `app_user`.
+**Storage**: PostgreSQL; consultas sobre `reservation`, `institutional_block`, `space` y `audit_log` (índice `audit_log_action_created_idx`).
 **Messaging**: sin eventos.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: filtros eficientes por fecha, disciplina y espacio.
 **Constraints**: solo lectura; períodos semanal y mensual (OQ-08); America/Bogota (RNF-07); rol `ADMIN`.
-**Scale/Scope**: 2 endpoints, sin migraciones, 4 RF + 3 RNF + 4 CE + 2 HU.
+**Scale/Scope**: 2 endpoints, sin tablas nuevas (un índice en la migración compartida), 4 RF + 3 RNF + 4 CE + 2 HU.
 
 ## Project Structure
 
@@ -48,13 +48,27 @@ docs/techincal-plan/contracts/reports/   # 2 contratos
 src/main/java/unimagdeportes/
 ├── controller/report/ReportController.java
 ├── service/report/{OccupancyService,IndicatorService}.java
-├── service/{reservation,block,space,auth}/  # servicios propietarios
-└── dto/report/ · mapper/report/ReportMapper.java
+├── service/{reservation,block,space,audit,sanction}/  # servicios propietarios
+└── dto/report/ReportDtos.java · mapper/report/ReportMapper.java
 
 src/test/java/unimagdeportes/{contract/reports,integration/reports}/
 ```
 
-**Structure Decision**: sin migraciones propias; el módulo `report` solo lee datos de otros módulos.
+**Structure Decision**: sin tablas propias; el módulo `report` solo lee datos de otros módulos mediante sus services. Para los indicadores se añadió `audit_log_action_created_idx` a `V1__shared_schema.sql`.
+
+**Bases existentes:** editar V1 cambia su checksum y Flyway puede rechazar una base donde ya se aplicó. Se requiere coordinar su recreación, respaldando y conservando previamente los datos necesarios; la modificación no actualiza automáticamente instalaciones existentes. Véase el README.
+
+### Decisiones de implementación
+
+- **Ocupación**: `OccupancyService` reutiliza `SlotCatalogPolicy` (UC02) con `ReservationService.overlappingOccupancy` y `BlockService.overlapping`. `reservationId` se informa solo en las franjas `OCCUPIED`; el bloqueo tiene precedencia, como en el calendario. Se listan todos los espacios, también los que están en mantenimiento, ordenados por nombre. Un `spaceId` inexistente devuelve `spaces` vacío. La fecha no tiene horizonte.
+- **Indicadores**: el período es la semana (lunes 00:00) o el mes calendario en curso, `[from, to)` en America/Bogota, según el `Clock`. Fuente, por indicador:
+  - `reservations`: auditorías `RESERVATION_CREATED` del período.
+  - `lateCancellations`: reservas con `RESERVATION_CANCELLED` en el período y estado `CANCELLED_LATE`. La auditoría de UC04 no distingue el tipo de cancelación, por eso se cruza con el estado.
+  - `noShows`: auditorías `NO_SHOW_REGISTERED` del período.
+  - `suspendedUsers`: usuarios distintos con intervalos de suspensión solapados con el período, consultados mediante `SanctionService` y `monthly_suspension`.
+- **Desviación pendiente de RNF-003 y del contrato**: el conteo de suspendidos usa `monthly_suspension` directamente y no consulta la auditoría `USER_SUSPENDED`.
+- **Fronteras de módulo**: `AuditService` expone `count` y `distinctEntities`; `ReservationService` expone `countWithStatus`. El módulo `report` no usa repositorios ajenos.
+- **Mapper**: `ReportMapper` es una interfaz MapStruct [D-24].
 
 ## Reglas de negocio
 
@@ -79,30 +93,40 @@ Fuente: [`contracts/reports/`](../../techincal-plan/contracts/README.md) (2 arch
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC03, UC07 y UC10.
+- [x] **T001** Verificar prerrequisitos: UC01, UC03, UC07 y UC10.
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Crear los DTO de `dto/report/`.
-- [ ] **T003** Crear `ReportMapper`.
-- [ ] **T004** Agregar consultas de ocupación, bloqueos y agregados a los repositorios.
+- [x] **T002** Crear los DTO de `dto/report/`.
+- [x] **T003** Crear `ReportMapper`.
+- [x] **T004** Agregar consultas de ocupación, bloqueos y agregados a los repositorios.
 
 ### Phase 3: User Stories
 
-- [ ] **T005** [US1/P1] Implementar `OccupancyService`.
-- [ ] **T006** [US1/P1] Implementar `GET /admin/occupancy`.
-- [ ] **T007** [US1/P1] Prueba de contrato de ocupación.
-- [ ] **T008** [US1/P1] Integración de filtros y espacio compartido.
-- [ ] **T009** [US2/P2] Implementar `IndicatorService`.
-- [ ] **T010** [US2/P2] Validar `period` y calcular `from`/`to`.
-- [ ] **T011** [US2/P2] Implementar `GET /admin/indicators`.
-- [ ] **T012** [US2/P2] Prueba de contrato de indicadores.
-- [ ] **T013** [US2/P2] Integración de períodos y métricas.
+- [x] **T005** [US1/P1] Implementar `OccupancyService`.
+- [x] **T006** [US1/P1] Implementar `GET /admin/occupancy`.
+- [x] **T007** [US1/P1] Prueba de contrato de ocupación.
+- [x] **T008** [US1/P1] Integración de filtros y espacio compartido.
+- [x] **T009** [US2/P2] Implementar `IndicatorService`.
+- [x] **T010** [US2/P2] Validar `period` y calcular `from`/`to`.
+- [x] **T011** [US2/P2] Implementar `GET /admin/indicators`.
+- [x] **T012** [US2/P2] Prueba de contrato de indicadores.
+- [x] **T013** [US2/P2] Integración de períodos y métricas.
 
 ### Phase 4: Polish
 
 - [ ] **T014** Revisar índices y planes de consulta.
-- [ ] **T015** Verificar rol `ADMIN` y ejecutar `./mvnw clean verify`.
+- [x] **T015** Verificar rol `ADMIN` y ejecutar `./mvnw clean verify`.
+
+**Avance:** los dos endpoints están implementados.
+
+- `OccupancyContractTest`: forma de la respuesta, validación de `date`, `discipline` y `spaceId`, y rol `ADMIN` vigente (401/403).
+- `OccupancyIntegrationTest`: espacio compartido ocupado para todas sus disciplinas (RN-07), filtros por disciplina, espacio y fecha, y estados que liberan el espacio (CE-001, CE-002).
+- `IndicatorsContractTest`: forma de la respuesta, períodos semanal y mensual, `INVALID_PERIOD`, `VALIDATION_ERROR` y rol.
+- `IndicatorsIntegrationTest`: límites inclusivo y exclusivo de cada período, eventos fuera del período, suspensiones repetidas contadas una vez, y los flujos reales de cancelación tardía, inasistencia y suspensión (CE-003, CE-004).
+- `SharedSchemaTest` comprueba el índice `audit_log_action_created_idx` (T014). Ocupación y bloqueos usan índices o restricciones existentes por espacio e intervalo. No se midieron planes de consulta con volumen real.
+
+`./mvnw clean verify` terminó con 214 pruebas sin fallos. RNF-002 (WCAG) depende del cliente React externo.
 
 ## Dependencies & Execution Order
 
@@ -115,10 +139,11 @@ UC09 depende de UC01, UC03, UC07 y UC10. US1 y US2 son independientes entre sí.
 - `[US1]` y `[US2]` son independientes.
 - Períodos fijos semanal y mensual (OQ-08).
 - No se crean tablas nuevas.
+- La fecha de fin se conserva en `monthly_suspension` para nuevas suspensiones. Las fechas históricas no conservadas no pueden reconstruirse automáticamente.
 
 ## Checklist de auto-revisión
 
-- [ ] Alineado con SPEC 009 y `contracts/reports/`.
-- [ ] RF/RNF/CE/HU trazados.
-- [ ] Solo lectura y rol `ADMIN`.
-- [ ] Períodos y filtros correctos.
+- [ ] Alineado con SPEC 009 y `contracts/reports/`: pendiente resolver la fuente de auditoría para suspendidos.
+- [x] RF/RNF/CE/HU trazados.
+- [x] Solo lectura y rol `ADMIN`.
+- [x] Períodos y filtros correctos.

@@ -122,8 +122,8 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID space = space();
         Instant previousUntil = START.plus(Duration.ofDays(3));
         jdbc.update("update app_user set suspended_until = ? where id = ?", Timestamp.from(previousUntil), userId);
-        jdbc.update("insert into monthly_suspension (user_id, absence_month, created_at) values (?, date '2026-11-01', ?)",
-                userId, Timestamp.from(START.minus(Duration.ofDays(4))));
+        jdbc.update("insert into monthly_suspension (user_id, absence_month, created_at, suspended_until) values (?, date '2026-11-01', ?, ?)",
+                userId, Timestamp.from(START.minus(Duration.ofDays(4))), Timestamp.from(previousUntil));
         for (int day = 2; day <= 4; day++) {
             Instant start = Instant.parse("2026-11-0%dT13:00:00Z".formatted(day));
             reservation(userId, space, "NO_SHOW", start, start.plus(Duration.ofHours(1)));
@@ -240,8 +240,9 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
     void countRestartsAfterAPreviousMonthSuspensionAndContainmentIsInclusiveAtTheEnd() {
         UUID userId = user("new-month");
         UUID space = space();
-        jdbc.update("insert into monthly_suspension (user_id, absence_month, created_at) values (?, date '2026-10-01', ?)",
-                userId, Timestamp.from(Instant.parse("2026-10-20T12:00:00Z")));
+        jdbc.update("insert into monthly_suspension (user_id, absence_month, created_at, suspended_until) values (?, date '2026-10-01', ?, ?)",
+                userId, Timestamp.from(Instant.parse("2026-10-20T12:00:00Z")),
+                Timestamp.from(Instant.parse("2026-10-27T12:00:00Z")));
         jdbc.update("update app_user set suspended_until = ? where id = ?",
                 Timestamp.from(Instant.parse("2026-10-27T12:00:00Z")), userId);
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));

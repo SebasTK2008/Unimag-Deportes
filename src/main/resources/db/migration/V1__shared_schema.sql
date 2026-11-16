@@ -96,8 +96,12 @@ CREATE TABLE audit_log (
     id uuid PRIMARY KEY, action varchar(64) NOT NULL, entity_type varchar(64) NOT NULL,
     entity_id uuid, user_id uuid REFERENCES app_user(id), detail text, created_at timestamptz NOT NULL
 );
+-- Indicadores del panel (UC09): conteos por acción en un período [from, to).
+CREATE INDEX audit_log_action_created_idx ON audit_log (action, created_at);
 CREATE TABLE monthly_suspension (
     user_id uuid NOT NULL REFERENCES app_user(id), absence_month date NOT NULL,
-    created_at timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month),
+    created_at timestamptz NOT NULL, suspended_until timestamptz NOT NULL,
+    PRIMARY KEY (user_id, absence_month),
+    CHECK (suspended_until > created_at),
     CHECK (EXTRACT(DAY FROM absence_month) = 1)
 );

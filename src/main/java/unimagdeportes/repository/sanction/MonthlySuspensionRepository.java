@@ -20,10 +20,17 @@ public class MonthlySuspensionRepository {
     }
 
     /** Devuelve {@code true} solo si la marca no existía; {@code absenceMonth} es el primer día del mes. */
-    public boolean register(UUID userId, LocalDate absenceMonth, Instant createdAt) {
+    public boolean register(UUID userId, LocalDate absenceMonth, Instant createdAt, Instant suspendedUntil) {
         return jdbc.update("""
-                insert into monthly_suspension (user_id, absence_month, created_at) values (?, ?, ?)
+                insert into monthly_suspension (user_id, absence_month, created_at, suspended_until) values (?, ?, ?, ?)
                 on conflict (user_id, absence_month) do nothing
-                """, userId, absenceMonth, Timestamp.from(createdAt)) == 1;
+                """, userId, absenceMonth, Timestamp.from(createdAt), Timestamp.from(suspendedUntil)) == 1;
+    }
+
+    public long countUsersOverlapping(Instant from, Instant to) {
+        return jdbc.queryForObject("""
+                select count(distinct user_id) from monthly_suspension
+                where created_at < ? and suspended_until > ?
+                """, Long.class, Timestamp.from(to), Timestamp.from(from));
     }
 }

@@ -50,14 +50,22 @@ docs/techincal-plan/contracts/quota/GET-quota-me.md
 src/main/java/unimagdeportes/
 ├── controller/quota/QuotaController.java
 ├── service/quota/QuotaService.java
-├── service/policy/WeekCalculator.java
+├── service/policy/{WeekCalculator,QuotaPolicy}.java
 ├── service/reservation/  # consulta mediante servicio propietario
-└── dto/quota/ · mapper/quota/QuotaMapper.java
+└── dto/quota/QuotaDtos.java · mapper/quota/QuotaMapper.java
 
-src/test/java/unimagdeportes/{contract/quota,integration/quota,unit/policy}/
+src/test/java/unimagdeportes/{contract/quota,integration/quota,service/policy,service/quota}/
 ```
 
 **Structure Decision**: sin migraciones propias; consulta reservas mediante el servicio propietario de UC03. `WeekCalculator` es pura.
+
+### Decisiones de implementación
+
+- **Consulta de horas (T003)**: no se agregó una consulta SQL de suma. `ReservationService.overlappingQuotaReservations` usa `ReservationRepository.findByUserIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan` con los estados que cuentan, y `QuotaPolicy.usedInWeek` recorta cada reserva a la semana en Java. Es el mismo cálculo que valida la cuota en UC03 (CE-002).
+- **Respuesta**: `QuotaService.currentWeek` devuelve los seis campos del contrato (`weekStart`, `weekEnd`, `limitHours`, `usedHours`, `availableHours`, `resetAt`); `resetAt` coincide con `weekEnd`, el lunes siguiente a las 00:00 en America/Bogota. Las horas son enteras porque las franjas duran 60 minutos y se alinean a la hora.
+- **Semana vigente**: se obtiene del `Clock` inyectado; el límite es `ParameterService.current().weeklyQuotaHours()`.
+- **Mapper**: `QuotaMapper` es una interfaz MapStruct [D-24].
+- **Acceso**: el endpoint queda abierto a cualquier usuario autenticado con perfil completo, incluidos Administrador y suspendidos, según el contrato.
 
 ## Reglas de negocio
 
@@ -74,40 +82,50 @@ Fuente: [`contracts/quota/GET-quota-me.md`](../../techincal-plan/contracts/quota
 
 ## Estrategia de testing
 
-- Contrato `GET /quota/me` en T007.
-- Integración de estados y semanas en T008/T012.
-- Unitario de `WeekCalculator` en T009.
+- Contrato `GET /quota/me` en T007 (`QuotaContractTest`).
+- Integración de estados y semanas en T008/T012 (`QuotaIntegrationTest`).
+- Unitario de `WeekCalculator` en T009 y de `QuotaService` (`QuotaServiceTest`).
 - Aceptación: CE-001..CE-003 [SPEC 008].
 
 ## Implementation Phases
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01, UC03 y UC06.
+- [x] **T001** Verificar prerrequisitos: UC01, UC03 y UC06.
 
 ### Phase 2: Foundational
 
 - [x] **T002** Implementar `WeekCalculator`.
-- [ ] **T003** Agregar la consulta de horas por semana al repositorio.
-
-**Avance parcial:** `ReservationRepository` consulta reservas del usuario solapadas por estado e intervalo; `QuotaService` y `QuotaPolicy` calculan la duración dentro de una semana para el flujo de UC03. Todavía no se expone `GET /quota/me` ni se ha completado la cobertura de UC08 sobre estados, semanas y reinicio.
+- [x] **T003** Agregar la consulta de horas por semana al repositorio (resuelta con la consulta por usuario, estado e intervalo; ver Decisiones de implementación).
 
 ### Phase 3: User Stories
 
-- [ ] **T004** [US1/P1] Implementar `QuotaService`.
-- [ ] **T005** [US1/P1] Crear DTO y `QuotaMapper`.
-- [ ] **T006** [US1/P1] Implementar `GET /quota/me`.
-- [ ] **T007** [US1/P1] Prueba de contrato.
-- [ ] **T008** [US1/P1] Integración de estados que cuentan y no cuentan.
+- [x] **T004** [US1/P1] Implementar `QuotaService`.
+- [x] **T005** [US1/P1] Crear DTO y `QuotaMapper`.
+- [x] **T006** [US1/P1] Implementar `GET /quota/me`.
+- [x] **T007** [US1/P1] Prueba de contrato.
+- [x] **T008** [US1/P1] Integración de estados que cuentan y no cuentan.
 - [x] **T009** [US1/P1] Prueba unitaria de `WeekCalculator`.
-- [ ] **T010** [US2/P1] Repartir duración por semana y exponer `resetAt`.
-- [ ] **T011** [US2/P1] Verificar que no existe saldo ni job de reinicio.
-- [ ] **T012** [US2/P1] Integración de cambio de semana, cruce semanal y reservas anticipadas.
+- [x] **T010** [US2/P1] Repartir duración por semana y exponer `resetAt`.
+- [x] **T011** [US2/P1] Verificar que no existe saldo ni job de reinicio.
+- [x] **T012** [US2/P1] Integración de cambio de semana, cruce semanal y reservas anticipadas.
 
 ### Phase 4: Polish
 
-- [ ] **T013** Revisar ejemplos contra la sección 9 del contexto.
-- [ ] **T014** Revisar rendimiento de la consulta agregada y ejecutar `./mvnw clean verify`.
+- [x] **T013** Revisar ejemplos contra la sección 9 del contexto.
+- [ ] **T014** Revisar rendimiento de la consulta agregada y ejecutar `./mvnw clean verify` (la suite se ejecutó; falta la revisión de rendimiento).
+
+**Avance:** `GET /quota/me` está implementado. `QuotaContractTest` cubre la forma de la respuesta, el acceso de Administrador y suspendido, y los errores 401/403. `QuotaIntegrationTest` cubre:
+
+- los ocho estados de `ReservationStatus`, según cuenten o no (CE-001);
+- la devolución de horas al cancelar a tiempo y su conservación al cancelar tarde;
+- la coherencia entre `availableHours` y el rechazo `QUOTA_EXCEEDED` (CE-002);
+- el reinicio el lunes a las 00:00 en America/Bogota, con reservas hechas para la semana nueva (CE-003);
+- el reparto de una reserva que cruza el inicio de semana (RF-007);
+- el Escenario A de la sección 9 del contexto, paso a paso (T013);
+- la ausencia de tablas o columnas de saldo de cuota (T011).
+
+`QuotaServiceTest` comprueba que las horas disponibles nunca son negativas si el límite baja. La consulta lee solo las reservas del usuario que se solapan con la semana; no se midió con volumen real. `./mvnw clean verify` terminó con 214 pruebas sin fallos. RNF-001 depende del cliente React externo.
 
 ## Dependencies & Execution Order
 
@@ -123,7 +141,7 @@ UC08 depende de UC01, UC03 y UC06. US1 y US2 comparten el mismo cálculo.
 
 ## Checklist de auto-revisión
 
-- [ ] Alineado con SPEC 008 y el contrato de cuota.
-- [ ] RF/RNF/CE/HU trazados.
-- [ ] Semana por fecha de franja y sin saldo persistido.
-- [ ] Estados que cuentan según la sección 5.4.
+- [x] Alineado con SPEC 008 y el contrato de cuota.
+- [x] RF/RNF/CE/HU trazados.
+- [x] Semana por fecha de franja y sin saldo persistido.
+- [x] Estados que cuentan según la sección 5.4.

@@ -59,7 +59,7 @@ src/main/java/unimagdeportes/
 src/test/java/unimagdeportes/{integration/sanctions,service/policy,scheduler}/
 ```
 
-**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración única compartida incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado.
+**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración única compartida incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, suspended_until timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (suspended_until > created_at), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado. `created_at` y `suspended_until` delimitan la suspensión.
 
 ## Reglas de negocio
 
