@@ -52,7 +52,7 @@ src/main/java/unimagdeportes/
 ├── mail/templates/
 ├── service/notification/{ReceiptService,NotificationService}.java
 ├── scheduler/ReminderJob.java
-├── event/{ReservationCreatedEvent,ReservationCancelledEvent,SanctionAppliedEvent,BlockCreatedEvent}.java
+├── event/{ReservationCreatedEvent,ReservationNotificationEvent,SanctionAppliedEvent,BlockCreatedEvent}.java
 ├── service/reservation/  # consulta mediante servicio propietario
 └── dto/mail/
 
@@ -95,7 +95,7 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [x] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
 - [x] **T004** Configurar los escuchas de eventos base.
 
-**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; la creación real de reservas ya publica `ReservationCreatedEvent`, mientras otras conexiones siguen pendientes.
+**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; la creación real de reservas ya publica `ReservationCreatedEvent` y la cancelación de UC04 publica `ReservationNotificationEvent` con `Type.CANCELLATION`, mientras otras conexiones siguen pendientes.
 
 ### Phase 3: User Stories
 

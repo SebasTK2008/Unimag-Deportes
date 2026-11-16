@@ -39,6 +39,7 @@ Sin parámetros.
 ```
 
 - Incluye reservas próximas y pasadas, en todos los estados (RN-05, sección 6 del contexto).
+- Se ordenan por `startAt` descendente.
 - `equipment` refleja lo solicitado; si no hay, es un arreglo vacío.
 
 ## Errores del dominio
