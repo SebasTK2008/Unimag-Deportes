@@ -75,7 +75,7 @@ Cancelación tardía:
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | La reserva no pertenece al usuario. | RN-03 |
 | `RESERVATION_NOT_FOUND` | 404 | La reserva no existe. | — |
-| `RESERVATION_NOT_CANCELLABLE` | 409 | Ya tiene check-in o ya está cancelada. | RN-24 |
+| `RESERVATION_NOT_CANCELLABLE` | 409 | Ya tiene check-in, ya está cancelada o su franja ya terminó. | RN-24, RN-23 |
 
 ## Notas
 

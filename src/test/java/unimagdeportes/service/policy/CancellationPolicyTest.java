@@ -30,6 +30,14 @@ class CancellationPolicyTest {
     }
 
     @Test
+    void slotEndsExactlyAtItsEndInstant() {
+        Instant end = Instant.parse("2026-11-11T15:00:00Z");
+        assertThat(policy.hasEnded(end.minusSeconds(1), end)).isFalse();
+        assertThat(policy.hasEnded(end, end)).isTrue();
+        assertThat(policy.hasEnded(end.plusSeconds(1), end)).isTrue();
+    }
+
+    @Test
     void lateCancellationCountsTheFullReservationDuration() {
         Instant start = Instant.parse("2026-11-11T14:00:00Z");
         Instant end = start.plus(Duration.ofHours(2));

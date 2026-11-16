@@ -137,11 +137,11 @@ Fuente: [`contracts/reservations/`](../../techincal-plan/contracts/README.md) (3
 
 - cancelación a tiempo, tardía y con la franja ya iniciada, verificando las horas con `QuotaService`;
 - liberación del espacio y del stock, con historial de implementos;
-- rechazo con check-in o con la reserva ya cancelada;
+- rechazo con check-in, con la reserva ya cancelada o con la franja ya terminada;
 - vista previa sin efectos;
 - fallo de correo sin reversión.
 
-`./mvnw clean verify` terminó con 169 pruebas sin fallos. RNF-001 y CE-005 (mostrar la vista previa antes de confirmar) dependen del cliente React externo.
+`./mvnw clean verify` terminó con 171 pruebas sin fallos. RNF-001 y CE-005 (mostrar la vista previa antes de confirmar) dependen del cliente React externo.
 
 ## Dependencies & Execution Order
 
@@ -154,7 +154,7 @@ UC04 depende de UC01, UC03 y la base de UC11-H2. Toda cancelación adquiere prim
 - `[US1]` y `[US2]` permiten implementar consulta y cancelación por separado.
 - La cancelación tardía libera el espacio pero mantiene las horas (RN-22).
 - Los implementos cancelados se conservan como historial y liberan stock (OQ-19).
-- Pendiente de confirmar: hoy se puede cancelar una reserva `CONFIRMED` cuya franja ya terminó, y queda como `CANCELLED_LATE`; según §8 del plan general debería pasar a `NO_SHOW` cuando exista UC10.
+- Una reserva cuya franja ya terminó (`now >= endAt`) no se puede cancelar ni previsualizar: responde `409 RESERVATION_NOT_CANCELLABLE`, porque su desenlace es `NO_SHOW` (§8 del plan general, RN-23).
 - Pendiente de confirmar: la auditoría registra `RESERVATION_CANCELLED` sin distinguir entre a tiempo y tardía; el tipo se deduce del estado de la reserva.
 
 ## Checklist de auto-revisión

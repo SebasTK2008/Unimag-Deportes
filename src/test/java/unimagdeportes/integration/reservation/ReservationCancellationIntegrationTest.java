@@ -61,6 +61,19 @@ class ReservationCancellationIntegrationTest extends ReservationTestSupport {
     }
 
     @Test
+    void reservationWhoseSlotEndedCannotBeCancelled() throws Exception {
+        String user = completeLogin("cancel-ended@unimagdalena.edu.co");
+        UUID reservation = reserve(user);
+        clock.advance(Duration.ofHours(2));
+
+        error(send("GET", "/reservations/" + reservation + "/cancellation-preview", null, user), 409,
+                "RESERVATION_NOT_CANCELLABLE");
+        error(send("POST", "/reservations/" + reservation + "/cancellation", null, user), 409,
+                "RESERVATION_NOT_CANCELLABLE");
+        assertThat(statusOf(reservation)).isEqualTo("CONFIRMED");
+    }
+
+    @Test
     void previewDoesNotChangeTheReservation() throws Exception {
         String user = completeLogin("preview-readonly@unimagdalena.edu.co");
         UUID reservation = reserve(user);

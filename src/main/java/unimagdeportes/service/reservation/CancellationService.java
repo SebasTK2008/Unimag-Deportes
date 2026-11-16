@@ -58,9 +58,9 @@ public class CancellationService {
     @Transactional(readOnly = true)
     public ReservationDtos.CancellationPreview preview(UUID userId, UUID reservationId) {
         var reservation = ownedReservation(userId, reservationId);
-        requireCancellable(reservation);
-        boolean late = policy.isLate(clock.instant(), reservation.getStartAt(),
-                reservation.getCancellationThresholdMinutes());
+        Instant now = clock.instant();
+        requireCancellable(reservation, now);
+        boolean late = policy.isLate(now, reservation.getStartAt(), reservation.getCancellationThresholdMinutes());
         int hours = policy.hoursCounted(reservation.getStartAt(), reservation.getEndAt(), late);
         return new ReservationDtos.CancellationPreview(reservationId, late, hours, message(late));
     }
@@ -69,8 +69,8 @@ public class CancellationService {
     public ReservationDtos.CancellationResult cancel(UUID userId, UUID reservationId) {
         lock.acquire();
         var reservation = ownedReservation(userId, reservationId);
-        requireCancellable(reservation);
         Instant now = clock.instant();
+        requireCancellable(reservation, now);
         boolean late = policy.isLate(now, reservation.getStartAt(), reservation.getCancellationThresholdMinutes());
         int hours = policy.hoursCounted(reservation.getStartAt(), reservation.getEndAt(), late);
         var space = spaces.get(reservation.getSpaceId());
@@ -99,13 +99,20 @@ public class CancellationService {
         return reservation;
     }
 
-    private void requireCancellable(Reservation reservation) {
-        boolean checkedIn = reservation.getCheckedInAt() != null;
-        if (checkedIn || reservation.getStatus() != ReservationStatus.CONFIRMED) {
-            throw new BusinessException(HttpStatus.CONFLICT, "RESERVATION_NOT_CANCELLABLE",
-                    checkedIn ? "La reserva ya tiene check-in y no se puede cancelar."
-                              : "La reserva no se puede cancelar.");
+    private void requireCancellable(Reservation reservation, Instant now) {
+        if (reservation.getCheckedInAt() != null) {
+            throw notCancellable("La reserva ya tiene check-in y no se puede cancelar.");
         }
+        if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+            throw notCancellable("La reserva no se puede cancelar.");
+        }
+        if (policy.hasEnded(now, reservation.getEndAt())) {
+            throw notCancellable("La franja de la reserva ya terminó y no se puede cancelar.");
+        }
+    }
+
+    private BusinessException notCancellable(String message) {
+        return new BusinessException(HttpStatus.CONFLICT, "RESERVATION_NOT_CANCELLABLE", message);
     }
 
     private String message(boolean late) {

@@ -18,6 +18,14 @@ public final class CancellationPolicy {
         return now.isAfter(startAt.minus(Duration.ofMinutes(thresholdMinutes)));
     }
 
+    /**
+     * Una franja terminada ya no se puede cancelar: su desenlace es la inasistencia
+     * (plan general §8), y cancelarla permitiría evitar la sanción.
+     */
+    public boolean hasEnded(Instant now, Instant endAt) {
+        return !now.isBefore(endAt);
+    }
+
     /** Una cancelación a tiempo devuelve las horas; una tardía conserva la duración completa. */
     public int hoursCounted(Instant startAt, Instant endAt, boolean late) {
         return late ? (int) Duration.between(startAt, endAt).toHours() : 0;

@@ -87,7 +87,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
   No. Solo el Usuario cancela su reserva desde "Mis reservas" (RN-20). La cancelación por parte del administrador ocurre únicamente de forma automática por un bloqueo institucional, con estado "Cancelada por administrador" y sin descontar horas (RN-43; ver SPEC 007).
 
 - **¿Cuándo puede cancelar el Usuario?**
-  En cualquier momento, sin autorización del administrador (RN-20), salvo que ya exista check-in (RN-24).
+  En cualquier momento, sin autorización del administrador (RN-20), salvo que ya exista check-in (RN-24) o que la franja ya haya terminado. Una franja terminada sin check-in desemboca en inasistencia (plan general §8); permitir cancelarla dejaría evitar la sanción (RN-23).
 
 - **¿Qué ocurre justo a 60 minutos del inicio?**
   Es a tiempo si la reserva conservó un umbral de 60 minutos; en general se compara con el umbral conservado al crearla (RN-21).
@@ -102,9 +102,9 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 - **RF-004**: El sistema DEBE ofrecer desde "Mis reservas" la acción de cancelar reserva (RN-20).
 - **RF-005**: El sistema DEBE permitir al Usuario cancelar su reserva desde "Mis reservas", sin autorización del administrador (RF-06, RN-20).
 - **RF-006**: El sistema DEBE tratar como cancelación a tiempo la que se hace con anticipación igual o superior al umbral conservado por la reserva, liberar el espacio y devolver las horas a la cuota (RN-21).
-- **RF-007**: El sistema DEBE tratar como cancelación tardía la que se hace con anticipación inferior al umbral conservado por la reserva, o cuando la franja ya empezó sin check-in; el espacio queda disponible, pero las horas siguen contando (RN-22).
+- **RF-007**: El sistema DEBE tratar como cancelación tardía la que se hace con anticipación inferior al umbral conservado por la reserva, o cuando la franja ya empezó sin check-in y aún no termina; el espacio queda disponible, pero las horas siguen contando (RN-22).
 - **RF-008**: El sistema DEBE mostrar al Usuario, antes de confirmar, si la cancelación será tardía y qué efecto tendrá sobre su cuota (RN-25, RF-06).
-- **RF-009**: El sistema NO DEBE permitir cancelar una reserva con check-in ya registrado (RN-24).
+- **RF-009**: El sistema NO DEBE permitir cancelar una reserva con check-in ya registrado (RN-24), ni una cuya franja ya terminó.
 - **RF-010**: El sistema DEBE generar una notificación por correo en cada cancelación (RN-26).
 
 ### Requisitos No Funcionales
