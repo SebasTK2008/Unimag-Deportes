@@ -10,7 +10,7 @@
 
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `name` | string | Sí | Nombre del implemento. |
+| `name` | string | Sí | Nombre no vacío de hasta 200 caracteres; único en el catálogo. |
 | `discipline` | enum `Discipline` | No | Disciplina sugerida; puede ser `null`. |
 | `stock` | integer | Sí | Existencias totales (mayor o igual a 0). |
 | `status` | enum `EquipmentStatus` | No | Por defecto `AVAILABLE`. |
@@ -43,7 +43,7 @@
 ```json
 {
   "code": "VALIDATION_ERROR",
-  "message": "El stock no puede ser negativo.",
+  "message": "La solicitud contiene campos inválidos.",
   "details": {
     "fields": {
       "stock": "debe ser mayor o igual a 0"
@@ -59,9 +59,11 @@
 | `VALIDATION_ERROR` | 400 | Falta el nombre, stock negativo o enum inválido. | RN-62 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
+| `EQUIPMENT_NAME_ALREADY_EXISTS` | 409 | Ya existe otro implemento con el mismo nombre. | RN-62 |
 
 ## Notas
 
 - El nombre es único en el catálogo.
+- `stock` debe ser un entero JSON de 32 bits; se rechazan decimales, cadenas numéricas y valores fuera de rango con `VALIDATION_ERROR`.
 - La disciplina es solo una sugerencia para filtrar; no restringe en qué espacio se puede solicitar (OQ-21).
 - Un implemento inactivo no se puede solicitar en reservas nuevas (RN-62).

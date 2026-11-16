@@ -46,7 +46,7 @@ GET /equipment/availability?startAt=2026-11-11T14:00:00-05:00&endAt=2026-11-11T1
 ```json
 {
   "code": "VALIDATION_ERROR",
-  "message": "El fin de la ventana debe ser posterior al inicio.",
+  "message": "La solicitud contiene campos inválidos.",
   "details": {
     "fields": {
       "endAt": "debe ser mayor que startAt"
@@ -65,5 +65,6 @@ GET /equipment/availability?startAt=2026-11-11T14:00:00-05:00&endAt=2026-11-11T1
 ## Notas
 
 - La disponibilidad se **deriva** de las reservas y no se almacena como saldo (RN-66). Las reservas canceladas no cuentan y liberan stock (RN-66, OQ-19).
+- Solo incluye implementos `AVAILABLE` con `available` mayor que cero; los inactivos y agotados no aparecen. El catálogo completo, incluidos los inactivos, se consulta en `GET /equipment`.
 - Solo se consideran las reservas activas (las que no liberan el espacio) que se solapan con la ventana (RN-65).
 - La validación definitiva ocurre en `POST /reservations`, dentro de la misma transacción; esta consulta es informativa.
