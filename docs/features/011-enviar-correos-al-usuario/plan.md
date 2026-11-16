@@ -52,7 +52,7 @@ src/main/java/unimagdeportes/
 ├── mail/templates/
 ├── service/notification/{ReceiptService,NotificationService}.java
 ├── scheduler/ReminderJob.java
-├── event/{ReservationCreatedEvent,ReservationNotificationEvent,SanctionAppliedEvent,BlockCreatedEvent}.java
+├── event/{ReservationCreatedEvent,ReservationNotificationEvent}.java   # Type: REMINDER, CANCELLATION, BLOCK, NO_SHOW, SUSPENSION
 ├── service/reservation/  # consulta mediante servicio propietario
 └── dto/mail/
 
@@ -95,7 +95,13 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [x] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
 - [x] **T004** Configurar los escuchas de eventos base.
 
-**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; la creación real de reservas ya publica `ReservationCreatedEvent` y la cancelación de UC04 publica `ReservationNotificationEvent` con `Type.CANCELLATION`, mientras otras conexiones siguen pendientes.
+**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; la creación real de reservas ya publica `ReservationCreatedEvent` y la cancelación de UC04 publica `ReservationNotificationEvent` con `Type.CANCELLATION`. `ReservationLifecycleJob` (UC10) publica `NO_SHOW`, `SUSPENSION` y `CANCELLATION` con motivo para cada reserva cancelada por la suspensión. Los bloqueos de UC07 publican `BLOCK`.
+
+Contenido de los avisos, todos en America/Bogota y con el canal de contacto:
+
+- **Cancelación:** fecha y hora de la reserva y, si existe, el motivo.
+- **Inasistencia:** fecha y hora de la reserva, y aviso de que sus horas siguen contando en la cuota (RN-37).
+- **Suspensión:** la fecha en que el Usuario podrá reservar de nuevo (RN-39).
 
 ### Phase 3: User Stories
 
@@ -106,10 +112,10 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [ ] **T009** [US1/P1] Integración de comprobante sin implementos y envío post-commit; añadir la prueba con implementos al integrar UC13.
 - [x] **T010** [US2/P1] Implementar `NotificationService` y sus escuchas.
 - [x] **T011** [US2/P1] Crear las plantillas de correo.
-- [ ] **T012** [US2/P1] Implementar `ReminderJob` (2 h antes, idempotente).
-- [ ] **T013** [US2/P1] Incluir el enlace de cancelación en el recordatorio.
-- [ ] **T014** [US2/P1] Incluir el canal de contacto y registrar fallos sin revertir.
-- [ ] **T015** [US2/P1] Integración de notificaciones por evento.
+- [x] **T012** [US2/P1] Implementar `ReminderJob` (2 h antes, idempotente).
+- [x] **T013** [US2/P1] Incluir el enlace de cancelación en el recordatorio.
+- [x] **T014** [US2/P1] Incluir el canal de contacto y registrar fallos sin revertir.
+- [x] **T015** [US2/P1] Integración de notificaciones por evento.
 - [x] **T016** [US3/P1] Crear la plantilla del código de acceso.
 - [x] **T017** [US3/P1] Integrar el envío desde `LoginCodeService`.
 - [ ] **T018** [US3/P1] Integración del correo del código y dominio inválido.
@@ -121,7 +127,16 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 
 **Avance verificado:** el generador y DTO se prueban con y sin implementos y zona Bogotá; `ReservationCreationService` construye y publica el evento de comprobante, incluidos los implementos. La entrega desde el flujo real y el comportamiento ante rollback o fallo de correo aún necesitan pruebas específicas. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
 
-**Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo; falta probarlo con el flujo real de UC03. Las tareas de integración T006, T008, T009 y T012–T015 siguen abiertas por la cobertura pendiente y los productores o rutas aún no integrados. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
+**Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo. `ReminderFlowIntegrationTest` lo prueba con una reserva creada por `POST /reservations` (UC03): envía el enlace de cancelación y omite la reserva cancelada.
+
+Los cinco avisos se prueban desde sus productores reales:
+
+- cancelación en `ReservationCancellationIntegrationTest` (UC04);
+- bloqueo en `BlockIntegrationTest` (UC07);
+- inasistencia, suspensión y cancelación por suspensión en `ReservationLifecycleIntegrationTest` (UC10);
+- recordatorio en `ReminderFlowIntegrationTest`.
+
+En la cancelación y la inasistencia se verifica además que un fallo de correo no revierte la operación; para el bloqueo lo cubre la prueba controlada de `NotificationEventsTest`. T012–T015 quedan cubiertas. T006, T008 y T009 (comprobante) siguen abiertas por la cobertura pendiente del flujo real. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
 
 **Límite del recordatorio:** el job serializa sus ejecuciones dentro de una instancia. Conforme a `docs/techincal-plan/plan-general.md` §5.2, el despliegue previsto es de una sola instancia; varias instancias requieren coordinación adicional. Si SMTP acepta el mensaje pero falla el marcado posterior o cae el proceso, un reintento puede duplicarlo. No se garantiza entrega exactamente una vez.
 
