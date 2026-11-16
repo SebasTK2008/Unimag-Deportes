@@ -3,6 +3,8 @@
 **Creado**: 2026-10-13  
 **Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-06 y OQ-12; reautenticación en bloqueos)
 
+**Imágenes de espacios:** al crear un espacio se requieren una imagen de vista previa y una panorámica 360°. Cada una puede reemplazarse, pero no eliminarse. El almacenamiento y los contratos se describen en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios).
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### Historia de Usuario 1 - Gestionar los espacios y su horario de operación (Prioridad: P1)

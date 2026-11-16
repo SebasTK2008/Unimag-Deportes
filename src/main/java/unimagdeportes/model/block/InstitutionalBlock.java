@@ -23,6 +23,17 @@ public class InstitutionalBlock {
 
     protected InstitutionalBlock() { }
 
+    public InstitutionalBlock(UUID id, UUID spaceId, BlockType type, String reason, Instant startAt,
+            Instant endAt, UUID recurrenceGroup) {
+        this.id = id;
+        this.spaceId = spaceId;
+        this.type = type;
+        this.reason = reason;
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.recurrenceGroup = recurrenceGroup;
+    }
+
     public UUID getId() { return id; }
     public UUID getSpaceId() { return spaceId; }
     public BlockType getType() { return type; }

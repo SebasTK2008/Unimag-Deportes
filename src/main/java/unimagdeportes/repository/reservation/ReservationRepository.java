@@ -7,10 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import unimagdeportes.model.reservation.Reservation;
+import unimagdeportes.model.reservation.ReservationStatus;
+import java.util.Collection;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
     @Query(value = "select id from reservation where status = 'CONFIRMED' and reminder_sent_at is null "
             + "and created_at <= start_at - interval '2 hours' and start_at - interval '2 hours' <= :now "
             + "and start_at > :now", nativeQuery = true)
     List<UUID> findDueReminders(@Param("now") Instant now);
+
+    List<Reservation> findBySpaceIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(
+            UUID spaceId, Collection<ReservationStatus> statuses, Instant end, Instant start);
 }

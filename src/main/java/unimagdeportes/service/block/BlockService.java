@@ -5,20 +5,62 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import unimagdeportes.dto.block.BlockDtos.CreateBlock;
+import unimagdeportes.dto.block.BlockDtos.CreatedBlock;
+import unimagdeportes.exception.BusinessException;
+import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
+import unimagdeportes.model.block.InstitutionalBlock;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
+import unimagdeportes.repository.space.SpaceRepository;
+import unimagdeportes.service.audit.AuditService;
+import unimagdeportes.service.reservation.ReservationLock;
+import unimagdeportes.service.reservation.ReservationService;
 
 @Service
 public class BlockService {
     private final InstitutionalBlockRepository blocks;
+    private final SpaceRepository spaces;
+    private final ReservationLock lock;
+    private final ReservationService reservations;
+    private final BlockSchedule schedule;
+    private final AuditService audit;
+    private final BlockMapper mapper;
 
-    public BlockService(InstitutionalBlockRepository blocks) { this.blocks = blocks; }
+    public BlockService(InstitutionalBlockRepository blocks, SpaceRepository spaces, ReservationLock lock,
+            ReservationService reservations, BlockSchedule schedule, AuditService audit, BlockMapper mapper) {
+        this.blocks = blocks;
+        this.spaces = spaces;
+        this.lock = lock;
+        this.reservations = reservations;
+        this.schedule = schedule;
+        this.audit = audit;
+        this.mapper = mapper;
+    }
+
+    @Transactional
+    public CreatedBlock create(CreateBlock request, UUID administratorId) {
+        lock.acquire();
+        var slots = schedule.materialize(request);
+        if (!spaces.existsById(request.spaceId())) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "SPACE_NOT_FOUND", "El espacio no existe.");
+        }
+        int cancelled = reservations.cancelForBlock(request.spaceId(), slots, request.reason(), administratorId);
+        UUID group = request.recurrence() == null ? null : UUID.randomUUID();
+        for (var slot : slots) {
+            var block = new InstitutionalBlock(UUID.randomUUID(), request.spaceId(), request.type(), request.reason(),
+                    slot.start(), slot.end(), group);
+            blocks.save(block);
+            audit.record("BLOCK_CREATED", "INSTITUTIONAL_BLOCK", block.getId(), administratorId);
+        }
+        return new CreatedBlock(group, slots.size(), cancelled);
+    }
 
     @Transactional(readOnly = true)
     public List<BlockInfo> overlapping(UUID spaceId, Instant start, Instant end) {
         return blocks.findBySpaceIdAndStartAtLessThanAndEndAtGreaterThan(spaceId, end, start).stream()
-                .map(block -> new BlockInfo(block.getId(), block.getSpaceId(), block.getType(), block.getReason(),
-                        block.getStartAt(), block.getEndAt(), block.getRecurrenceGroup())).toList();
+                .map(mapper::toInfo).toList();
     }
 
     public record BlockInfo(UUID id, UUID spaceId, BlockType type, String reason, Instant startAt, Instant endAt,

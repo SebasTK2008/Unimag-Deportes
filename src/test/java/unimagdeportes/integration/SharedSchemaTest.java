@@ -35,8 +35,7 @@ class SharedSchemaTest {
             statement.executeUpdate("INSERT INTO app_user (id,email,role,created_at) VALUES ('" + firstUser
                     + "','first@unimagdalena.edu.co','USER',now()),('" + secondUser
                     + "','second@unimagdalena.edu.co','USER',now())");
-            statement.executeUpdate("INSERT INTO space (id,name,capacity,opening_time,closing_time,status) VALUES ('"
-                    + space + "','Cancha',10,'08:00','20:00','ACTIVE')");
+            insertSpace(statement, space, "Cancha");
             String values = "','" + space + "','2026-11-11 14:00:00-05','2026-11-11 15:00:00-05',"
                     + "'CONFIRMED',now(),60,10)";
             String insert = "INSERT INTO reservation (id,user_id,space_id,start_at,end_at,status,created_at,"
@@ -93,9 +92,8 @@ class SharedSchemaTest {
             UUID secondSpace = UUID.randomUUID();
             statement.executeUpdate("INSERT INTO app_user (id,email,role,created_at) VALUES ('" + user
                     + "','" + user + "@unimagdalena.edu.co','USER',now())");
-            statement.executeUpdate("INSERT INTO space (id,name,capacity,opening_time,closing_time,status) VALUES ('"
-                    + firstSpace + "','Cancha A',10,'08:00','20:00','ACTIVE'),('" + secondSpace
-                    + "','Cancha B',10,'08:00','20:00','ACTIVE')");
+            insertSpace(statement, firstSpace, "Cancha A");
+            insertSpace(statement, secondSpace, "Cancha B");
             String insert = "INSERT INTO reservation (id,user_id,space_id,start_at,end_at,status,created_at,"
                     + "cancellation_threshold_minutes,checkin_opening_minutes) VALUES ('";
             String values = "','2026-11-11 14:00:00-05','2026-11-11 15:00:00-05','CONFIRMED',now(),60,10)";
@@ -104,5 +102,37 @@ class SharedSchemaTest {
                     + secondSpace + values)).isInstanceOf(SQLException.class)
                     .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23P01");
         }
+    }
+
+    @Test
+    void spaceRequiresBothImagesAndReferencedImagesCannotBeDeleted() throws SQLException {
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                var statement = connection.createStatement()) {
+            UUID id = UUID.randomUUID();
+            assertThatThrownBy(() -> statement.executeUpdate(
+                    "INSERT INTO space (id,name,capacity,opening_time,closing_time,status) VALUES ('"
+                    + id + "','Cancha',10,'08:00','20:00','ACTIVE')"))
+                    .isInstanceOf(SQLException.class)
+                    .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23502");
+            insertSpace(statement, id, "Cancha");
+            assertThatThrownBy(() -> statement.executeUpdate("DELETE FROM space_image WHERE id = "
+                    + "(SELECT preview_image_id FROM space WHERE id = '" + id + "')"))
+                    .isInstanceOf(SQLException.class)
+                    .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23503");
+            assertThatThrownBy(() -> statement.executeUpdate("UPDATE space_image SET content = decode('','hex') "
+                    + "WHERE id = (SELECT panorama_image_id FROM space WHERE id = '" + id + "')"))
+                    .isInstanceOf(SQLException.class)
+                    .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23514");
+        }
+    }
+
+    private void insertSpace(java.sql.Statement statement, UUID id, String name) throws SQLException {
+        UUID preview = UUID.randomUUID();
+        UUID panorama = UUID.randomUUID();
+        statement.executeUpdate("INSERT INTO space_image (id, content_type, content) VALUES ('" + preview
+                + "','image/png',decode('01','hex')),('" + panorama + "','image/png',decode('01','hex'))");
+        statement.executeUpdate("INSERT INTO space (id,name,capacity,opening_time,closing_time,status,"
+                + "preview_image_id,panorama_image_id) VALUES ('" + id + "','" + name
+                + "',10,'08:00','20:00','ACTIVE','" + preview + "','" + panorama + "')");
     }
 }

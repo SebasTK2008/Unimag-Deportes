@@ -97,8 +97,12 @@ class ParameterIntegrationTest extends RulesTestSupport {
         UUID space = UUID.randomUUID();
         UUID reservation = UUID.randomUUID();
         UUID user = UUID.fromString(decoder.decode(admin).getSubject());
-        jdbc.update("insert into space(id,name,capacity,opening_time,closing_time,status) "
-                + "values (?, 'Cancha', 10, '06:00', '22:00', 'ACTIVE')", space);
+        UUID preview = UUID.randomUUID();
+        UUID panorama = UUID.randomUUID();
+        jdbc.update("insert into space_image (id, content_type, content) values (?, 'image/png', ?), (?, 'image/png', ?)",
+                preview, new byte[]{1}, panorama, new byte[]{1});
+        jdbc.update("insert into space(id,name,capacity,opening_time,closing_time,status,preview_image_id,panorama_image_id) "
+                + "values (?, 'Cancha', 10, '06:00', '22:00', 'ACTIVE', ?, ?)", space, preview, panorama);
         jdbc.update("insert into reservation(id,user_id,space_id,start_at,end_at,status,created_at,"
                 + "cancellation_threshold_minutes,checkin_opening_minutes) "
                 + "values (?, ?, ?, '2026-11-12T14:00:00-05:00', '2026-11-12T16:00:00-05:00',"

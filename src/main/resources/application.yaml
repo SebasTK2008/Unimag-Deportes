@@ -18,6 +18,10 @@ spring:
     open-in-view: false
   jackson:
     time-zone: America/Bogota
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 64MB
 
 # Spring Boot reads SPRING_DATASOURCE_URL/USERNAME/PASSWORD outside Compose.
 # Keep forwarded headers disabled unless a trusted reverse proxy is configured.

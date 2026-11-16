@@ -17,10 +17,17 @@ CREATE TABLE login_code_request_ip (
     id uuid PRIMARY KEY, ip_address varchar(45) NOT NULL, created_at timestamptz NOT NULL
 );
 CREATE INDEX login_code_request_ip_created_idx ON login_code_request_ip (ip_address, created_at);
+CREATE TABLE space_image (
+    id uuid PRIMARY KEY, content_type varchar(100) NOT NULL,
+    content bytea NOT NULL CHECK (octet_length(content) BETWEEN 1 AND 31457280)
+);
 CREATE TABLE space (
     id uuid PRIMARY KEY, name varchar(200) NOT NULL, capacity integer NOT NULL CHECK (capacity > 0),
     requirements text, opening_time time NOT NULL, closing_time time NOT NULL,
     status varchar(20) NOT NULL CHECK (status IN ('ACTIVE', 'MAINTENANCE')),
+    preview_image_id uuid NOT NULL UNIQUE REFERENCES space_image(id),
+    panorama_image_id uuid NOT NULL UNIQUE REFERENCES space_image(id),
+    CHECK (preview_image_id <> panorama_image_id),
     CHECK (closing_time > opening_time)
 );
 CREATE TABLE space_discipline (
