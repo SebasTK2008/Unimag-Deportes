@@ -23,7 +23,7 @@ UC05 implementa el check-in escaneando el QR estático del espacio y la generaci
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security. QR: `com.google.zxing:core:3.5.4` para generar la matriz; serialización SVG por verificar. Dependencia pendiente de agregar.
+**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security. QR: `com.google.zxing:core:3.5.4` para generar la matriz y serialización SVG; decodificación y legibilidad pendientes de verificación integral.
 **Storage**: PostgreSQL; `reservation.checked_in_at` y lectura de `space`.
 **Messaging**: sin eventos propios; el check-in habilita el paso a `COMPLETED` en UC10.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.
@@ -55,7 +55,7 @@ src/main/java/unimagdeportes/
 ├── service/{reservation,space}/  # acceso mediante servicios propietarios
 └── dto/checkin/ · mapper/checkin/CheckInMapper.java
 
-src/test/java/unimagdeportes/{contract/checkin,integration/checkin,unit/policy}/
+src/test/java/unimagdeportes/{integration/checkin,service/checkin,service/policy}/
 ```
 
 **Structure Decision**: el check-in vive en `checkin`; el QR se expone desde `SpaceController` con rol Administrador [PLAN §3.5].
@@ -90,30 +90,32 @@ Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 arch
 
 ### Phase 2: Foundational
 
-- [ ] **T002** Implementar `CheckInWindowPolicy`.
-- [ ] **T003** Agregar la consulta de reserva activa por espacio y usuario.
+- [x] **T002** Implementar `CheckInWindowPolicy`.
+- [x] **T003** Agregar la consulta de reserva activa por espacio y usuario.
 
 ### Phase 3: User Stories
 
-- [ ] **T004** [US1/P1] Implementar `CheckInService`: adquirir primero el bloqueo asesor global de §4.1 del plan general y releer reserva y hora antes de confirmar.
-- [ ] **T005** [US1/P1] Crear DTO y `CheckInMapper`.
-- [ ] **T006** [US1/P1] Implementar `POST /checkin/{spaceId}`.
-- [ ] **T007** [US1/P1] Devolver los motivos de rechazo.
-- [ ] **T008** [US1/P1] Registrar auditoría del check-in.
+- [x] **T004** [US1/P1] Implementar `CheckInService`: adquirir primero el bloqueo asesor global de §4.1 del plan general y releer reserva y hora antes de confirmar.
+- [x] **T005** [US1/P1] Crear DTO y `CheckInMapper`.
+- [x] **T006** [US1/P1] Implementar `POST /checkin/{spaceId}`.
+- [x] **T007** [US1/P1] Devolver los motivos de rechazo.
+- [x] **T008** [US1/P1] Registrar auditoría del check-in.
 - [ ] **T009** [US1/P1] Prueba de contrato del check-in.
 - [ ] **T010** [US1/P1] Integración de la ventana.
 - [ ] **T011** [US1/P1] Integración de rechazos.
-- [ ] **T012** [US1/P1] Prueba unitaria de `CheckInWindowPolicy`.
+- [x] **T012** [US1/P1] Prueba unitaria de `CheckInWindowPolicy`.
 - [ ] **T013** [US2/P1] Agregar ZXing y verificar generación del QR en SVG.
-- [ ] **T014** [US2/P1] Implementar `QrService`.
-- [ ] **T015** [US2/P1] Implementar `GET /admin/spaces/{id}/qr`.
-- [ ] **T016** [US2/P1] Restringir el endpoint al rol `ADMIN`.
+- [x] **T014** [US2/P1] Implementar `QrService`.
+- [x] **T015** [US2/P1] Implementar `GET /admin/spaces/{id}/qr`.
+- [x] **T016** [US2/P1] Restringir el endpoint al rol `ADMIN`.
 - [ ] **T017** [US2/P1] Pruebas de contrato y de contenido del QR.
 
 ### Phase 4: Polish
 
 - [ ] **T018** Revisar el flujo de login al abrir el QR en otro navegador.
 - [ ] **T019** Revisar legibilidad del QR impreso y ejecutar `./mvnw clean verify`.
+
+**Estado de verificación:** las tareas de implementación marcadas están presentes en el código; esto no acredita la aceptación integral. La prueba unitaria de T012 y las pruebas de configuración del origen QR pasaron. T013 tiene la dependencia y la generación SVG implementadas, pero queda pendiente verificar la decodificación y legibilidad. Las pruebas de integración de T009–T011 y T017 están escritas, pero no pudieron ejecutarse porque Testcontainers no detectó Docker; `clean verify` tampoco terminó. T001 sigue pendiente: UC03 no dispone aún del flujo ordinario de creación de reservas. T018 y la revisión de experiencia móvil, WCAG e impresión requieren el cliente externo y las comprobaciones correspondientes.
 
 ## Dependencies & Execution Order
 

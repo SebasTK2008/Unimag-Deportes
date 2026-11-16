@@ -26,7 +26,7 @@ Content-Type: image/svg+xml; charset=UTF-8
 
 Cuerpo: texto SVG UTF-8 generado a partir del QR con ZXing, para que el frontend lo renderice o descargue e imprima.
 
-El QR debe contener una URL absoluta del frontend cuya ruta es `/checkin/{id_espacio}`, sin datos del usuario (RN-31, RN-32). El origen público debe configurarse por despliegue; **pendiente de confirmar** nombre de propiedad y tratamiento de entornos sin HTTPS.
+El QR contiene una URL absoluta del frontend cuya ruta es `/checkin/{id_espacio}`, sin datos del usuario (RN-31, RN-32). El origen público se configura por despliegue con `APP_CHECKIN_FRONTEND_ORIGIN` (`app.checkin.frontend-origin`). Debe incluir host y usar HTTPS; HTTP solo se admite con el perfil `dev` o `test` activo. No se admiten credenciales, consulta, fragmento ni rutas distintas de `/`.
 
 ### 404 Not Found
 
@@ -45,6 +45,7 @@ El QR debe contener una URL absoluta del frontend cuya ruta es `/checkin/{id_esp
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
+| `QR_NOT_CONFIGURED` | 503 | El origen del frontend está vacío o no cumple las restricciones indicadas. | — |
 
 ## Notas
 

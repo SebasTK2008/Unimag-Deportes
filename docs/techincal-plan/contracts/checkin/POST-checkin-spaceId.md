@@ -36,7 +36,7 @@ POST /checkin/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
 ```json
 {
   "code": "CHECKIN_TOO_EARLY",
-  "message": "El check-in abre 10 minutos antes del inicio de la franja.",
+  "message": "El check-in aún no está disponible.",
   "details": {
     "opensAt": "2026-11-11T13:50:00-05:00"
   }
@@ -66,5 +66,7 @@ POST /checkin/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
 
 - La ventana abre según la configuración conservada por la reserva (10 minutos antes por defecto) y cierra al finalizarla, sin incluir ese instante (RN-30, RN-36).
 - Se selecciona la próxima reserva aplicable del usuario para el espacio por hora de inicio; si hay una en curso, se considera antes que una futura.
+- Si hay una reserva de otro usuario en curso en el espacio, se responde `FORBIDDEN` antes de seleccionar una reserva propia.
+- Si la reserva seleccionada ya está `IN_USE`, se devuelve el check-in existente con su `checkedInAt` original, sin registrar otra auditoría.
 - Si el QR se abre sin sesión vigente o en otro navegador, el cliente lleva al login y vuelve a `/checkin/{spaceId}` (RN-34).
 - El QR es estático y no identifica al usuario (RN-31, RN-32).

@@ -11,6 +11,19 @@ Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` instituc
 
 ### Configuración
 
+El repositorio incluye `.env.example` como plantilla local; `.env` y sus variantes están excluidos de Git. El archivo no se carga automáticamente. Para usarlo, cópielo, complete las claves obligatorias y configure explícitamente la importación de Spring desde la raíz del proyecto:
+
+```powershell
+Copy-Item .env.example .env
+# Edite .env: establezca claves independientes y los valores necesarios.
+$env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
+.\mvnw.cmd spring-boot:run
+```
+
+En macOS/Linux, use `cp .env.example .env` y `SPRING_CONFIG_IMPORT='file:.env[.properties]' ./mvnw spring-boot:run`. Las variables del entorno tienen prioridad sobre el archivo importado. No incluya el prefijo `export` ni comillas de shell en `.env`: se interpreta como un archivo de propiedades de Spring. No active el perfil `dev` en producción; si necesita HTTP para el frontend local, actívelo explícitamente para desarrollo.
+
+Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. `compose.yaml` solo define PostgreSQL y Mailpit para desarrollo; no despliega el backend.
+
 | Variable | Uso / valor predeterminado |
 |---|---|
 | `APP_AUTH_JWT_SECRET` | Obligatoria; clave HS256 de al menos 32 bytes UTF-8. |
@@ -19,6 +32,7 @@ Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` instituc
 | `APP_AUTH_CODE_MAX_ATTEMPTS` | Entero positivo; `5`. |
 | `APP_AUTH_ADMIN_EMAILS` | Correos separados por comas; vacío por defecto. |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes del cliente separados por comas; vacío por defecto. No usa credenciales de cookies. |
+| `APP_CHECKIN_FRONTEND_ORIGIN` | Origen público del frontend para los QR de UC05; vacío por defecto. Requiere HTTPS, salvo HTTP en perfiles `dev` o `test`; sin un origen válido, el endpoint QR responde `503 QR_NOT_CONFIGURED`. |
 | `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
@@ -30,6 +44,8 @@ Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` instituc
 Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
 
 `./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye contrato de los siete endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. Se verificaron 47 pruebas sin fallos.
+
+Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
 
