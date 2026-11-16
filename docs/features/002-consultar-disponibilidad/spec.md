@@ -47,7 +47,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
   Sí. Un Usuario suspendido puede consultar disponibilidad (RN-05).
 
 - **¿Cuántos días hacia adelante muestra el calendario?**
-  7 días, alineado con la anticipación máxima para reservar (OQ-09).
+  Siete fechas: desde hoy hasta hoy + 6 días inclusive, según la fecha de America/Bogota (OQ-09).
 
 - **¿Se puede consultar el calendario sin sesión?**
   No; la consulta exige sesión (OQ-14).
@@ -63,7 +63,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
 - **RF-005**: El sistema DEBE mostrar las franjas bloqueadas como no disponibles, con el motivo visible (RN-44).
 - **RF-006**: El sistema DEBE mantener como disponible una franja libre que ya comenzó hasta el fin de la tolerancia y dejar de mostrarla como reservable pasada la tolerancia (RN-27, RN-28).
 - **RF-007**: El sistema DEBE permitir esta consulta tanto de forma independiente (Usuario y Administrador) como al ser invocado por "Reservar espacio deportivo".
-- **RF-008**: El sistema DEBE exigir sesión para consultar el calendario y mostrar un horizonte de 7 días (OQ-09, OQ-14).
+- **RF-008**: El sistema DEBE exigir sesión para consultar el calendario y mostrar siete fechas desde hoy hasta hoy + 6 inclusive, según America/Bogota (OQ-09, OQ-14).
 
 ### Requisitos No Funcionales
 
