@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC09 - Consultar panel de administración
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (OQ-08: períodos semanal y mensual)
+**Última revisión**: 2026-11-16 (definición de usuarios suspendidos en el período)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -52,6 +52,9 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
 
 - **¿Qué se cuenta como cancelación tardía o inasistencia?**
   Lo definido por las reglas del contexto: cancelación tardía es la hecha con anticipación inferior al umbral conservado por la reserva o con la franja ya iniciada sin check-in (RN-22), e inasistencia es la reserva sin check-in al cerrar la ventana (RN-37).
+
+- **¿Qué usuarios cuentan como suspendidos en el período?**
+  Los usuarios distintos suspendidos durante cualquier parte del período, incluso si la suspensión comenzó antes. El sistema conserva los intervalos de las nuevas suspensiones.
 
 ## Requisitos *(obligatorio)*
 

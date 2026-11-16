@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC08 - Consultar cuota semanal
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (cita de la regla de cuota)
+**Última revisión**: 2026-11-16 (campos de la CuotaSemanal alineados con el contrato `GET /quota/me`)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -82,7 +82,7 @@ Como el sistema, al comenzar cada semana de conteo, quiero calcular la cuota sem
 
 ### Entidades Clave
 
-- **CuotaSemanal (DTO)**: Resultado de la consulta. Contiene horas usadas, horas disponibles y fecha de reinicio. No se persiste como entidad independiente: se obtiene de las Reservas del Usuario (ver SPEC 003) y del límite configurado (SPEC 006). El reinicio semanal (Historia de Usuario 2) la devuelve al límite configurado, descontando las reservas ya hechas para esa semana.
+- **CuotaSemanal (DTO)**: Resultado de la consulta. Contiene el inicio y el fin de la semana de conteo, el límite semanal vigente, las horas usadas, las horas disponibles y la fecha de reinicio (el lunes siguiente a las 00:00, America/Bogota); ver [`GET-quota-me.md`](../../techincal-plan/contracts/quota/GET-quota-me.md). No se persiste como entidad independiente: se obtiene de las Reservas del Usuario (ver SPEC 003) y del límite configurado (SPEC 006). El reinicio semanal (Historia de Usuario 2) la devuelve al límite configurado, descontando las reservas ya hechas para esa semana.
 - Si el límite vigente baja por debajo de las horas ya confirmadas, estas reservas se conservan y las horas disponibles se muestran como cero, nunca negativas.
 
 ## Criterios de Éxito *(obligatorio)*

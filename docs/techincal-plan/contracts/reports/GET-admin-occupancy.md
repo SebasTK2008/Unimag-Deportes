@@ -74,3 +74,6 @@ GET /admin/occupancy?date=2026-11-11&discipline=VOLLEYBALL
 - Es una consulta de solo lectura (RF-14).
 - `status` usa los mismos valores que el calendario: `FREE`, `OCCUPIED`, `BLOCKED`.
 - Un espacio compartido entre disciplinas aparece ocupado para cualquiera de ellas (RN-07).
+- `reservationId` solo tiene valor en las franjas `OCCUPIED`; si una franja tiene bloqueo, se informa `BLOCKED`.
+- Se incluyen todos los espacios que cumplen los filtros, también los que están en mantenimiento, ordenados por nombre. Un `spaceId` inexistente produce `spaces` vacío.
+- `date` puede ser cualquier fecha; no aplica el horizonte del calendario de UC02.
