@@ -16,8 +16,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.context.ApplicationEventPublisher;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInput;
 import unimagdeportes.exception.BusinessException;
+import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.space.SpaceMapper;
 import unimagdeportes.model.space.Discipline;
 import unimagdeportes.model.space.Space;
@@ -32,8 +34,9 @@ class SpaceServiceTest {
     private final ReservationLock lock = mock(ReservationLock.class);
     private final AuditService audit = mock(AuditService.class);
     private final SpaceImageValidator images = mock(SpaceImageValidator.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final SpaceService service = new SpaceService(repository, lock, audit, images,
-            Mappers.getMapper(SpaceMapper.class));
+            Mappers.getMapper(SpaceMapper.class), events);
     private final UUID administrator = UUID.randomUUID();
     private final MockMultipartFile file = new MockMultipartFile("image", new byte[]{1});
 
@@ -65,6 +68,7 @@ class SpaceServiceTest {
         assertThat(result.name()).isEqualTo("Cancha");
         assertThat(result.disciplines()).containsExactly(Discipline.TENNIS);
         verify(audit).record("SPACE_UPDATED", "SPACE", id, administrator);
+        verify(events).publishEvent(new AvailabilityChangedEvent(id));
     }
 
     @Test

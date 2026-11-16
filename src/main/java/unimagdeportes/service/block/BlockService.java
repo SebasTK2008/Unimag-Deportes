@@ -6,9 +6,11 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import unimagdeportes.dto.block.BlockDtos.CreateBlock;
 import unimagdeportes.dto.block.BlockDtos.CreatedBlock;
 import unimagdeportes.exception.BusinessException;
+import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
 import unimagdeportes.model.block.InstitutionalBlock;
@@ -27,9 +29,11 @@ public class BlockService {
     private final BlockSchedule schedule;
     private final AuditService audit;
     private final BlockMapper mapper;
+    private final ApplicationEventPublisher events;
 
     public BlockService(InstitutionalBlockRepository blocks, SpaceRepository spaces, ReservationLock lock,
-            ReservationService reservations, BlockSchedule schedule, AuditService audit, BlockMapper mapper) {
+            ReservationService reservations, BlockSchedule schedule, AuditService audit, BlockMapper mapper,
+            ApplicationEventPublisher events) {
         this.blocks = blocks;
         this.spaces = spaces;
         this.lock = lock;
@@ -37,6 +41,7 @@ public class BlockService {
         this.schedule = schedule;
         this.audit = audit;
         this.mapper = mapper;
+        this.events = events;
     }
 
     @Transactional
@@ -54,6 +59,7 @@ public class BlockService {
             blocks.save(block);
             audit.record("BLOCK_CREATED", "INSTITUTIONAL_BLOCK", block.getId(), administratorId);
         }
+        events.publishEvent(new AvailabilityChangedEvent(request.spaceId()));
         return new CreatedBlock(group, slots.size(), cancelled);
     }
 

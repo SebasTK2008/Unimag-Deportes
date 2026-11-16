@@ -54,6 +54,16 @@ public class ReservationService {
     public record ReservationInfo(UUID id, UUID userId, UUID spaceId, Instant startAt, Instant endAt,
             ReservationStatus status) { }
 
+    @Transactional(readOnly = true)
+    public List<ReservationInfo> overlappingOccupancy(UUID spaceId, Instant start, Instant end) {
+        var occupying = java.util.Arrays.stream(ReservationStatus.values())
+                .filter(ReservationStatus::occupiesSpace).toList();
+        return reservations.findBySpaceIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(spaceId, occupying, end, start)
+                .stream().map(reservation -> new ReservationInfo(reservation.getId(), reservation.getUserId(),
+                        reservation.getSpaceId(), reservation.getStartAt(), reservation.getEndAt(),
+                        reservation.getStatus())).toList();
+    }
+
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public List<Reservation> checkInCandidates(UUID spaceId, UUID userId) {
         return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId);
