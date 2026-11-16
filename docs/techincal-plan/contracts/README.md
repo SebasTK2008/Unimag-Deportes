@@ -105,6 +105,7 @@ Todos los errores usan el mismo cuerpo:
 | `CHECKIN_TOO_EARLY` | 409 | Aún no abrió la ventana aplicable a la reserva. | RN-36 |
 | `CHECKIN_WINDOW_CLOSED` | 409 | La ventana de check-in ya cerró. | RN-36 |
 | `RESERVATION_CANCELLED` | 409 | La reserva fue cancelada. | RN-35 |
+| `QR_NOT_CONFIGURED` | 503 | El origen del frontend para generar el QR falta o es inválido. | — |
 
 ## Índice de contratos
 
