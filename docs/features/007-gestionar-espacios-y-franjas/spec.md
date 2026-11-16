@@ -3,7 +3,7 @@
 **Creado**: 2026-10-13  
 **Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-06 y OQ-12; reautenticación en bloqueos)
 
-**Ampliación pendiente:** la gestión de imágenes opcionales de espacios está planificada en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios). Aún no está implementada ni cuenta con contratos de API definitivos.
+**Imágenes de espacios:** al crear un espacio se requieren una imagen de vista previa y una panorámica 360°. Cada una puede reemplazarse, pero no eliminarse. El almacenamiento y los contratos se describen en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios).
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 

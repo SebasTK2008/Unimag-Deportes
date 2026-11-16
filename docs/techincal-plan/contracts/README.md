@@ -13,8 +13,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 - Las rutas son relativas a la raíz de la API.
 - Salvo los endpoints públicos, se envía `Authorization: Bearer <token>`.
 - El token se obtiene en `POST /auth/verify` y no viaja en cookies ni en la URL (RN-55).
-- Las solicitudes con cuerpo usan `Content-Type: application/json`.
-- **Pendiente:** la carga de imágenes prevista para UC07 requerirá definir el formato de solicitud y cualquier excepción a esta convención en sus contratos; todavía no está implementada. Véase el [plan de UC07](../../features/007-gestionar-espacios-y-franjas/plan.md#ampliación-pendiente-imágenes-de-espacios).
+- Las solicitudes con cuerpo usan `Content-Type: application/json`, salvo las cargas de imágenes de UC07, que usan `multipart/form-data`.
 
 ### Identificadores y fechas
 
@@ -160,6 +159,8 @@ Todos los errores usan el mismo cuerpo:
 | GET | `/admin/spaces` | [`spaces/GET-admin-spaces.md`](./spaces/GET-admin-spaces.md) |
 | POST | `/admin/spaces` | [`spaces/POST-admin-spaces.md`](./spaces/POST-admin-spaces.md) |
 | PUT | `/admin/spaces/{id}` | [`spaces/PUT-admin-spaces-id.md`](./spaces/PUT-admin-spaces-id.md) |
+| PUT | `/admin/spaces/{id}/images/{kind}` | [`spaces/PUT-admin-spaces-id-images-kind.md`](./spaces/PUT-admin-spaces-id-images-kind.md) |
+| GET | `/spaces/{id}/images/{kind}` | [`spaces/GET-spaces-id-images-kind.md`](./spaces/GET-spaces-id-images-kind.md) |
 | POST | `/admin/blocks` | [`blocks/POST-admin-blocks.md`](./blocks/POST-admin-blocks.md) |
 
 ### Cuota (UC08)

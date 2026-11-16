@@ -8,6 +8,10 @@
 
 ### Cuerpo
 
+La solicitud es `multipart/form-data` con tres partes obligatorias: `space` (JSON con `Content-Type: application/json`), `preview` y `panorama` (archivos de imagen). Cada archivo tiene un máximo de 30 MiB (31.457.280 bytes). El contenido debe ser reconocido por un lector ImageIO disponible; el tipo declarado por el cliente no determina el formato almacenado.
+
+Campos de la parte `space`:
+
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `name` | string | Sí | Nombre del espacio. |
@@ -65,7 +69,7 @@
 
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
-| `VALIDATION_ERROR` | 400 | Campos faltantes, disciplinas vacías u horario inválido. | RN-06, RN-08 |
+| `VALIDATION_ERROR` | 400 | Campos o imágenes faltantes, imágenes inválidas o demasiado grandes, disciplinas vacías u horario inválido. | RN-06, RN-08 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 
