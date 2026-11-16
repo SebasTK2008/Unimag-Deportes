@@ -34,7 +34,10 @@ public class Reservation {
     public Instant getEndAt() { return endAt; }
     public ReservationStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getCheckedInAt() { return checkedInAt; }
+    public int getCheckinOpeningMinutes() { return checkinOpeningMinutes; }
     public Instant getReminderSentAt() { return reminderSentAt; }
+    public void checkIn(Instant now) { this.checkedInAt = now; this.status = ReservationStatus.IN_USE; }
     public void markReminderSent(Instant sentAt) { this.reminderSentAt = sentAt; }
     public void cancelByAdministrator() { this.status = ReservationStatus.CANCELLED_BY_ADMIN; }
 }

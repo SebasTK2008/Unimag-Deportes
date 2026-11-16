@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.model.reservation.ReservationStatus;
+import unimagdeportes.model.reservation.Reservation;
 import unimagdeportes.repository.reservation.ReservationRepository;
 import unimagdeportes.event.ReservationNotificationEvent;
 import unimagdeportes.event.ReservationNotificationEvent.Type;
@@ -52,6 +53,17 @@ public class ReservationService {
 
     public record ReservationInfo(UUID id, UUID userId, UUID spaceId, Instant startAt, Instant endAt,
             ReservationStatus status) { }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public List<Reservation> checkInCandidates(UUID spaceId, UUID userId) {
+        return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public boolean hasOtherUserInProgress(UUID spaceId, UUID userId, Instant now) {
+        return reservations.existsBySpaceIdAndUserIdNotAndStatusInAndStartAtLessThanEqualAndEndAtGreaterThan(
+                spaceId, userId, List.of(ReservationStatus.CONFIRMED, ReservationStatus.IN_USE), now, now);
+    }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public int cancelForBlock(UUID spaceId, List<Slot> slots, String reason, UUID administratorId) {
