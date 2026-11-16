@@ -90,6 +90,8 @@ Fuente: [`contracts/quota/GET-quota-me.md`](../../techincal-plan/contracts/quota
 - [x] **T002** Implementar `WeekCalculator`.
 - [ ] **T003** Agregar la consulta de horas por semana al repositorio.
 
+**Avance parcial:** `ReservationRepository` consulta reservas del usuario solapadas por estado e intervalo; `QuotaService` y `QuotaPolicy` calculan la duración dentro de una semana para el flujo de UC03. Todavía no se expone `GET /quota/me` ni se ha completado la cobertura de UC08 sobre estados, semanas y reinicio.
+
 ### Phase 3: User Stories
 
 - [ ] **T004** [US1/P1] Implementar `QuotaService`.

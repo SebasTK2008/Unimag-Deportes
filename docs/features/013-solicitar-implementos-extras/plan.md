@@ -123,7 +123,7 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 - [ ] **T024** Revisar índices de solape por implemento y rango.
 - [ ] **T025** Verificar que no se almacena saldo por franja y ejecutar `./mvnw clean verify`.
 
-**Avances parciales:** existen `Equipment`, `EquipmentStatus`, `EquipmentRepository` y una lectura por id en `EquipmentService`; faltan la entidad y el repositorio de `ReservationEquipment` y las operaciones de disponibilidad y administración. Las tablas correspondientes están incluidas en la migración aplicada en PostgreSQL.
+**Avances parciales:** existen `Equipment`, `EquipmentStatus`, `EquipmentRepository` y `EquipmentService`. La creación de reservas bloquea los implementos por id, calcula el máximo compromiso simultáneo y asocia las cantidades mediante JDBC en la misma transacción; el DTO de reserva y el comprobante incluyen implementos. `ReservationCreationIntegrationTest` cubre asociación y rechazo por stock insuficiente. Faltan la entidad y el repositorio de `ReservationEquipment`, las operaciones de catálogo y disponibilidad y la cobertura integral, incluidas carreras, liberación y comprobante real. Las tablas correspondientes están incluidas en la migración aplicada en PostgreSQL.
 
 ## Dependencies & Execution Order
 

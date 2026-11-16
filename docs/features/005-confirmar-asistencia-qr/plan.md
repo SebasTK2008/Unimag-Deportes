@@ -115,7 +115,7 @@ Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 arch
 - [ ] **T018** Revisar el flujo de login al abrir el QR en otro navegador.
 - [ ] **T019** Revisar legibilidad del QR impreso y ejecutar `./mvnw clean verify`.
 
-**Estado de verificación:** las tareas de implementación marcadas están presentes en el código; esto no acredita la aceptación integral. La prueba unitaria de T012 y las pruebas de configuración del origen QR pasaron. T013 tiene la dependencia y la generación SVG implementadas, pero queda pendiente verificar la decodificación y legibilidad. Las pruebas de integración de T009–T011 y T017 están escritas, pero no pudieron ejecutarse porque Testcontainers no detectó Docker; `clean verify` tampoco terminó. T001 sigue pendiente: UC03 no dispone aún del flujo ordinario de creación de reservas. T018 y la revisión de experiencia móvil, WCAG e impresión requieren el cliente externo y las comprobaciones correspondientes.
+**Estado de verificación:** las tareas de implementación marcadas están presentes en el código; esto no acredita la aceptación integral. La prueba unitaria de T012, las pruebas de configuración del origen QR y `CheckInIntegrationTest` pasaron en la ejecución de `clean verify` con PostgreSQL. T013 tiene la dependencia, la generación SVG y una prueba automatizada de decodificación; queda pendiente comprobar la legibilidad impresa. UC03 dispone de creación ordinaria; sigue pendiente comprobar el recorrido integrado desde una reserva real, incluida la creada dentro de tolerancia. T018 y la revisión de experiencia móvil, WCAG e impresión requieren el cliente externo y las comprobaciones correspondientes.
 
 ## Dependencies & Execution Order
 

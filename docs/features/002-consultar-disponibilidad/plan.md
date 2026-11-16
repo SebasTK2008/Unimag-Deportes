@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra siete fechas, desde hoy hasta hoy + 6 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14].
+UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra ocho fechas, desde hoy hasta hoy + 7 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14].
 
 Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calendario por REST [PLAN D-11]. UC02 no crea tablas ni muta datos.
 
@@ -71,7 +71,7 @@ src/test/java/unimagdeportes/{controller/availability,integration/availability,s
 2. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo para todas sus disciplinas.
 3. **Mantenimiento** [RN-09]: no aparece como reservable.
 4. **Tolerancia** [RN-27, RN-28]: una franja libre iniciada sigue reservable hasta el fin de la tolerancia.
-5. **Horizonte** [OQ-09]: desde hoy hasta hoy + 6 días inclusive en America/Bogota; fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
+5. **Horizonte** [OQ-09]: desde hoy hasta hoy + 7 días inclusive en America/Bogota; fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
 6. **Sesión** [OQ-14]: la consulta exige sesión.
 7. **Tiempo real** [RNF-04]: cambios por SSE; el cliente recarga por REST.
 8. **Zona horaria** [RNF-07]: America/Bogota.
@@ -102,7 +102,7 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 
 **Avance parcial:** el esquema compartido V1 ya incluye reservas y bloqueos. `BlockService.overlapping` y `ReservationService.overlappingOccupancy` proporcionan las lecturas integradas en `AvailabilityService` (T006/T007). Existen el controlador con tres endpoints, la validación de sesión y horizonte, y `AvailabilityStream` (T008–T010); la integración con PostgreSQL y el filtro de mantenimiento se verificaron en ejecución. El consumo con `fetch` sigue sin verificarse.
 
-Los cambios de espacio y los bloqueos publican `AvailabilityChangedEvent` para envío después del commit. T011 sigue pendiente para la creación y cancelación ordinarias de reservas, cuyos flujos UC03 aún no están implementados. También está pendiente conectar UC03 como consumidor de la consulta interna.
+Los cambios de espacio, los bloqueos y la creación de reservas publican `AvailabilityChangedEvent` para envío después del commit. T011 sigue pendiente para la cancelación ordinaria y la verificación completa del flujo. `ReservationCreationService` consulta ocupación y bloqueos mediante `AvailabilityService` dentro de la transacción; la presentación y actualización automática tras conflicto requieren el cliente externo. El catálogo alinea las franjas a horas exactas posteriores o iguales a la apertura.
 
 Hay pruebas unitarias, de controlador e integración con PostgreSQL, incluido un bloqueo SSE; T012/T013 siguen pendientes de cobertura completa y de los flujos que dependen de UC03. RNF-002 y el uso real de `fetch` requieren verificar el cliente React del otro repositorio. T015 sigue pendiente: la prueba simulada con varias suscripciones no sustituye una revisión de rendimiento en condiciones reales.
 

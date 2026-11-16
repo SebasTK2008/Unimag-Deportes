@@ -16,7 +16,7 @@
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `date` | `YYYY-MM-DD` | Sí | Fecha desde hoy hasta hoy + 6 días inclusive, según America/Bogota. |
+| `date` | `YYYY-MM-DD` | Sí | Fecha desde hoy hasta hoy + 7 días inclusive, según America/Bogota. |
 | `discipline` | enum `Discipline` | No | Disciplina con la que se consulta el espacio compartido. |
 
 ```http
@@ -62,9 +62,9 @@ Ejemplo si hoy es `2026-11-11` en America/Bogota:
 ```json
 {
   "code": "OUTSIDE_CALENDAR_HORIZON",
-  "message": "El calendario muestra únicamente los próximos 7 días.",
+  "message": "El calendario muestra desde hoy hasta dentro de 7 días.",
   "details": {
-    "maxDate": "2026-11-17"
+    "maxDate": "2026-11-18"
   }
 }
 ```
@@ -74,7 +74,7 @@ Ejemplo si hoy es `2026-11-11` en America/Bogota:
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
 | `INVALID_DATE` | 400 | `date` no tiene formato válido. | — |
-| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha es anterior a hoy o posterior a hoy + 6 días en America/Bogota. | OQ-09 |
+| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha es anterior a hoy o posterior a hoy + 7 días en America/Bogota. | OQ-09 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
 
