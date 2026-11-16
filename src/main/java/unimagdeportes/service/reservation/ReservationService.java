@@ -64,6 +64,16 @@ public class ReservationService {
                         reservation.getStatus())).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ReservationInfo> overlappingQuotaReservations(UUID userId, Instant start, Instant end) {
+        var counting = java.util.Arrays.stream(ReservationStatus.values())
+                .filter(ReservationStatus::countsForQuota).toList();
+        return reservations.findByUserIdAndStatusInAndStartAtLessThanAndEndAtGreaterThan(userId, counting, end, start)
+                .stream().map(reservation -> new ReservationInfo(reservation.getId(), reservation.getUserId(),
+                        reservation.getSpaceId(), reservation.getStartAt(), reservation.getEndAt(),
+                        reservation.getStatus())).toList();
+    }
+
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public List<Reservation> checkInCandidates(UUID spaceId, UUID userId) {
         return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId);

@@ -62,8 +62,8 @@ class AvailabilityIntegrationTest extends RulesTestSupport {
         error(send("GET", path + "/stream", null, null), 401, "TOKEN_INVALID");
         error(send("GET", "/spaces?discipline=INVALID", null, user), 400, "VALIDATION_ERROR");
         error(send("GET", path + "?date=2026-02-30", null, user), 400, "INVALID_DATE");
-        error(send("GET", path + "?date=2026-11-18", null, user), 400, "OUTSIDE_CALENDAR_HORIZON");
-        assertThat(send("GET", path + "?date=2026-11-17", null, user).statusCode()).isEqualTo(200);
+        error(send("GET", path + "?date=2026-11-19", null, user), 400, "OUTSIDE_CALENDAR_HORIZON");
+        assertThat(send("GET", path + "?date=2026-11-18", null, user).statusCode()).isEqualTo(200);
         error(send("GET", "/spaces/" + UUID.randomUUID() + "/availability?date=2026-11-11", null, user),
                 404, "SPACE_NOT_FOUND");
     }

@@ -69,7 +69,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | Inicio de la semana de conteo | Lunes 00:00, America/Bogota; fijo |
 | Anticipación mínima para reservar | 0 minutos; por despliegue |
 | Anticipación máxima para reservar | 7 días; fijo |
-| Horizonte del calendario | 7 días; fijo |
+| Horizonte del calendario | Desde hoy hasta hoy + 7 días inclusive (8 fechas); fijo |
 | Ventana de check-in | Desde 10 minutos antes del inicio (por despliegue) hasta el fin de la reserva |
 | Recordatorio previo a la reserva | 2 horas antes; fijo; se omite si se crea con menos de 2 horas de anticipación |
 | Suspensión por inasistencias | 3 inasistencias (editable por Administrador) por mes calendario; suspensión de 7 días (por despliegue) |
@@ -114,7 +114,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | RN-11 | Un usuario no puede tener dos reservas que se solapen en el tiempo, aunque sean en espacios distintos. |
 | RN-12 | La reserva solo se confirma si el correo es válido, el usuario no está suspendido, la franja está libre y el usuario tiene cuota suficiente. |
 | RN-13 | Si todas las validaciones pasan, la reserva se confirma al instante en pantalla y se envía el comprobante al correo. No hay aprobación manual. |
-| RN-14 | Solo se puede reservar con hasta 7 días de anticipación (OQ-12).  |
+| RN-14 | Solo se puede reservar hasta la fecha de hoy + 7 días inclusive, según America/Bogota (OQ-12). El límite se aplica por fecha, no por 168 horas transcurridas. |
 | RN-15 | Una reserva puede abarcar hasta 2 franjas consecutivas del mismo espacio.  |
 
 ### 5.4 Cuota semanal

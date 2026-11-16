@@ -65,7 +65,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 ### Casos Extremos (Edge Cases)
 
 - **¿Con cuánta anticipación y hasta cuándo se puede reservar?**
-  Con hasta 7 días de anticipación (RN-14). La anticipación mínima es de 0 minutos: se permite reservar hasta el fin de la tolerancia (10 minutos después del inicio); pasada la tolerancia la franja deja de ser reservable aunque siga libre (RN-27, RN-28).
+  Hasta la fecha de hoy + 7 días inclusive en America/Bogota (RN-14), sin limitarla a 168 horas exactas. La anticipación mínima es de 0 minutos: se permite reservar hasta el fin de la tolerancia (10 minutos después del inicio); pasada la tolerancia la franja deja de ser reservable aunque siga libre (RN-27, RN-28).
 
 - **¿Cuántas franjas puede abarcar una reserva?**
   Hasta 2 franjas consecutivas del mismo espacio (RN-15).
@@ -93,7 +93,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 - **RF-005**: El sistema DEBE garantizar que un espacio tenga una sola reserva activa por franja y que una reserva bloquee el espacio completo sin importar la disciplina (RN-07, RN-10).
 - **RF-006**: El sistema NO DEBE permitir que un Usuario tenga dos reservas que se solapen en el tiempo, aunque sean en espacios distintos (RN-11).
 - **RF-007**: El sistema DEBE permitir que una reserva abarque hasta 2 franjas consecutivas del mismo espacio (RN-15).
-- **RF-008**: El sistema DEBE permitir reservar con hasta 7 días de anticipación y hasta el fin de la tolerancia de la franja (RN-14, RN-27, RN-28).
+- **RF-008**: El sistema DEBE permitir reservar hasta la fecha de hoy + 7 días inclusive en America/Bogota y hasta el fin de la tolerancia de la franja (RN-14, RN-27, RN-28).
 - **RF-009**: El sistema DEBE aplicar la regla de cuota semanal descrita en esta SPEC, sumando las horas de la semana de la fecha de la franja, y rechazar la reserva informando las horas restantes cuando se supere la cuota (RN-16 a RN-18).
 - **RF-010**: El sistema DEBE, para una reserva hecha dentro de la tolerancia, ocupar y contar la franja completa y permitir el check-in hasta el fin de la reserva (RN-29, RN-30).
 - **RF-011**: El sistema DEBE confirmar la reserva al instante en pantalla, sin aprobación manual, cuando todas las validaciones pasen (RN-13).

@@ -2,6 +2,8 @@ package unimagdeportes.service.availability;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
@@ -56,22 +58,30 @@ public class AvailabilityService {
     public Calendar calendar(UUID spaceId, LocalDate date, String requestedDiscipline) {
         Discipline discipline = discipline(requestedDiscipline);
         LocalDate today = LocalDate.now(clock.withZone(ZONE));
-        LocalDate maxDate = today.plusDays(6);
+        LocalDate maxDate = today.plusDays(7);
         if (date.isBefore(today) || date.isAfter(maxDate)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "OUTSIDE_CALENDAR_HORIZON",
-                    "El calendario muestra únicamente los próximos 7 días.", Map.of("maxDate", maxDate));
+                    "El calendario muestra desde hoy hasta dentro de 7 días.", Map.of("maxDate", maxDate));
         }
         var space = spaces.get(spaceId);
         var start = date.atStartOfDay(ZONE).toInstant();
         var end = date.plusDays(1).atStartOfDay(ZONE).toInstant();
+        var occupancy = overlapping(spaceId, start, end);
+        var slots = policy.catalog(date, space.openingTime(), space.closingTime(), ZONE, clock.instant(),
+                Duration.ofMinutes(settings.bookingToleranceMinutes()), space.status() == SpaceStatus.ACTIVE,
+                occupancy.occupied(), occupancy.blocked()).stream().map(mapper::toSlot).toList();
+        return new Calendar(spaceId, date, discipline, slots);
+    }
+
+    public record Occupancy(List<Interval> occupied, List<Block> blocked) { }
+
+    @Transactional(readOnly = true)
+    public Occupancy overlapping(UUID spaceId, Instant start, Instant end) {
         var occupied = reservations.overlappingOccupancy(spaceId, start, end).stream()
                 .map(item -> new Interval(item.startAt(), item.endAt())).toList();
         var blocked = blocks.overlapping(spaceId, start, end).stream()
                 .map(item -> new Block(new Interval(item.startAt(), item.endAt()), item.reason())).toList();
-        var slots = policy.catalog(date, space.openingTime(), space.closingTime(), ZONE, clock.instant(),
-                Duration.ofMinutes(settings.bookingToleranceMinutes()), space.status() == SpaceStatus.ACTIVE,
-                occupied, blocked).stream().map(mapper::toSlot).toList();
-        return new Calendar(spaceId, date, discipline, slots);
+        return new Occupancy(occupied, blocked);
     }
 
     public void requireSpace(UUID spaceId) {

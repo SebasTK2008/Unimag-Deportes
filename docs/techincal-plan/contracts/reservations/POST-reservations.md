@@ -11,7 +11,7 @@
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `spaceId` | UUID | Sí | Espacio a reservar. |
-| `startAt` | instant | Sí | Inicio de la primera franja, alineado a los bloques de 60 minutos. |
+| `startAt` | instant | Sí | Inicio de la primera franja, alineado a una hora exacta en America/Bogota, hasta la fecha de hoy + 7 inclusive. |
 | `slots` | integer | Sí | Número de franjas consecutivas: `1` o `2`. |
 | `equipment` | array | No | Implementos solicitados. Cada elemento: `equipmentId` (UUID) y `quantity` (entero > 0). No se admite repetir un `equipmentId`. |
 
@@ -139,6 +139,8 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 
 ## Notas
 
+- Para un cuerpo mal formado, `VALIDATION_ERROR` identifica en `details.fields` el campo disponible; si no se puede determinar, usa `$` para el cuerpo completo.
+- Entre los conflictos de disponibilidad y solape se aplica esta precedencia: `BLOCKED_SLOT` primero, `SLOT_TAKEN` después y `OVERLAPPING_RESERVATION` por último. Por tanto, una reserva propia en el mismo espacio devuelve `SLOT_TAKEN`; si el espacio solicitado está libre pero el usuario tiene una reserva solapada en otro espacio, devuelve `OVERLAPPING_RESERVATION`. Estas comprobaciones se alcanzan después de las validaciones previas, incluida la ventana y el estado del espacio.
 - La verificación y el bloqueo de la franja ocurren en una sola transacción; si dos usuarios compiten, gana el primero (RN-10).
 - La cuota se mide en horas reservadas y se calcula sobre la semana de la fecha de la franja (RN-16, RN-17).
 - Los implementos son opcionales. Su disponibilidad es `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante el intervalo (RN-65); reservas consecutivas no se suman entre sí.

@@ -35,10 +35,10 @@ class AvailabilityServiceTest {
     private final UUID id = UUID.randomUUID();
 
     @Test
-    void horizonUsesBogotaTodayThroughSixDaysLater() {
+    void horizonUsesBogotaTodayThroughSevenDaysLater() {
         when(spaces.get(id)).thenReturn(space(id, SpaceStatus.ACTIVE));
-        assertThat(service.calendar(id, LocalDate.parse("2026-11-17"), null).slots()).hasSize(2);
-        for (String date : List.of("2026-11-10", "2026-11-18")) {
+        assertThat(service.calendar(id, LocalDate.parse("2026-11-18"), null).slots()).hasSize(2);
+        for (String date : List.of("2026-11-10", "2026-11-19")) {
             assertThatThrownBy(() -> service.calendar(id, LocalDate.parse(date), null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(error -> ((BusinessException) error).getCode())

@@ -22,7 +22,12 @@ public class SlotCatalogPolicy {
     public List<SlotDecision> catalog(LocalDate date, LocalTime opening, LocalTime closing, ZoneId zone,
             Instant now, Duration tolerance, boolean active, List<Interval> occupied, List<Block> blocks) {
         List<SlotDecision> slots = new ArrayList<>();
-        for (LocalTime time = opening; time.plusHours(1).isAfter(time)
+        LocalTime first = opening.truncatedTo(java.time.temporal.ChronoUnit.HOURS);
+        if (first.isBefore(opening)) {
+            if (first.getHour() == 23) return List.of();
+            first = first.plusHours(1);
+        }
+        for (LocalTime time = first; time.plusHours(1).isAfter(time)
                 && !time.plusHours(1).isAfter(closing); time = time.plusHours(1)) {
             Instant start = date.atTime(time).atZone(zone).toInstant();
             Instant end = start.plus(Duration.ofHours(1));

@@ -95,7 +95,7 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [x] **T003** Reutilizar `MailSender` y `SmtpMailSender` de UC01.
 - [x] **T004** Configurar los escuchas de eventos base.
 
-**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; su conexión con los productores reales sigue pendiente.
+**Base disponible:** `MailSender` y `SmtpMailSender` admiten adjuntos PDF. `SmtpMailSenderTest` verifica la preparación MIME y `SmtpDeliveryTest` la entrega SMTP de un adjunto a Mailpit. Las escuchas consumen eventos internos después del commit; la creación real de reservas ya publica `ReservationCreatedEvent`, mientras otras conexiones siguen pendientes.
 
 ### Phase 3: User Stories
 
@@ -119,9 +119,9 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 - [ ] **T019** Revisar los correos con Mailpit.
 - [ ] **T020** Verificar que un fallo de correo no revierte operaciones y ejecutar `./mvnw clean verify`.
 
-**Avance verificado (2026-11-11):** el generador y DTO se prueban con y sin implementos y zona Bogotá; aún no están conectados a reservas. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
+**Avance verificado:** el generador y DTO se prueban con y sin implementos y zona Bogotá; `ReservationCreationService` construye y publica el evento de comprobante, incluidos los implementos. La entrega desde el flujo real y el comportamiento ante rollback o fallo de correo aún necesitan pruebas específicas. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
 
-**Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo; falta probarlo con el flujo real de UC03. Las tareas de integración T006, T008, T009 y T012–T015 siguen abiertas mientras falten los productores y las rutas reales. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
+**Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo; falta probarlo con el flujo real de UC03. Las tareas de integración T006, T008, T009 y T012–T015 siguen abiertas por la cobertura pendiente y los productores o rutas aún no integrados. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
 
 **Límite del recordatorio:** el job serializa sus ejecuciones dentro de una instancia. Conforme a `docs/techincal-plan/plan-general.md` §5.2, el despliegue previsto es de una sola instancia; varias instancias requieren coordinación adicional. Si SMTP acepta el mensaje pero falla el marcado posterior o cae el proceso, un reintento puede duplicarlo. No se garantiza entrega exactamente una vez.
 

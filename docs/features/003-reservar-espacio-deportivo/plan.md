@@ -129,7 +129,9 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 - [ ] **T020** Revisar mensajes de error contra el catálogo de contratos.
 - [ ] **T021** Revisar índices de solape/cuota y ejecutar `./mvnw clean verify`.
 
-**Avances parciales:** existe `ReservationRepository` sin las consultas de T004 y `ReservationService` solo ofrece lectura; `ReservationLock` está creado, pero aún no se integra al flujo de reserva. `SharedSchemaTest` comprueba ambas restricciones en PostgreSQL, no la concurrencia ni el endpoint.
+**Avances parciales:** `ReservationRepository` consulta solapes por espacio y usuario; `QuotaService` calcula horas a partir de reservas. Existen `BookingWindowPolicy`, `QuotaPolicy`, DTO de reserva y `POST /reservations`. La creación vive en `ReservationCreationService`, separado de `ReservationService`, adquiere `ReservationLock`, bloquea usuario y espacio, valida reglas y publica los eventos de disponibilidad y comprobante. El controlador realiza el mapeo de respuesta; no existe aún `ReservationMapper`.
+
+`ReservationCreationIntegrationTest` cubre creación de una y dos franjas, competencia por espacio, cuota, suspensión y stock insuficiente; las políticas tienen pruebas unitarias. Antes de los ajustes posteriores de disponibilidad y cuota, `./mvnw clean verify` terminó con 135 pruebas sin fallos; debe repetirse tras esos cambios. Las tareas permanecen abiertas mientras no se complete la cobertura de contrato, solape propio, límites temporales, eventos reales y demás criterios de aceptación. La actualización automática del calendario y la usabilidad requieren el cliente React externo. Las franjas se alinean a horas exactas; tanto la política de reserva como el calendario de UC02 admiten hasta la fecha de hoy + 7 inclusive en America/Bogota, no hasta 168 horas exactas. La prueba integrada de ambos límites está escrita, pero pendiente de ejecución con Docker.
 
 ## Dependencies & Execution Order
 
@@ -140,7 +142,7 @@ UC03 depende de UC01, UC06, UC07-H1 y el esquema compartido, y de la base de UC0
 ## Notes
 
 - `[US1]` etiqueta la única historia de la SPEC 003.
-- La validación de stock no se implementa aquí; UC13 la añade en la misma transacción.
+- La integración inicial de implementos y validación de stock se encuentra en la transacción de reserva; su cobertura y los demás componentes de UC13 siguen pendientes según su plan.
 - La cuota se deriva; no hay tabla de saldo (D-06).
 
 ## Checklist de auto-revisión
