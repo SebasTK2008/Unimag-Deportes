@@ -45,6 +45,12 @@ public class SpaceService {
         return mapper.toInfo(find(id));
     }
 
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public SpaceInfo getForUpdate(UUID id) {
+        return mapper.toInfo(spaces.findForUpdate(id).orElseThrow(() ->
+                new BusinessException(HttpStatus.NOT_FOUND, "SPACE_NOT_FOUND", "El espacio no existe.")));
+    }
+
     @Transactional(readOnly = true)
     public List<SpaceInfo> list() {
         return spaces.findAll().stream().map(mapper::toInfo).toList();

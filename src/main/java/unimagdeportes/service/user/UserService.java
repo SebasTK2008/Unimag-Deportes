@@ -44,6 +44,11 @@ public class UserService {
         return users.findById(id).orElseThrow();
     }
 
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public AppUser findForUpdate(UUID id) {
+        return users.findForUpdate(id).orElseThrow();
+    }
+
     @Transactional
     public AppUser completeProfile(UUID id, String name) {
         AppUser user = users.findById(id).orElseThrow();

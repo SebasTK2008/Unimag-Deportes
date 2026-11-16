@@ -27,6 +27,19 @@ public class Reservation {
 
     protected Reservation() { }
 
+    public Reservation(UUID id, UUID userId, UUID spaceId, Instant startAt, Instant endAt, Instant createdAt,
+            int cancellationThresholdMinutes, int checkinOpeningMinutes) {
+        this.id = id;
+        this.userId = userId;
+        this.spaceId = spaceId;
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.createdAt = createdAt;
+        this.status = ReservationStatus.CONFIRMED;
+        this.cancellationThresholdMinutes = cancellationThresholdMinutes;
+        this.checkinOpeningMinutes = checkinOpeningMinutes;
+    }
+
     public UUID getId() { return id; }
     public UUID getUserId() { return userId; }
     public UUID getSpaceId() { return spaceId; }
