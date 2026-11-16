@@ -3,6 +3,7 @@ package unimagdeportes.service.space;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +12,7 @@ import unimagdeportes.dto.space.SpaceDtos.ImageContent;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInfo;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInput;
 import unimagdeportes.exception.BusinessException;
+import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.space.SpaceMapper;
 import unimagdeportes.model.space.Space;
 import unimagdeportes.model.space.SpaceStatus;
@@ -26,14 +28,16 @@ public class SpaceService {
     private final AuditService audit;
     private final SpaceImageValidator images;
     private final SpaceMapper mapper;
+    private final ApplicationEventPublisher events;
 
     public SpaceService(SpaceRepository spaces, ReservationLock lock, AuditService audit,
-            SpaceImageValidator images, SpaceMapper mapper) {
+            SpaceImageValidator images, SpaceMapper mapper, ApplicationEventPublisher events) {
         this.spaces = spaces;
         this.lock = lock;
         this.audit = audit;
         this.images = images;
         this.mapper = mapper;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -97,6 +101,7 @@ public class SpaceService {
         space.update(merged.name(), merged.capacity(), merged.requirements(), merged.openingTime(),
                 merged.closingTime(), merged.status(), merged.disciplines());
         audit.record("SPACE_UPDATED", "SPACE", id, administratorId);
+        events.publishEvent(new AvailabilityChangedEvent(id));
         return mapper.toInfo(space);
     }
 

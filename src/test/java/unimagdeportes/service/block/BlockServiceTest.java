@@ -15,8 +15,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import unimagdeportes.dto.block.BlockDtos.CreateBlock;
 import unimagdeportes.exception.BusinessException;
+import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
@@ -31,8 +33,9 @@ class BlockServiceTest {
     private final ReservationLock lock = mock(ReservationLock.class);
     private final ReservationService reservations = mock(ReservationService.class);
     private final AuditService audit = mock(AuditService.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final BlockService service = new BlockService(blocks, spaces, lock, reservations,
-            new BlockSchedule(), audit, Mappers.getMapper(BlockMapper.class));
+            new BlockSchedule(), audit, Mappers.getMapper(BlockMapper.class), events);
     private final UUID spaceId = UUID.randomUUID();
     private final UUID admin = UUID.randomUUID();
 
@@ -52,6 +55,7 @@ class BlockServiceTest {
         order.verify(spaces).existsById(spaceId);
         order.verify(reservations).cancelForBlock(eq(spaceId), any(), eq("Evento"), eq(admin));
         verify(blocks, org.mockito.Mockito.times(2)).save(any());
+        verify(events).publishEvent(new AvailabilityChangedEvent(spaceId));
     }
 
     @Test
@@ -62,6 +66,7 @@ class BlockServiceTest {
 
         assertThatThrownBy(() -> service.create(request(), admin)).isInstanceOf(BusinessException.class);
         verify(blocks, never()).save(any());
+        verify(events, never()).publishEvent(any(AvailabilityChangedEvent.class));
     }
 
     private CreateBlock request() {

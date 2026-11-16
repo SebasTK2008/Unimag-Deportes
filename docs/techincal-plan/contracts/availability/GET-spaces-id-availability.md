@@ -16,7 +16,7 @@
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `date` | `YYYY-MM-DD` | Sí | Fecha del calendario, dentro de los 7 días de anticipación. |
+| `date` | `YYYY-MM-DD` | Sí | Fecha desde hoy hasta hoy + 6 días inclusive, según America/Bogota. |
 | `discipline` | enum `Discipline` | No | Disciplina con la que se consulta el espacio compartido. |
 
 ```http
@@ -57,12 +57,14 @@ GET /spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/availability?date=2026-11-11&di
 
 ### 400 Bad Request
 
+Ejemplo si hoy es `2026-11-11` en America/Bogota:
+
 ```json
 {
   "code": "OUTSIDE_CALENDAR_HORIZON",
   "message": "El calendario muestra únicamente los próximos 7 días.",
   "details": {
-    "maxDate": "2026-11-18"
+    "maxDate": "2026-11-17"
   }
 }
 ```
@@ -72,7 +74,7 @@ GET /spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/availability?date=2026-11-11&di
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
 | `INVALID_DATE` | 400 | `date` no tiene formato válido. | — |
-| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha supera los 7 días de anticipación. | OQ-09 |
+| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha es anterior a hoy o posterior a hoy + 6 días en America/Bogota. | OQ-09 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
 

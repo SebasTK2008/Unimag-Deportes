@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra un horizonte de 7 días y exige sesión [OQ-09, OQ-14].
+UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra siete fechas, desde hoy hasta hoy + 6 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14].
 
 Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calendario por REST [PLAN D-11]. UC02 no crea tablas ni muta datos.
 
@@ -20,7 +20,9 @@ Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calen
 | RF-006 | `SlotCatalogPolicy` (tolerancia) | T005 |
 | RF-007 | invocación interna desde UC03 | T007, T009 |
 | RF-008 | sesión y horizonte de 7 días | T008 |
-| RNF-001..RNF-003 | DTO, `Clock`, zona horaria | T003, T007 |
+| RNF-001 | emisor SSE + publicación de eventos | T010, T011 |
+| RNF-002 | cliente React móvil y accesible, en otro repositorio | verificación externa |
+| RNF-003 | DTO, `Clock`, zona horaria | T003, T007 |
 | CE-001..CE-004 | aceptación | T012, T013 |
 | HU1 | calendario en tiempo real | Fase 3 |
 
@@ -53,13 +55,12 @@ docs/techincal-plan/contracts/availability/   # 3 contratos
 ```text
 src/main/java/unimagdeportes/
 ├── controller/availability/AvailabilityController.java
-├── service/availability/AvailabilityService.java
+├── service/availability/{AvailabilityService,AvailabilityStream}.java
 ├── service/policy/SlotCatalogPolicy.java
 ├── service/{space,reservation,block}/  # servicios propietarios
-├── dto/availability/ · mapper/availability/AvailabilityMapper.java
-└── config/SseConfig.java
+└── dto/availability/ · mapper/availability/AvailabilityMapper.java
 
-src/test/java/unimagdeportes/{contract/availability,integration/availability,unit/policy}/
+src/test/java/unimagdeportes/{controller/availability,integration/availability,service/availability,service/policy}/
 ```
 
 **Structure Decision**: módulo de solo lectura que consulta otros módulos únicamente mediante sus services y publica eventos SSE [PLAN §3.4]. Las franjas se derivan del horario y no se persisten [§12].
@@ -70,7 +71,7 @@ src/test/java/unimagdeportes/{contract/availability,integration/availability,uni
 2. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo para todas sus disciplinas.
 3. **Mantenimiento** [RN-09]: no aparece como reservable.
 4. **Tolerancia** [RN-27, RN-28]: una franja libre iniciada sigue reservable hasta el fin de la tolerancia.
-5. **Horizonte** [OQ-09]: solo 7 días; fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
+5. **Horizonte** [OQ-09]: desde hoy hasta hoy + 6 días inclusive en America/Bogota; fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
 6. **Sesión** [OQ-14]: la consulta exige sesión.
 7. **Tiempo real** [RNF-04]: cambios por SSE; el cliente recarga por REST.
 8. **Zona horaria** [RNF-07]: America/Bogota.
@@ -90,16 +91,20 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 ### Phase 1: Setup
 
 - [ ] **T001** Verificar UC01, UC06 y UC07-H1; integrar ocupación y bloqueos cuando UC03 y UC07-H2 estén disponibles, sin consultar tablas aún inexistentes.
-- [ ] **T002** Verificar `SseConfig` con `fetch` y encabezado `Authorization`.
+- [ ] **T002** Verificar la configuración SSE con `fetch` y encabezado `Authorization`.
 
 ### Phase 2: Foundational
 
-- [ ] **T003** Crear los DTO de `dto/availability/`.
-- [ ] **T004** Crear `AvailabilityMapper`.
-- [ ] **T005** Implementar `SlotCatalogPolicy` (franjas, estados y tolerancia).
-- [ ] **T006** Agregar las consultas de ocupación y bloqueos (solo lectura).
+- [x] **T003** Crear los DTO de `dto/availability/`.
+- [x] **T004** Crear `AvailabilityMapper`.
+- [x] **T005** Implementar `SlotCatalogPolicy` (franjas, estados y tolerancia).
+- [x] **T006** Agregar las consultas de ocupación y bloqueos (solo lectura).
 
-**Avance parcial de T006:** `BlockService.overlapping` consulta bloqueos solapados; falta la consulta de ocupación de reservas y su integración en disponibilidad.
+**Avance parcial:** el esquema compartido V1 ya incluye reservas y bloqueos. `BlockService.overlapping` y `ReservationService.overlappingOccupancy` proporcionan las lecturas integradas en `AvailabilityService` (T006/T007). Existen el controlador con tres endpoints, la validación de sesión y horizonte, y `AvailabilityStream` (T008–T010); la integración con PostgreSQL y el filtro de mantenimiento se verificaron en ejecución. El consumo con `fetch` sigue sin verificarse.
+
+Los cambios de espacio y los bloqueos publican `AvailabilityChangedEvent` para envío después del commit. T011 sigue pendiente para la creación y cancelación ordinarias de reservas, cuyos flujos UC03 aún no están implementados. También está pendiente conectar UC03 como consumidor de la consulta interna.
+
+Hay pruebas unitarias, de controlador e integración con PostgreSQL, incluido un bloqueo SSE; T012/T013 siguen pendientes de cobertura completa y de los flujos que dependen de UC03. RNF-002 y el uso real de `fetch` requieren verificar el cliente React del otro repositorio. T015 sigue pendiente: la prueba simulada con varias suscripciones no sustituye una revisión de rendimiento en condiciones reales.
 
 ### Phase 3: User Stories
 
@@ -113,14 +118,14 @@ Fuente: [`contracts/availability/`](../../techincal-plan/contracts/README.md) (3
 
 ### Phase 4: Polish
 
-- [ ] **T014** Verificar que mantenimiento no aparece en `GET /spaces`.
+- [x] **T014** Verificar que mantenimiento no aparece en `GET /spaces`.
 - [ ] **T015** Revisar rendimiento con varias suscripciones SSE y `./mvnw clean verify`.
 
 ## Dependencies & Execution Order
 
 `T001/T002 → T003..T006 → T007..T011 → T012/T013 → T014/T015`.
 
-La base de UC02 depende de UC01, UC06 y UC07-H1; la integración de reservas y bloqueos se completa con UC03 y UC07-H2. UC03 consume la consulta base de UC02; no se requiere la tabla de reservas antes de V9.
+La base de UC02 depende de UC01, UC06 y UC07-H1; la integración de reservas y bloqueos se completa con UC03 y UC07-H2. UC03 debe consumir la consulta base de UC02. El esquema actual incluye las tablas en `V1__shared_schema.sql`; UC02 no agrega migraciones.
 
 ## Notes
 
