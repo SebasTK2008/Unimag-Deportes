@@ -68,6 +68,7 @@ public abstract class AuthTestSupport {
         resetUsageParameters();
         clock.set(START);
         mail.bodies.clear();
+        mail.subjects.clear();
         mail.pdfs.clear();
         mail.sentCount.set(0);
         mail.failing = false;
@@ -108,6 +109,7 @@ public abstract class AuthTestSupport {
 
     public static class TestMail implements MailSender {
         public final Map<String, String> bodies = new ConcurrentHashMap<>();
+        public final Map<String, String> subjects = new ConcurrentHashMap<>();
         public final Map<String, byte[]> pdfs = new ConcurrentHashMap<>();
         public volatile boolean failing;
         public final AtomicInteger sentCount = new AtomicInteger();
