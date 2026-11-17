@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra ocho fechas, desde hoy hasta hoy + 7 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14].
+UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra siete fechas, desde hoy hasta hoy + 6 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14]. El endpoint conserva una fecha por petición.
 
 Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calendario por REST [PLAN D-11]. UC02 no crea tablas ni muta datos.
 
@@ -19,7 +19,7 @@ Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calen
 | RF-004, RF-005 | filtro de estado y motivo de bloqueo | T007 |
 | RF-006 | `SlotCatalogPolicy` (tolerancia) | T005 |
 | RF-007 | invocación interna desde UC03 | T007, T009 |
-| RF-008 | sesión y horizonte de 7 días | T008 |
+| RF-008 | sesión y 7 fechas contando hoy (hoy…hoy + 6) | T008 |
 | RNF-001 | emisor SSE + publicación de eventos | T010, T011 |
 | RNF-002 | cliente React móvil y accesible, en otro repositorio | verificación externa |
 | RNF-003 | DTO, `Clock`, zona horaria | T003, T007 |
@@ -36,7 +36,7 @@ Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calen
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico; cliente React en otro repositorio que consume SSE con `fetch` [D-25, PLAN §5.3].
 **Performance Goals**: reflejar cambios al instante (RNF-04).
-**Constraints**: 7 días (OQ-09); sesión (OQ-14); espacio compartido completo (RN-07); mantenimiento no reservable (RN-09); tolerancia (RN-27, RN-28); motivo visible (RN-44); America/Bogota (RNF-07).
+**Constraints**: 7 fechas contando hoy, hasta hoy + 6 inclusive (OQ-09); sesión (OQ-14); espacio compartido completo (RN-07); mantenimiento no reservable (RN-09); tolerancia (RN-27, RN-28); motivo visible (RN-44); America/Bogota (RNF-07).
 **Scale/Scope**: 3 endpoints, sin migraciones, 8 RF + 3 RNF + 4 CE + 1 HU.
 
 ## Project Structure
@@ -71,7 +71,7 @@ src/test/java/unimagdeportes/{controller/availability,integration/availability,s
 2. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo para todas sus disciplinas.
 3. **Mantenimiento** [RN-09]: no aparece como reservable.
 4. **Tolerancia** [RN-27, RN-28]: una franja libre iniciada sigue reservable hasta el fin de la tolerancia.
-5. **Horizonte** [OQ-09]: desde hoy hasta hoy + 7 días inclusive en America/Bogota; fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
+5. **Horizonte** [OQ-09]: desde hoy hasta hoy + 6 días inclusive en America/Bogota (7 fechas); fuera de rango → `OUTSIDE_CALENDAR_HORIZON` 400.
 6. **Sesión** [OQ-14]: la consulta exige sesión.
 7. **Tiempo real** [RNF-04]: cambios por SSE; el cliente recarga por REST.
 8. **Zona horaria** [RNF-07]: America/Bogota.
@@ -109,7 +109,7 @@ Hay pruebas unitarias, de controlador e integración con PostgreSQL, incluido un
 ### Phase 3: User Stories
 
 - [ ] **T007** [US1/P1] Implementar `AvailabilityService` (espacios y disponibilidad por fecha).
-- [ ] **T008** [US1/P1] Validar sesión y horizonte de 7 días.
+- [ ] **T008** [US1/P1] Validar sesión y las 7 fechas hoy…hoy + 6; probar ambos extremos y rechazar ayer y hoy + 7.
 - [ ] **T009** [US1/P1] Implementar `AvailabilityController` con los 3 endpoints.
 - [ ] **T010** [US1/P1] Implementar el emisor SSE.
 - [ ] **T011** [US1/P1] Publicar eventos desde reserva, cancelación, bloqueo y cambio de espacio.
@@ -137,5 +137,5 @@ La base de UC02 depende de UC01, UC06 y UC07-H1; la integración de reservas y b
 
 - [ ] Alineado con SPEC 002 y `contracts/availability/`.
 - [ ] RF/RNF/CE/HU trazados.
-- [ ] Horizonte de 7 días y sesión aplicados.
+- [ ] Horizonte de 7 fechas contando hoy (hoy…hoy + 6) y sesión aplicados.
 - [ ] Solo lectura y SSE con `fetch`.

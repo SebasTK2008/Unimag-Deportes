@@ -6,7 +6,8 @@ import java.time.ZoneId;
 
 public final class BookingWindowPolicy {
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
-    private static final int MAXIMUM_ADVANCE_DAYS = 7;
+    // Seven calendar dates including today, not a rolling duration in hours.
+    public static final int MAXIMUM_ADVANCE_DAYS = 6;
 
     public boolean isBookable(Instant now, Instant start, Duration tolerance, Duration minimumAdvance) {
         if (start.atZone(BOGOTA).toLocalDate()

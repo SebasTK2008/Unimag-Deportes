@@ -17,7 +17,7 @@ Sin parámetros.
   "reservation": {
     "slotMinutes": 60,
     "maxSlotsPerReservation": 2,
-    "maxAdvanceDays": 7,
+    "maxAdvanceDays": 6,
     "minAdvanceMinutes": 0,
     "bookingToleranceMinutes": 10
   },
@@ -58,3 +58,4 @@ Sin parámetros.
 - Cuota y umbral se leen de la versión señalada por `usage_parameters_head`. El historial se conserva en base de datos y no cambia la forma de esta respuesta.
 - Solo cuota y umbral de inasistencias provienen de `usage_parameters` y se editan con `PUT /admin/parameters`; los demás son fijos o de despliegue (RF-12).
 - Las reglas de implementos (solicitud opcional y disponibilidad por stock) están en `POST /reservations`; esta consulta cubre cuota, tolerancia, cancelación, check-in y sanciones (RF-09).
+- `maxAdvanceDays` es el desplazamiento máximo de fecha desde hoy: `6` permite 7 fechas calendario, hoy…hoy + 6 inclusive en America/Bogota, hasta finalizar la última fecha y sujeto al horario del espacio. Es fijo, no editable.

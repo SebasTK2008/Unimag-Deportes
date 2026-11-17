@@ -38,7 +38,7 @@ Enfoque técnico: `ReservationService` transaccional que bloquea la fila del esp
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: confirmación inmediata y cero cruces con solicitudes simultáneas (RN-10).
-**Constraints**: 1–2 franjas (RN-15); 7 días (OQ-12); cuota 4 h (RN-18); sin solape propio (RN-11); sin suspensión (RN-40); America/Bogota (RNF-07).
+**Constraints**: 1–2 franjas (RN-15); 7 fechas contando hoy, hasta hoy + 6 inclusive (OQ-09, OQ-12); cuota 4 h (RN-18); sin solape propio (RN-11); sin suspensión (RN-40); America/Bogota (RNF-07).
 **Scale/Scope**: 1 endpoint, 1 entidad, esquema en la migración única compartida, 13 RF + 5 RNF + 3 CE + 1 HU.
 
 ## Project Structure
@@ -77,7 +77,7 @@ src/test/java/unimagdeportes/{contract/reservation,integration/reservation,unit/
 1. **Cero cruces** [RN-10]: verificación y bloqueo en una transacción; gana el primero.
 2. **Solape propio** [RN-11]: un usuario no puede tener reservas solapadas.
 3. **Confirmación** [RN-12, RN-13]: solo si correo, suspensión, disponibilidad y cuota son válidos; sin aprobación manual.
-4. **Anticipación** [RN-14, OQ-12]: hasta 7 días; tolerancia de 10 minutos tras el inicio.
+4. **Anticipación** [RN-14, OQ-09, OQ-12]: 7 fechas calendario contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio; no duración en horas. Tolerancia de 10 minutos tras el inicio.
 5. **Duración** [RN-15]: 1 o 2 franjas consecutivas.
 6. **Cuota** [RN-16..RN-18]: 4 h por semana de la fecha de la franja; rechaza e informa las horas restantes.
 7. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo.
@@ -121,8 +121,8 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 - [ ] **T015** [US1/P1] Integración: reserva válida y dos franjas.
 - [ ] **T016** [US1/P1] Integración: concurrencia sobre la misma franja.
 - [ ] **T017** [US1/P1] Integración: cuota, solape y suspensión.
-- [ ] **T018** [US1/P1] Integración: tolerancia y ventana de anticipación.
-- [ ] **T019** [US1/P1] Pruebas unitarias de políticas.
+- [ ] **T018** [US1/P1] Integración: tolerancia y ventana hoy…hoy + 6 alineada con disponibilidad; rechazo de hoy + 7.
+- [ ] **T019** [US1/P1] Pruebas unitarias de políticas, incluido fin de la última fecha y rechazo a partir de la medianoche siguiente en America/Bogota.
 
 ### Phase 4: Polish
 
@@ -131,7 +131,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 
 **Avances parciales:** `ReservationRepository` consulta solapes por espacio y usuario; `QuotaService` calcula horas a partir de reservas. Existen `BookingWindowPolicy`, `QuotaPolicy`, DTO de reserva y `POST /reservations`. La creación vive en `ReservationCreationService`, separado de `ReservationService`, adquiere `ReservationLock`, bloquea usuario y espacio, valida reglas y publica los eventos de disponibilidad y comprobante. El controlador realiza el mapeo de respuesta; `ReservationMapper` existe desde UC04, pero `POST /reservations` todavía no lo usa.
 
-`ReservationCreationIntegrationTest` cubre creación de una y dos franjas, competencia por espacio, cuota, suspensión y stock insuficiente; las políticas tienen pruebas unitarias. Tras los ajustes de disponibilidad y cuota, y con UC04 integrado, `./mvnw clean verify` terminó con 169 pruebas sin fallos. Las tareas permanecen abiertas mientras no se complete la cobertura de contrato, solape propio, límites temporales, eventos reales y demás criterios de aceptación. La actualización automática del calendario y la usabilidad requieren el cliente React externo. Las franjas se alinean a horas exactas; tanto la política de reserva como el calendario de UC02 admiten hasta la fecha de hoy + 7 inclusive en America/Bogota, no hasta 168 horas exactas. La prueba integrada de ambos límites se ejecutó con Docker dentro de esa verificación.
+`ReservationCreationIntegrationTest` cubre creación de una y dos franjas, competencia por espacio, cuota, suspensión y stock insuficiente; las políticas tienen pruebas unitarias. Como verificación histórica, tras los ajustes de disponibilidad y cuota, y con UC04 integrado, `./mvnw clean verify` terminó con 169 pruebas sin fallos, incluido el límite anterior de hoy + 7; esa ejecución no verifica la nueva decisión. Las tareas permanecen abiertas mientras no se complete la cobertura de contrato, solape propio, límites temporales, eventos reales y demás criterios de aceptación. La actualización automática del calendario y la usabilidad requieren el cliente React externo. Las franjas se alinean a horas exactas; tanto la política de reserva como el calendario de UC02 admiten ahora 7 fechas desde hoy hasta hoy + 6 inclusive en America/Bogota, no una duración en horas. Las pruebas de ambos límites se ajustaron a la nueva decisión.
 
 ## Dependencies & Execution Order
 

@@ -17,7 +17,7 @@ Sin parámetros.
   "reservation": {
     "slotMinutes": 60,
     "maxSlotsPerReservation": 2,
-    "maxAdvanceDays": 7,
+    "maxAdvanceDays": 6,
     "minAdvanceMinutes": 0,
     "bookingToleranceMinutes": 10
   },
@@ -57,3 +57,4 @@ Sin parámetros.
 - Muestra también valores fijos y de despliegue; solo `quota.weeklyHours` y `sanctions.noShowsForSuspension` se editan mediante `PUT /admin/parameters`.
 - Cuota y umbral proceden de la versión vigente; este endpoint no devuelve el historial ni sus metadatos. Véase D-26 del plan técnico.
 - Los parámetros de autenticación viven en `application.properties` y no se exponen ni se editan aquí (OQ-16).
+- `maxAdvanceDays` es fijo y expresa el desplazamiento máximo de fecha: `6` permite 7 fechas contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio.

@@ -92,16 +92,17 @@ class ReservationCreationIntegrationTest extends RulesTestSupport {
     void calendarAndReservationAcceptTheSameLastDate() throws Exception {
         String user = completeLogin("reservation-horizon@unimagdalena.edu.co");
         UUID space = space();
+        jdbc.update("update space set closing_time = '23:00' where id = ?", space);
         String path = "/spaces/" + space + "/availability?date=";
-        assertThat(send("GET", path + "2026-11-18", null, user).statusCode()).isEqualTo(200);
-        error(send("GET", path + "2026-11-19", null, user), 400, "OUTSIDE_CALENDAR_HORIZON");
+        assertThat(send("GET", path + "2026-11-17", null, user).statusCode()).isEqualTo(200);
+        error(send("GET", path + "2026-11-18", null, user), 400, "OUTSIDE_CALENDAR_HORIZON");
         String request = """
                 {"spaceId":"%s","startAt":"%s","slots":1}
                 """;
         assertThat(send("POST", "/reservations",
-                request.formatted(space, "2026-11-18T10:00:00-05:00"), user).statusCode()).isEqualTo(201);
+                request.formatted(space, "2026-11-17T22:00:00-05:00"), user).statusCode()).isEqualTo(201);
         error(send("POST", "/reservations",
-                request.formatted(space, "2026-11-19T08:00:00-05:00"), user), 409, "OUTSIDE_BOOKING_WINDOW");
+                request.formatted(space, "2026-11-18T08:00:00-05:00"), user), 409, "OUTSIDE_BOOKING_WINDOW");
     }
 
     private UUID space() {

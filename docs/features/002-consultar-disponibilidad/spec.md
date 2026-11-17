@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC02 - Consultar disponibilidad
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (OQ-09 y OQ-14: horizonte de 7 días y consulta con sesión)
+**Última revisión**: 2026-11-16 (OQ-09: 7 fechas contando hoy, hasta hoy + 6 inclusive; consulta con sesión)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -47,7 +47,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
   Sí. Un Usuario suspendido puede consultar disponibilidad (RN-05).
 
 - **¿Cuántos días hacia adelante muestra el calendario?**
-  Ocho fechas: desde hoy hasta hoy + 7 días inclusive, según la fecha de America/Bogota (OQ-09).
+  Siete fechas: desde hoy hasta hoy + 6 días inclusive, según la fecha de America/Bogota (OQ-09). El endpoint mantiene una fecha por petición.
 
 - **¿Se puede consultar el calendario sin sesión?**
   No; la consulta exige sesión (OQ-14).
@@ -63,7 +63,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
 - **RF-005**: El sistema DEBE mostrar las franjas bloqueadas como no disponibles, con el motivo visible (RN-44).
 - **RF-006**: El sistema DEBE mantener como disponible una franja libre que ya comenzó hasta el fin de la tolerancia y dejar de mostrarla como reservable pasada la tolerancia (RN-27, RN-28).
 - **RF-007**: El sistema DEBE permitir esta consulta tanto de forma independiente (Usuario y Administrador) como al ser invocado por "Reservar espacio deportivo".
-- **RF-008**: El sistema DEBE exigir sesión para consultar el calendario y mostrar ocho fechas desde hoy hasta hoy + 7 inclusive, según America/Bogota (OQ-09, OQ-14).
+- **RF-008**: El sistema DEBE exigir sesión para consultar el calendario y mostrar siete fechas desde hoy hasta hoy + 6 inclusive, según America/Bogota (OQ-09, OQ-14).
 
 ### Requisitos No Funcionales
 
@@ -82,4 +82,4 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
 - **CE-001**: Exactitud de Disponibilidad, "100% de las franjas con reserva activa o bloqueo institucional se muestran como no libres en el calendario".
 - **CE-002**: Transparencia, "100% de las franjas bloqueadas se muestran con su motivo visible".
 - **CE-003**: Consistencia, "0 espacios en mantenimiento mostrados como reservables".
-- **CE-004**: Sesión y Horizonte, "0 consultas de calendario sin sesión y 0 fechas mostradas más allá de los 7 días de anticipación".
+- **CE-004**: Sesión y Horizonte, "0 consultas de calendario sin sesión y 0 fechas mostradas fuera del rango inclusivo hoy…hoy + 6 en America/Bogota".

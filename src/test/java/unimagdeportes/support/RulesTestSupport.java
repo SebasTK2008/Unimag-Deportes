@@ -28,7 +28,7 @@ public abstract class RulesTestSupport extends AuthTestSupport {
     protected JsonNode expectedRules(int weeklyHours, int noShows) {
         return json.readTree("""
                 {
-                  "reservation": {"slotMinutes":60,"maxSlotsPerReservation":2,"maxAdvanceDays":7,
+                  "reservation": {"slotMinutes":60,"maxSlotsPerReservation":2,"maxAdvanceDays":6,
                     "minAdvanceMinutes":0,"bookingToleranceMinutes":10},
                   "quota": {"weeklyHours":%d,"weekStartsOn":"MONDAY","timeZone":"America/Bogota"},
                   "cancellation": {"lateThresholdMinutes":60},

@@ -11,7 +11,7 @@
 | Campo | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `spaceId` | UUID | Sí | Espacio a reservar. |
-| `startAt` | instant | Sí | Inicio de la primera franja, alineado a una hora exacta en America/Bogota, hasta la fecha de hoy + 7 inclusive. |
+| `startAt` | instant | Sí | Inicio de la primera franja, alineado a una hora exacta en America/Bogota, entre hoy y hoy + 6 inclusive (7 fechas contando hoy). El límite incluye toda la última fecha, sujeto al horario del espacio; no se calcula en horas desde ahora. |
 | `slots` | integer | Sí | Número de franjas consecutivas: `1` o `2`. |
 | `equipment` | array | No | Implementos solicitados. Cada elemento: `equipmentId` (UUID) y `quantity` (entero > 0). No se admite repetir un `equipmentId`. |
 
@@ -132,7 +132,7 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 | `SLOT_TAKEN` | 409 | La franja ya tiene una reserva activa. | RN-10 |
 | `BLOCKED_SLOT` | 409 | La franja tiene un bloqueo institucional. | RN-42 |
 | `SPACE_IN_MAINTENANCE` | 409 | El espacio está en mantenimiento. | RN-09 |
-| `OUTSIDE_BOOKING_WINDOW` | 409 | Fuera de los 7 días o pasada la tolerancia. | RN-14, RN-27 |
+| `OUTSIDE_BOOKING_WINDOW` | 409 | Posterior a hoy + 6 en America/Bogota o pasada la tolerancia de la franja. | RN-14, RN-27 |
 | `OVERLAPPING_RESERVATION` | 409 | El usuario ya tiene una reserva solapada. | RN-11 |
 | `QUOTA_EXCEEDED` | 409 | Supera la cuota semanal. | RN-18 |
 | `EQUIPMENT_UNAVAILABLE` | 409 | Implemento inactivo o sin stock en la franja. | RN-62, RN-65 |

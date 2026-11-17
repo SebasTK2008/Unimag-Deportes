@@ -35,10 +35,13 @@ class AvailabilityServiceTest {
     private final UUID id = UUID.randomUUID();
 
     @Test
-    void horizonUsesBogotaTodayThroughSevenDaysLater() {
+    void horizonIncludesExactlySevenBogotaDatesCountingToday() {
         when(spaces.get(id)).thenReturn(space(id, SpaceStatus.ACTIVE));
-        assertThat(service.calendar(id, LocalDate.parse("2026-11-18"), null).slots()).hasSize(2);
-        for (String date : List.of("2026-11-10", "2026-11-19")) {
+        LocalDate today = LocalDate.parse("2026-11-11");
+        for (int offset = 0; offset < 7; offset++) {
+            assertThat(service.calendar(id, today.plusDays(offset), null).slots()).hasSize(2);
+        }
+        for (String date : List.of("2026-11-10", "2026-11-18")) {
             assertThatThrownBy(() -> service.calendar(id, LocalDate.parse(date), null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(error -> ((BusinessException) error).getCode())
@@ -46,6 +49,17 @@ class AvailabilityServiceTest {
         }
         assertThat(service.calendar(id, LocalDate.parse("2026-11-11"), null).slots().getFirst()
                 .startAt().getOffset().toString()).isEqualTo("-05:00");
+    }
+
+    @Test
+    void horizonMovesAtBogotaMidnight() {
+        when(spaces.get(id)).thenReturn(space(id, SpaceStatus.ACTIVE));
+        Clock midnight = Clock.fixed(Instant.parse("2026-11-12T05:00:00Z"), ZoneId.of("UTC"));
+        var nextDay = new AvailabilityService(spaces, reservations, blocks,
+                Mappers.getMapper(AvailabilityMapper.class), new UsageRuleSettings(10, 60, 0, 10, 7), midnight);
+        assertThat(nextDay.calendar(id, LocalDate.parse("2026-11-18"), null).slots()).hasSize(2);
+        assertThatThrownBy(() -> nextDay.calendar(id, LocalDate.parse("2026-11-11"), null))
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test

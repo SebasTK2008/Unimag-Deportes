@@ -102,7 +102,7 @@ Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias,
   - Cuota semanal por usuario: 4 horas por semana.
   - Inicio de la semana de conteo: lunes 00:00, zona horaria America/Bogota.
   - Anticipación mínima para reservar: 0 minutos (se permite hasta el fin de la tolerancia).
-  - Anticipación máxima para reservar: 7 días.
+  - Anticipación máxima para reservar: 7 fechas calendario contando hoy, hasta hoy + 6 inclusive en America/Bogota.
   - Ventana de check-in: desde la apertura configurada (10 minutos antes por defecto) hasta el fin de la reserva, sin incluir ese instante.
   - Recordatorio previo a la reserva: 2 horas antes del inicio.
   - Suspensión por inasistencias: 3 inasistencias en el mes calendario suspenden 7 días por defecto.
