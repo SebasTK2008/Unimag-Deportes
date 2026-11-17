@@ -1,7 +1,7 @@
 # POST /reservations/{id}/cancellation
 
 - **UC / SPEC**: UC04 — [Gestionar mis reservas](../../../features/004-gestionar-mis-reservas/spec.md)
-- **Rol**: Usuario
+- **Rol**: Usuario, Administrador (solo sus propias reservas)
 - **Autenticación**: `Authorization: Bearer <token>`
 
 ## Solicitud

@@ -70,7 +70,7 @@ Como el sistema, al registrar una inasistencia que alcance el umbral vigente en 
 - **RF-001**: El sistema DEBE marcar como "Inasistencia" la reserva sin check-in al cerrar la ventana y mantener sus horas contra la cuota (RN-37, RF-19).
 - **RF-002**: El sistema DEBE suspender automáticamente al Usuario que alcance el umbral vigente de inasistencias del mes calendario, durante la duración configurada (valores iniciales: 3 y 7 días; RN-38).
 - **RF-003**: El sistema DEBE notificar por correo al Usuario cuando se registre una inasistencia y cuando sea suspendido, con la fecha en que podrá reservar de nuevo (RN-39).
-- **RF-004**: El sistema DEBE cancelar las reservas futuras durante la suspensión, liberar sus horas e implementos, notificar e impedir nuevas reservas durante ese período (RN-40, RN-05).
+- **RF-004**: El sistema DEBE cancelar las reservas con inicio estrictamente futuro contenidas por completo en la suspensión, incluidas las `IN_USE` por check-in anticipado; conservar las ya iniciadas y las parcialmente solapadas; liberar las horas e implementos de las canceladas, notificar e impedir nuevas reservas durante ese período (RN-40, RN-05).
 - **RF-005**: El sistema DEBE tomar los umbrales de suspensión de los parámetros configurables (sección 4 del contexto; ver SPEC 006).
 - **RF-006**: El sistema DEBE contar las inasistencias por mes calendario en America/Bogota y evaluar el umbral vigente al registrar cada una.
 

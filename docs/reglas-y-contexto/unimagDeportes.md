@@ -170,7 +170,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | RN-33 | Al escanear, el sistema comprueba que el usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in. Si todo coincide, la reserva pasa a "En uso". |
 | RN-34 | Si no hay sesión vigente (no hay token o ya expiró), el sistema pide iniciarla con correo y código de acceso y, al terminar, continúa con el check-in en el mismo espacio. Como el token no se guarda en cookies, si el enlace del QR se abre en un navegador distinto al de la sesión, el usuario deberá iniciar sesión de nuevo. |
 | RN-35 | Si el check-in falla, se muestra el motivo: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada. |
-| RN-36 | La ventana de check-in va desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable del usuario en el espacio por hora de inicio. |
+| RN-36 | El primer check-in va desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable del usuario en el espacio por hora de inicio. Una reserva de otro usuario en curso impide el check-in anticipado. Si la reserva seleccionada sigue `IN_USE`, repetir devuelve el registro original sin modificarlo ni auditar otra vez, incluso después del fin mientras el job no la haya completado. |
 
 ### 5.8 Inasistencias y sanciones
 
@@ -181,7 +181,7 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 | RN-37 | Si no hay check-in al finalizar la reserva, pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-16). |
 | RN-38 | Las inasistencias se cuentan por mes calendario en America/Bogota y el conteo comienza de nuevo el día 1. Al registrar una inasistencia se evalúa el umbral vigente (3 por defecto); al alcanzarlo se suspende al usuario durante el plazo configurado por despliegue (7 días por defecto). Como máximo se aplica una suspensión por usuario y mes de inasistencia; faltas posteriores del mismo mes se registran y notifican, sin otra suspensión por ese mes. |
 | RN-39 | El usuario recibe un correo cuando se registra una inasistencia y cuando es suspendido, con la fecha en que podrá reservar de nuevo. |
-| RN-40 | Al suspender se cancelan las reservas futuras contenidas por completo en el período de suspensión; sus horas e implementos se liberan y se notifica por correo. Si solo se solapan parcialmente se conservan, igual que las demás reservas fuera del período. El usuario no puede crear nuevas durante la suspensión. |
+| RN-40 | Al suspender se cancelan las reservas con inicio estrictamente posterior al momento de suspensión y contenidas por completo en su período, incluidas las que están `IN_USE` por check-in anticipado; sus horas e implementos se liberan y se notifica por correo. Se conservan las ya iniciadas, las parcialmente solapadas y las demás fuera del período. El usuario no puede crear nuevas durante la suspensión. |
 
 ### 5.9 Bloqueos institucionales
 

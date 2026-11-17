@@ -204,11 +204,13 @@ Convenciones: UUID como identificadores, `timestamptz` para instantes (se interp
 
 Cada reserva conserva los valores necesarios para evaluarla posteriormente: umbral de cancelación y apertura de check-in; el fin de check-in es `end_at`. Al crear se valida la cuota vigente para cada semana y una reserva que cruza semana reparte su duración. Si se reduce el límite no se cancelan reservas confirmadas y el saldo mostrado es `max(0, límite vigente − horas contadas)`. El umbral de sanción es una excepción: se usa el vigente al registrar la inasistencia, no una instantánea de la reserva.
 
+La ventana limita el primer check-in. Se mantiene el rechazo si otro usuario tiene una reserva en curso, también durante los diez minutos anticipados propios. Si la seleccionada sigue `IN_USE`, repetir devuelve el registro existente sin modificarlo ni añadir auditoría, incluso después del fin antes de su cierre por el job. Calendario y creación comparten `BookingWindowPolicy`, incluida la anticipación mínima.
+
 Para evitar carreras, adquirir primero el bloqueo asesor global descrito abajo y después bloquear filas en orden global (usuario, espacio, implementos por id), antes de calcular compromisos e insertar. La edición de stock usa el mismo protocolo y rechaza valores inferiores al máximo compromiso simultáneo futuro. La suspensión y la cancelación de reservas afectadas se registran atómicamente; las notificaciones se envían después del commit.
 
 Una reserva en curso no puede ser afectada por un bloqueo institucional, tenga o no check-in. Para el prototipo se serializan las operaciones que modifican reservas, check-ins, bloqueos, espacios o stock mediante un único bloqueo asesor transaccional de PostgreSQL, adquirido al inicio de la transacción antes de leer o bloquear filas. Se usa la misma clave fija en todos esos flujos, incluidos cancelaciones y jobs de ciclo de vida y sanción; las restricciones de base de datos se conservan como defensa adicional. Tras adquirirlo, cada operación vuelve a leer y validar el estado y la hora con el `Clock`; el bloqueo institucional rechaza toda la transacción si alguna reserva afectada está en curso y, si no, cancela las futuras y crea las filas atómicamente. Los avisos salen después del commit. El bloqueo se libera al terminar la transacción, también ante rollback. Las consultas de disponibilidad no lo adquieren y sus resultados son orientativos hasta la validación transaccional. Esta serialización sacrifica paralelismo, aceptable para el volumen bajo del prototipo.
 
-Se aplica como máximo una suspensión por usuario y mes de inasistencia; las faltas posteriores del mismo mes se registran y notifican sin otra suspensión por ese mes. Solo se cancelan reservas futuras contenidas por completo en el período de suspensión; las parcialmente solapadas se conservan. Persistir una marca única por usuario y mes de inasistencia para garantizar la regla incluso ante reintentos concurrentes. El mes se determina con el fin programado de la reserva en America/Bogota.
+Se aplica como máximo una suspensión por usuario y mes de inasistencia; las faltas posteriores del mismo mes se registran y notifican sin otra suspensión por ese mes. Se cancelan reservas con inicio estrictamente futuro contenidas por completo en el período, incluidas las `IN_USE` por check-in anticipado; se conservan las ya iniciadas y las parcialmente solapadas. Persistir una marca única por usuario y mes de inasistencia para garantizar la regla incluso ante reintentos concurrentes. El mes se determina con el fin programado de la reserva en America/Bogota. La auditoría `USER_SUSPENDED` guarda en `detail` la fecha de fin ISO-8601 para los indicadores.
 
 | Tabla | Propósito / columnas relevantes | Restricciones |
 |---|---|---|
@@ -352,7 +354,7 @@ El sistema **no usa colas de mensajería**: los correos se envían después del 
 |---|---|---|
 | `ReservationLifecycleJob` (cada minuto; cron configurable con `APP_JOBS_RESERVATION_LIFECYCLE_CRON`) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in cuya ventana cerró pasan a `NO_SHOW`, se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
 | `ReminderJob` (cada minuto por defecto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. Cron configurable mediante `app.jobs.reminder-cron` (`APP_JOBS_REMINDER_CRON`); `-` desactiva la ejecución automática. Las pruebas de integración lo invocan explícitamente para no competir con la limpieza de BD. |
-| `AuthCleanupJob` (cada hora) | UC01 | Borra registros vencidos o usados solo después de conservarlos al menos una hora desde la solicitud. |
+| `AuthCleanupJob` (cada hora; `APP_JOBS_AUTH_CLEANUP_CRON`, `-` lo desactiva) | UC01 | Borra códigos vencidos o usados tras conservarlos al menos una hora o el intervalo de reenvío si es mayor; conserva códigos activos. Borra solicitudes IP fuera de la ventana rodante de una hora. |
 
 Los cambios de estado del job son idempotentes. El correo es de mejor esfuerzo: un fallo se registra y no revierte la operación; no se garantiza recuperación tras una caída ni ausencia de duplicados si el proceso cae entre envío y marcado. **El reinicio semanal (UC08-H2) no tiene job**: ver D-06. Con una sola instancia no hace falta bloqueo de jobs; si algún día se despliegan varias, habrá que agregarlo.
 
@@ -433,19 +435,19 @@ Este índice solo fija las rutas y los roles. El contrato detallado de cada endp
 | `GET /spaces/{id}/availability?date=` | UC02 | Usuario, Administrador |
 | `GET /spaces/{id}/availability/stream` (SSE) | UC02 | Usuario, Administrador |
 | `POST /reservations` | UC03, UC13 | Usuario |
-| `GET /reservations/mine` | UC04-H1 | Usuario |
-| `GET /reservations/{id}/cancellation-preview` | UC04-H2 | Usuario |
-| `POST /reservations/{id}/cancellation` | UC04-H2 | Usuario |
-| `POST /checkin/{spaceId}` | UC05-H1 | Usuario |
+| `GET /reservations/mine` | UC04-H1 | Usuario, Administrador (propias) |
+| `GET /reservations/{id}/cancellation-preview` | UC04-H2 | Usuario, Administrador (propias) |
+| `POST /reservations/{id}/cancellation` | UC04-H2 | Usuario, Administrador (propias) |
+| `POST /checkin/{spaceId}` | UC05-H1 | Usuario, Administrador (propias) |
 | `GET /admin/spaces/{id}/qr` | UC05-H2 | Administrador |
-| `GET /rules` | UC06-H1 | Usuario |
+| `GET /rules` | UC06-H1 | Usuario, Administrador |
 | `GET /admin/parameters`, `PUT /admin/parameters` | UC06-H2 | Administrador (el `PUT` exige reautenticación reciente) |
 | `GET/POST /admin/spaces`, `PUT /admin/spaces/{id}` | UC07-H1 | Administrador |
 | `POST /admin/blocks` | UC07-H2 | Administrador (exige reautenticación reciente) |
-| `GET /quota/me` | UC08-H1 | Usuario |
+| `GET /quota/me` | UC08-H1 | Usuario, Administrador |
 | `GET /admin/occupancy` | UC09-H1 | Administrador |
 | `GET /admin/indicators` | UC09-H2 | Administrador |
-| `POST /contact` | UC12 | Usuario |
+| `POST /contact` | UC12 | Usuario, Administrador |
 | `GET /equipment?discipline=` | UC13 | Usuario, Administrador |
 | `GET /equipment/availability?startAt=&endAt=` | UC13 | Usuario, Administrador |
 | `POST /admin/equipment`, `PUT /admin/equipment/{id}` | UC13 | Administrador |
@@ -592,7 +594,7 @@ Notas para la migración:
 
 | Dependencia | Timeout | Reintentos | Comportamiento ante fallo |
 |---|---|---|---|
-| Servicio de correo (SMTP) | 10 s | 2 con *backoff* | Se registra el fallo; **no se revierte** la reserva, cancelación ni sanción (comportamiento definitivo: OQ-04). Si falla el código de acceso, se informa al Usuario y puede pedir otro |
+| Servicio de correo (SMTP) | 10 s por operación SMTP | Hasta 2 reintentos de `MailSendException`, con esperas de 100 y 200 ms | No se reintentan errores de preparación o autenticación. Se registra el fallo; **no se revierte** la reserva, cancelación ni sanción (OQ-04). Si falla el código de acceso, se informa al Usuario y puede pedir otro. El envío sigue siendo de mejor esfuerzo y puede duplicarse si SMTP aceptó antes del error. |
 | Jobs programados | — | Se reintentan en la siguiente ejecución | Idempotentes; un fallo no deja estados a medias |
 | Reservas concurrentes | — | — | Gana la primera; la segunda recibe "La franja ya no está disponible" con el calendario actualizado (RN-10) |
 
@@ -604,11 +606,11 @@ En configuración por entorno se establecen el servidor de correo y los valores 
 
 | Clave | Valor inicial | Nota |
 |---|---|---|
-| `code.ttl` | 15 minutos | Vigencia del código; configurable por despliegue |
-| `code.max-attempts` | 5 | Intentos por código |
-| `code.resend-interval` | 60 segundos | Mínimo entre solicitudes del mismo correo |
-| `code.max-requests-per-email` | 5 por hora | Solicitudes de código |
-| `code.max-requests-per-ip` | 30 por hora | Límite fijo en ventana rodante |
+| `app.auth.code.validity` | `PT15M` | Vigencia positiva del código; configurable por despliegue |
+| `app.auth.code.max-attempts` | 5 | Intentos positivos por código |
+| `app.auth.code.resend-interval` | `PT1M` | Duración positiva mínima entre solicitudes del mismo correo |
+| `app.auth.code.max-requests-per-email` | 5 por hora | Entero positivo; límite rodante |
+| Límite por IP (constante) | 30 por hora | Límite fijo en ventana rodante |
 | `code.hmac-secret` | variable de entorno | Nunca en el repositorio |
 | `jwt.secret` | variable de entorno | Llave de firma, mínimo 256 bits; nunca en el repositorio |
 | `jwt.algorithm` | `HS256` | Fijado en el servidor; no se acepta del cliente |
@@ -631,6 +633,7 @@ stateDiagram-v2
   CONFIRMED --> CANCELLED_BY_ADMIN: bloqueo institucional
   CONFIRMED --> CANCELLED_BY_SUSPENSION: suspensión
   IN_USE --> COMPLETED: termina la franja
+  IN_USE --> CANCELLED_BY_SUSPENSION: inicio futuro contenido en suspensión
 ```
 
 | Estado | Cuenta contra la cuota | Libera el espacio |
