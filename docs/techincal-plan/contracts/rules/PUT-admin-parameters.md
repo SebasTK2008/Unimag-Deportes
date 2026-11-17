@@ -39,7 +39,7 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
   "reservation": {
     "slotMinutes": 60,
     "maxSlotsPerReservation": 2,
-    "maxAdvanceDays": 7,
+    "maxAdvanceDays": 6,
     "minAdvanceMinutes": 0,
     "bookingToleranceMinutes": 10
   },
@@ -91,3 +91,4 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
 - Los cambios rigen solo para operaciones nuevas; no modifican reservas existentes (OQ-05).
 - Los parámetros de autenticación no forman parte de este contrato (OQ-16).
 - Si el cliente recibe `REAUTH_REQUIRED`, debe pedir un código con `POST /auth/reauth/code` y validarlo con `POST /auth/reauth/verify`.
+- `maxAdvanceDays` es fijo, no editable: `6` expresa el desplazamiento máximo de fecha y permite 7 fechas contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio.

@@ -12,6 +12,7 @@ import unimagdeportes.dto.parameter.ParameterDtos.Rules;
 import unimagdeportes.dto.parameter.ParameterDtos.Sanctions;
 import unimagdeportes.mapper.MappingConfig;
 import unimagdeportes.service.parameter.ParameterService.CurrentParameters;
+import unimagdeportes.service.policy.BookingWindowPolicy;
 
 @Mapper(config = MappingConfig.class)
 public interface ParameterMapper {
@@ -26,7 +27,8 @@ public interface ParameterMapper {
     Sanctions sanctions(CurrentParameters parameters, UsageRuleSettings settings);
 
     default Rules rules(CurrentParameters parameters, UsageRuleSettings settings) {
-        return new Rules(new ReservationRules(60, 2, 7, settings.minAdvanceMinutes(), settings.bookingToleranceMinutes()),
+        return new Rules(new ReservationRules(60, 2, BookingWindowPolicy.MAXIMUM_ADVANCE_DAYS,
+                        settings.minAdvanceMinutes(), settings.bookingToleranceMinutes()),
                 quota(parameters), new Cancellation(settings.lateCancellationMinutes()),
                 new CheckIn(settings.checkinOpeningMinutes(), true), new Reminder(2),
                 sanctions(parameters, settings), "@unimagdalena.edu.co");

@@ -19,6 +19,7 @@ import unimagdeportes.mapper.availability.AvailabilityMapper;
 import unimagdeportes.model.space.Discipline;
 import unimagdeportes.model.space.SpaceStatus;
 import unimagdeportes.service.block.BlockService;
+import unimagdeportes.service.policy.BookingWindowPolicy;
 import unimagdeportes.service.policy.SlotCatalogPolicy;
 import unimagdeportes.service.policy.SlotCatalogPolicy.Block;
 import unimagdeportes.service.policy.SlotCatalogPolicy.Interval;
@@ -58,10 +59,10 @@ public class AvailabilityService {
     public Calendar calendar(UUID spaceId, LocalDate date, String requestedDiscipline) {
         Discipline discipline = discipline(requestedDiscipline);
         LocalDate today = LocalDate.now(clock.withZone(ZONE));
-        LocalDate maxDate = today.plusDays(7);
+        LocalDate maxDate = today.plusDays(BookingWindowPolicy.MAXIMUM_ADVANCE_DAYS);
         if (date.isBefore(today) || date.isAfter(maxDate)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "OUTSIDE_CALENDAR_HORIZON",
-                    "El calendario muestra desde hoy hasta dentro de 7 días.", Map.of("maxDate", maxDate));
+                    "El calendario muestra 7 días contando hoy, hasta hoy + 6 días inclusive.", Map.of("maxDate", maxDate));
         }
         var space = spaces.get(spaceId);
         var start = date.atStartOfDay(ZONE).toInstant();

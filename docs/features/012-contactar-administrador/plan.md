@@ -11,11 +11,11 @@ UC12 implementa el formulario que envía un mensaje al correo del área de depor
 
 | Requisito | Componente | Tareas |
 |---|---|---|
-| RF-001 | `ContactController` | T004 |
+| RF-001 | `ContactController` + formulario del cliente React | T004, T011 |
 | RF-002 | `ContactService` + `MailSender` | T003, T005 |
-| RF-003 | canal de contacto de RN-48 | T006 |
-| RNF-001 | DTO y validación | T002 |
-| CE-001, CE-002 | aceptación | T007, T008 |
+| RF-003 | canal de contacto de RN-48 | T006, T011 |
+| RNF-001 | formulario móvil y accesible del cliente React | T011 |
+| CE-001, CE-002 | pruebas backend y aceptación con cliente/proveedor reales | T006, T007, T008, T011 |
 | HU1 | envío de mensaje | Fase 3 |
 
 ## Technical Context
@@ -24,7 +24,7 @@ UC12 implementa el formulario que envía un mensaje al correo del área de depor
 **Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Security, Mail.
 **Storage**: N/A; el mensaje no se persiste.
 **Messaging**: correo saliente por `MailSender` [D-10].
-**Testing**: JUnit 5, AssertJ, Mockito, GreenMail/Testcontainers.
+**Testing**: JUnit 5, AssertJ, Mockito, Mailpit/Testcontainers.
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: envío inmediato.
@@ -52,6 +52,7 @@ src/main/java/unimagdeportes/
 └── mail/MailSender.java
 
 src/test/java/unimagdeportes/{contract/contact,integration/contact}/
+src/test/java/unimagdeportes/service/contact/ContactServiceTest.java
 ```
 
 **Structure Decision**: módulo mínimo que reutiliza `MailSender` de UC11; no crea tablas.
@@ -72,13 +73,15 @@ Fuente: [`contracts/contact/POST-contact.md`](../../techincal-plan/contracts/con
 
 - Contrato `POST /contact` en T007.
 - Integración de envío y validación en T008.
+- Configuración y fallos de correo en `ContactServiceTest` y `ContactConfigurationContractTest`.
+- Recorrido HTTP → servicio → SMTP real en `ContactSmtpIntegrationTest`, con Mailpit aislado y destinatario ficticio configurado mediante `APP_MAIL_CONTACT_RECIPIENT`; no envía a la cuenta institucional.
 - Aceptación: CE-001 y CE-002 [SPEC 012].
 
 ## Implementation Phases
 
 ### Phase 1: Setup
 
-- [ ] **T001** Verificar prerrequisitos: UC01 y UC11.
+- [x] **T001** Verificar prerrequisitos backend: autenticación de UC01 y adaptador SMTP de UC11.
 
 ### Phase 2: Foundational
 
@@ -90,19 +93,24 @@ Fuente: [`contracts/contact/POST-contact.md`](../../techincal-plan/contracts/con
 - [x] **T004** [US1/P2] Implementar `POST /contact`.
 - [x] **T005** [US1/P2] Enviar al correo del área de deportes.
 - [ ] **T006** [US1/P2] Incluir el enlace a este formulario como canal de contacto.
-- [ ] **T007** [US1/P2] Prueba de contrato.
-- [ ] **T008** [US1/P2] Integración de envío y validación.
+- [x] **T007** [US1/P2] Prueba de contrato.
+- [x] **T008** [US1/P2] Integración backend de envío y validación, incluido SMTP con Mailpit.
 
 ### Phase 4: Polish
 
 - [x] **T009** Verificar que el mensaje no se persiste.
-- [ ] **T010** Revisar manejo de fallos de correo y ejecutar `./mvnw clean verify`.
+- [x] **T010** Revisar manejo de fallos de correo y ejecutar `./mvnw clean verify`.
+- [ ] **T011** Aceptar el formulario del cliente React: campos y estados de envío, acceso desde los correos conservando el destino tras autenticación/perfil, uso móvil y WCAG; comprobar recepción institucional con el proveedor real.
 
-**Avance verificado (2026-11-11):** `ContactIntegrationTest` comprueba autenticación, validación, entrega al destinatario configurado y fallo SMTP con un adaptador de prueba; el servicio no persiste el mensaje. `./mvnw clean verify` pasó con 72 pruebas. El formulario del cliente, la ruta y el destinatario reales continúan pendientes; T006–T008 siguen abiertas para su verificación completa.
+**Verificación histórica (2026-11-11):** `ContactIntegrationTest` comprobó autenticación, validación, entrega al destinatario configurado y fallo SMTP con un adaptador de prueba; el servicio no persiste el mensaje. `./mvnw clean verify` pasó con 72 pruebas. Esta ejecución no acredita los cambios posteriores.
+
+**Avance verificado (2026-11-16):** las 14 pruebas de `ContactServiceTest`, `ContactContractTest`, `ContactConfigurationContractTest`, `ContactIntegrationTest` y `ContactSmtpIntegrationTest` pasaron sin fallos, errores ni omisiones. Cubren configuración ausente/inválida, campos obligatorios, JSON mal formado, inyección de cabeceras, acceso de Usuario/Administrador, perfil incompleto, token vencido, fallo SMTP y entrega única al destinatario configurado con asunto y contenido correctos. El recorrido HTTP → SMTP se verificó con Mailpit, no con el proveedor institucional. La prueba de integración comprueba además que el envío no añade auditoría; la ausencia de persistencia se sustenta también en la inspección del servicio, sin repositorios ni escrituras en BD.
+
+**Verificación completa (2026-11-16):** `.\mvnw.cmd clean verify` terminó con `BUILD SUCCESS`: 226 pruebas, sin fallos, errores ni omisiones; JAR generado. Se ejecutó sin importar `.env` ni heredar variables `APP_*`, `MAIL_*` o `SPRING_*`. T006 y T011 continúan pendientes de aceptación externa.
 
 ## Dependencies & Execution Order
 
-`T001 → T002/T003 → T004..T008 → T009/T010`.
+`T001 → T002/T003 → T004..T008 → T009/T010 → T011`.
 
 UC12 depende de UC01 y UC11.
 
@@ -111,11 +119,13 @@ UC12 depende de UC01 y UC11.
 - `[US1]` etiqueta la única historia de la SPEC 012.
 - No hay migración ni entidad.
 - El formulario es el canal de contacto de RN-48 (OQ-10).
-- **Pendiente para el despliegue:** definir y configurar la dirección de correo del área de deportes. La ruta del formulario en el frontend aún no está definida.
+- **Destinatario confirmado:** `salcendra@unimagdalena.edu.co`, mediante `APP_MAIL_CONTACT_RECIPIENT`. La plantilla `.env.example` incluye ese valor; la aplicación no tiene destinatario predeterminado. `APP_AUTH_ADMIN_EMAILS` asigna roles, no configura el destinatario.
+- **Pendiente para el despliegue:** inyectar el destinatario y la configuración SMTP del proveedor y comprobar recepción institucional. Confirmar la URL pública del formulario y establecer `APP_MAIL_CONTACT_URL`; las URLs de ejemplo no acreditan CE-002.
+- El cliente React vive en otro repositorio. T006 y T011 requieren evidencia de integración y aceptación allí; las pruebas backend no acreditan navegación real, comportamiento móvil ni WCAG. La aceptación integral de UC01/UC11 tampoco se deduce del cierre técnico de sus dependencias para UC12.
 
 ## Checklist de auto-revisión
 
 - [ ] Alineado con SPEC 012 y el contrato de contacto.
-- [ ] RF/RNF/CE/HU trazados.
-- [ ] Sin persistencia del mensaje.
+- [x] RF/RNF/CE/HU trazados.
+- [x] Sin persistencia del mensaje.
 - [ ] Envío al área de deportes.

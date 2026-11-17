@@ -87,7 +87,7 @@ Todos los errores usan el mismo cuerpo:
 | `RESEND_TOO_SOON` | 429 | Menos de 60 segundos desde la solicitud anterior. | RN-53 |
 | `CODE_REQUEST_LIMIT` | 429 | Más de 5 solicitudes de código por hora para el correo. | RN-53 |
 | `INVALID_DATE` | 400 | Fecha con formato inválido o inexistente. | — |
-| `OUTSIDE_CALENDAR_HORIZON` | 400 | Fecha fuera de los 7 días del calendario. | OQ-09 |
+| `OUTSIDE_CALENDAR_HORIZON` | 400 | Fecha fuera de hoy…hoy + 6 inclusive en America/Bogota (7 fechas contando hoy). | OQ-09 |
 | `INVALID_QUANTITY` | 400 | Cantidad de implemento menor o igual a cero. | RN-63 |
 | `INVALID_PERIOD` | 400 | Período distinto de `WEEKLY` o `MONTHLY`. | OQ-08 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |

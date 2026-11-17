@@ -16,7 +16,7 @@
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
-| `date` | `YYYY-MM-DD` | Sí | Fecha desde hoy hasta hoy + 7 días inclusive, según America/Bogota. |
+| `date` | `YYYY-MM-DD` | Sí | Una fecha desde hoy hasta hoy + 6 días inclusive (7 fechas contando hoy), según America/Bogota. |
 | `discipline` | enum `Discipline` | No | Disciplina con la que se consulta el espacio compartido. |
 
 ```http
@@ -62,9 +62,9 @@ Ejemplo si hoy es `2026-11-11` en America/Bogota:
 ```json
 {
   "code": "OUTSIDE_CALENDAR_HORIZON",
-  "message": "El calendario muestra desde hoy hasta dentro de 7 días.",
+  "message": "El calendario muestra 7 días contando hoy, hasta hoy + 6 días inclusive.",
   "details": {
-    "maxDate": "2026-11-18"
+    "maxDate": "2026-11-17"
   }
 }
 ```
@@ -74,7 +74,7 @@ Ejemplo si hoy es `2026-11-11` en America/Bogota:
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
 | `INVALID_DATE` | 400 | `date` no tiene formato válido. | — |
-| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha es anterior a hoy o posterior a hoy + 7 días en America/Bogota. | OQ-09 |
+| `OUTSIDE_CALENDAR_HORIZON` | 400 | La fecha es anterior a hoy o posterior a hoy + 6 días en America/Bogota. | OQ-09 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
 
@@ -83,3 +83,4 @@ Ejemplo si hoy es `2026-11-11` en America/Bogota:
 - Las franjas son de 60 minutos dentro del horario de operación (RN-08).
 - Una franja libre que ya comenzó sigue disponible hasta el fin de la tolerancia (RN-27, RN-28).
 - El espacio en mantenimiento no se muestra como reservable (RN-09).
+- Se mantiene una fecha por petición; la respuesta no agrupa los siete días.
