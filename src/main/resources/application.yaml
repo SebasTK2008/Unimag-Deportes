@@ -1,6 +1,12 @@
 spring:
   application:
     name: demo
+  datasource:
+    hikari:
+      connection-timeout: 2000
+      validation-timeout: 1000
+  lifecycle:
+    timeout-per-shutdown-phase: 5s
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
@@ -26,9 +32,38 @@ spring:
 # Spring Boot reads SPRING_DATASOURCE_URL/USERNAME/PASSWORD outside Compose.
 # Keep forwarded headers disabled unless a trusted reverse proxy is configured.
 server:
+  port: ${PORT:8080}
   forward-headers-strategy: none
 
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+  health:
+    mail:
+      enabled: false
+
 app:
+  storage:
+    max-image-pixels: ${APP_STORAGE_MAX_IMAGE_PIXELS:64000000}
+    max-image-dimension: ${APP_STORAGE_MAX_IMAGE_DIMENSION:16384}
+    supabase:
+      url: ${APP_STORAGE_SUPABASE_URL:}
+      bucket: ${APP_STORAGE_SUPABASE_BUCKET:space-images}
+      key: ${APP_STORAGE_SUPABASE_KEY:}
+      timeout: ${APP_STORAGE_SUPABASE_TIMEOUT:PT1M}
   checkin:
     frontend-origin: ${APP_CHECKIN_FRONTEND_ORIGIN:}
   mail:
@@ -43,6 +78,7 @@ app:
     checkin-opening-minutes: ${APP_RULES_CHECKIN_OPENING_MINUTES:10}
     suspension-days: ${APP_RULES_SUSPENSION_DAYS:7}
   jobs:
+    storage-cleanup-cron: ${APP_JOBS_STORAGE_CLEANUP_CRON:0 */5 * * * *}
     auth-cleanup-cron: ${APP_JOBS_AUTH_CLEANUP_CRON:0 0 * * * *}
     reminder-cron: ${APP_JOBS_REMINDER_CRON:0 * * * * *}
     reservation-lifecycle-cron: ${APP_JOBS_RESERVATION_LIFECYCLE_CRON:0 * * * * *}

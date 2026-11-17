@@ -119,7 +119,7 @@ class SharedSchemaTest {
                     + "(SELECT preview_image_id FROM space WHERE id = '" + id + "')"))
                     .isInstanceOf(SQLException.class)
                     .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23503");
-            assertThatThrownBy(() -> statement.executeUpdate("UPDATE space_image SET content = decode('','hex') "
+            assertThatThrownBy(() -> statement.executeUpdate("UPDATE space_image SET size_bytes = 0 "
                     + "WHERE id = (SELECT panorama_image_id FROM space WHERE id = '" + id + "')"))
                     .isInstanceOf(SQLException.class)
                     .extracting(error -> ((SQLException) error).getSQLState()).isEqualTo("23514");
@@ -140,8 +140,8 @@ class SharedSchemaTest {
     private void insertSpace(java.sql.Statement statement, UUID id, String name) throws SQLException {
         UUID preview = UUID.randomUUID();
         UUID panorama = UUID.randomUUID();
-        statement.executeUpdate("INSERT INTO space_image (id, content_type, content) VALUES ('" + preview
-                + "','image/png',decode('01','hex')),('" + panorama + "','image/png',decode('01','hex'))");
+        statement.executeUpdate("INSERT INTO space_image (id, content_type, storage_key, size_bytes) VALUES ('" + preview
+                + "','image/png','fixtures/" + preview + "',1),('" + panorama + "','image/png','fixtures/" + panorama + "',1)");
         statement.executeUpdate("INSERT INTO space (id,name,capacity,opening_time,closing_time,status,"
                 + "preview_image_id,panorama_image_id) VALUES ('" + id + "','" + name
                 + "',10,'08:00','20:00','ACTIVE','" + preview + "','" + panorama + "')");

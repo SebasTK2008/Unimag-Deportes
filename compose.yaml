@@ -23,6 +23,7 @@ services:
 
   app:
     build: .
+    stop_grace_period: 30s
     profiles: ["app"]
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
@@ -36,6 +37,13 @@ services:
       MAIL_PORT: 1025
       APP_MAIL_FROM: ${APP_MAIL_FROM:-}
       APP_AUTH_JWT_SECRET: ${APP_AUTH_JWT_SECRET:-}
+      APP_STORAGE_SUPABASE_URL: ${APP_STORAGE_SUPABASE_URL:-}
+      APP_STORAGE_SUPABASE_BUCKET: ${APP_STORAGE_SUPABASE_BUCKET:-space-images}
+      APP_STORAGE_SUPABASE_KEY: ${APP_STORAGE_SUPABASE_KEY:-}
+      APP_STORAGE_SUPABASE_TIMEOUT: ${APP_STORAGE_SUPABASE_TIMEOUT:-PT1M}
+      APP_STORAGE_MAX_IMAGE_PIXELS: ${APP_STORAGE_MAX_IMAGE_PIXELS:-64000000}
+      APP_STORAGE_MAX_IMAGE_DIMENSION: ${APP_STORAGE_MAX_IMAGE_DIMENSION:-16384}
+      APP_JOBS_STORAGE_CLEANUP_CRON: ${APP_JOBS_STORAGE_CLEANUP_CRON:-0 */5 * * * *}
       APP_AUTH_CODE_HMAC_SECRET: ${APP_AUTH_CODE_HMAC_SECRET:-}
       APP_AUTH_CODE_VALIDITY: ${APP_AUTH_CODE_VALIDITY:-PT15M}
       APP_AUTH_CODE_MAX_ATTEMPTS: ${APP_AUTH_CODE_MAX_ATTEMPTS:-5}
@@ -61,7 +69,7 @@ services:
       mailpit:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      test: ["CMD", "bash", "/app/healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 12

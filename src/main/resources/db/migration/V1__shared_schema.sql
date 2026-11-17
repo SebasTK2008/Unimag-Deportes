@@ -19,8 +19,14 @@ CREATE TABLE login_code_request_ip (
 CREATE INDEX login_code_request_ip_created_idx ON login_code_request_ip (ip_address, created_at);
 CREATE TABLE space_image (
     id uuid PRIMARY KEY, content_type varchar(100) NOT NULL,
-    content bytea NOT NULL CHECK (octet_length(content) BETWEEN 1 AND 31457280)
+    storage_key varchar(512) NOT NULL UNIQUE CHECK (length(trim(storage_key)) > 0),
+    size_bytes bigint NOT NULL CHECK (size_bytes BETWEEN 1 AND 31457280)
 );
+CREATE TABLE storage_object_cleanup (
+    storage_key varchar(512) PRIMARY KEY,
+    not_before timestamptz NOT NULL
+);
+CREATE INDEX storage_object_cleanup_due_idx ON storage_object_cleanup(not_before);
 CREATE TABLE space (
     id uuid PRIMARY KEY, name varchar(200) NOT NULL, capacity integer NOT NULL CHECK (capacity > 0),
     requirements text, opening_time time NOT NULL, closing_time time NOT NULL,

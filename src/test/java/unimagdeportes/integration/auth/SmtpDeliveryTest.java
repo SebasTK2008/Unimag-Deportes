@@ -36,9 +36,11 @@ class SmtpDeliveryTest {
                 "Tu código de acceso es 123456. Vence en 15 minutos. No lo compartas.");
         var request = HttpRequest.newBuilder(URI.create("http://" + MAILPIT.getHost() + ":"
                 + MAILPIT.getMappedPort(8025) + "/api/v1/messages")).timeout(Duration.ofSeconds(10)).GET().build();
-        var messages = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-        assertThat(messages.statusCode()).isEqualTo(200);
-        assertThat(messages.body()).contains("smtp@unimagdalena.edu.co", "Código de acceso");
+        try (var client = HttpClient.newHttpClient()) {
+            var messages = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(messages.statusCode()).isEqualTo(200);
+            assertThat(messages.body()).contains("smtp@unimagdalena.edu.co", "Código de acceso");
+        }
         assertThat(Duration.between(start, Instant.now())).isLessThan(Duration.ofMinutes(1));
     }
 
@@ -51,8 +53,10 @@ class SmtpDeliveryTest {
                 "Adjunto", "comprobante.pdf", "%PDF-1.4\n%%EOF".getBytes(StandardCharsets.US_ASCII));
         var request = HttpRequest.newBuilder(URI.create("http://" + MAILPIT.getHost() + ":"
                 + MAILPIT.getMappedPort(8025) + "/api/v1/messages")).timeout(Duration.ofSeconds(10)).GET().build();
-        var messages = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-        assertThat(messages.statusCode()).isEqualTo(200);
-        assertThat(messages.body()).contains("pdf@unimagdalena.edu.co", "Comprobante PDF", "\"Attachments\":1");
+        try (var client = HttpClient.newHttpClient()) {
+            var messages = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(messages.statusCode()).isEqualTo(200);
+            assertThat(messages.body()).contains("pdf@unimagdalena.edu.co", "Comprobante PDF", "\"Attachments\":1");
+        }
     }
 }

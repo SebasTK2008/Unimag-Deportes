@@ -7,8 +7,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import unimagdeportes.dto.space.SpaceDtos.ImageContent;
+import unimagdeportes.dto.space.ImageDownload;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInfo;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInput;
 import unimagdeportes.exception.BusinessException;
@@ -20,6 +23,8 @@ import unimagdeportes.model.space.SpaceImage;
 import unimagdeportes.repository.space.SpaceRepository;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.reservation.ReservationLock;
+import unimagdeportes.storage.ImageStorage;
+import unimagdeportes.storage.StorageObjectCleanup;
 
 @Service
 public class SpaceService {
@@ -29,15 +34,22 @@ public class SpaceService {
     private final SpaceImageValidator images;
     private final SpaceMapper mapper;
     private final ApplicationEventPublisher events;
+    private final ImageStorage storage;
+    private final StorageObjectCleanup cleanup;
+    private final TransactionTemplate transactions;
 
     public SpaceService(SpaceRepository spaces, ReservationLock lock, AuditService audit,
-            SpaceImageValidator images, SpaceMapper mapper, ApplicationEventPublisher events) {
+            SpaceImageValidator images, SpaceMapper mapper, ApplicationEventPublisher events,
+            ImageStorage storage, StorageObjectCleanup cleanup, PlatformTransactionManager transactionManager) {
         this.spaces = spaces;
         this.lock = lock;
         this.audit = audit;
         this.images = images;
         this.mapper = mapper;
         this.events = events;
+        this.storage = storage;
+        this.cleanup = cleanup;
+        this.transactions = new TransactionTemplate(transactionManager);
     }
 
     @Transactional(readOnly = true)
@@ -56,34 +68,58 @@ public class SpaceService {
         return spaces.findAll().stream().map(mapper::toInfo).toList();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public SpaceInfo create(SpaceInput input, MultipartFile preview, MultipartFile panorama, UUID administratorId) {
-        lock.acquire();
         validate(input);
-        var previewImage = images.read(preview);
-        var panoramaImage = images.read(panorama);
-        var space = new Space(UUID.randomUUID(), input.name(), input.capacity(), input.requirements(),
-                input.openingTime(), input.closingTime(),
-                input.status() == null ? SpaceStatus.ACTIVE : input.status(), input.disciplines(),
-                previewImage, panoramaImage);
-        spaces.save(space);
-        audit.record("SPACE_CREATED", "SPACE", space.getId(), administratorId);
-        return mapper.toInfo(space);
+        String previewType = images.validate(preview);
+        String panoramaType = images.validate(panorama);
+        UUID id = UUID.randomUUID();
+        var previewImage = upload(id, ImageKind.PREVIEW, preview, previewType);
+        var panoramaImage = upload(id, ImageKind.PANORAMA, panorama, panoramaType);
+        return transactions.execute(status -> {
+            lock.acquire();
+            cleanup.retain(previewImage.getStorageKey());
+            cleanup.retain(panoramaImage.getStorageKey());
+            var space = new Space(id, input.name(), input.capacity(), input.requirements(),
+                    input.openingTime(), input.closingTime(),
+                    input.status() == null ? SpaceStatus.ACTIVE : input.status(), input.disciplines(),
+                    previewImage, panoramaImage);
+            spaces.save(space);
+            audit.record("SPACE_CREATED", "SPACE", space.getId(), administratorId);
+            return mapper.toInfo(space);
+        });
     }
 
-    @Transactional(readOnly = true)
-    public ImageContent image(UUID id, ImageKind kind) {
-        SpaceImage image = image(find(id), kind);
-        return mapper.toImageContent(image);
+    @Transactional(propagation = Propagation.NEVER)
+    public ImageDownload image(UUID id, ImageKind kind) {
+        var reference = transactions.execute(status -> mapper.toImageReference(image(find(id), kind)));
+        return new ImageDownload(reference.contentType(), reference.sizeBytes(), storage.open(reference.storageKey()));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public void replaceImage(UUID id, ImageKind kind, MultipartFile file, UUID administratorId) {
-        lock.acquire();
-        SpaceImage target = image(find(id), kind);
-        SpaceImage replacement = images.read(file);
-        target.replace(replacement.getContentType(), replacement.getContent());
-        audit.record("SPACE_IMAGE_UPDATED", "SPACE", id, administratorId);
+        transactions.executeWithoutResult(status -> find(id));
+        String contentType = images.validate(file);
+        SpaceImage replacement = upload(id, kind, file, contentType);
+        transactions.executeWithoutResult(status -> {
+            lock.acquire();
+            SpaceImage target = image(find(id), kind);
+            cleanup.retain(replacement.getStorageKey());
+            cleanup.scheduleDeletion(target.getStorageKey());
+            target.replace(replacement.getContentType(), replacement.getStorageKey(), replacement.getSizeBytes());
+            audit.record("SPACE_IMAGE_UPDATED", "SPACE", id, administratorId);
+        });
+    }
+
+    private SpaceImage upload(UUID spaceId, ImageKind kind, MultipartFile file, String contentType) {
+        String key = "spaces/" + spaceId + "/" + kind.name().toLowerCase(java.util.Locale.ROOT) + "/" + UUID.randomUUID();
+        cleanup.trackUpload(key);
+        try {
+            storage.upload(key, file, contentType);
+        } finally {
+            cleanup.finishUpload(key);
+        }
+        return new SpaceImage(contentType, key, file.getSize());
     }
 
     private SpaceImage image(Space space, ImageKind kind) {

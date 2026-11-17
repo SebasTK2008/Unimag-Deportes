@@ -8,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.LocalTime;
 import java.util.Optional;
@@ -17,6 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.http.HttpStatus;
+import unimagdeportes.storage.ImageStorage;
+import unimagdeportes.storage.StorageObjectCleanup;
 import unimagdeportes.dto.space.SpaceDtos.SpaceInput;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.event.AvailabilityChangedEvent;
@@ -35,20 +41,24 @@ class SpaceServiceTest {
     private final AuditService audit = mock(AuditService.class);
     private final SpaceImageValidator images = mock(SpaceImageValidator.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final ImageStorage storage = mock(ImageStorage.class);
+    private final StorageObjectCleanup cleanup = mock(StorageObjectCleanup.class);
     private final SpaceService service = new SpaceService(repository, lock, audit, images,
-            Mappers.getMapper(SpaceMapper.class), events);
+            Mappers.getMapper(SpaceMapper.class), events, storage, cleanup, mock(PlatformTransactionManager.class));
     private final UUID administrator = UUID.randomUUID();
     private final MockMultipartFile file = new MockMultipartFile("image", new byte[]{1});
 
     @Test
     void createsActiveSpaceAndAuditsAfterAcquiringLock() {
-        when(images.read(file)).thenAnswer(invocation -> image());
+        when(images.validate(file)).thenReturn("image/png");
         var result = service.create(input(), file, file, administrator);
 
         assertThat(result.status()).isEqualTo(SpaceStatus.ACTIVE);
         assertThat(result.requirements()).isNull();
         assertThat(result.disciplines()).containsExactly(Discipline.TENNIS);
-        var order = inOrder(lock, repository, audit);
+        var order = inOrder(storage, lock, repository, audit);
+        order.verify(storage, org.mockito.Mockito.times(2)).upload(any(), org.mockito.ArgumentMatchers.eq(file),
+                org.mockito.ArgumentMatchers.eq("image/png"));
         order.verify(lock).acquire();
         order.verify(repository).save(any(Space.class));
         order.verify(audit).record("SPACE_CREATED", "SPACE", result.id(), administrator);
@@ -82,6 +92,31 @@ class SpaceServiceTest {
                 .isEqualTo("VALIDATION_ERROR");
         verify(repository, never()).save(any());
         verify(audit, never()).record(any(), any(), any(), any());
+        verifyNoInteractions(storage, cleanup);
+    }
+
+    @Test
+    void validatesBothImagesBeforeUploadingAnything() {
+        var panorama = new MockMultipartFile("panorama", new byte[]{2});
+        when(images.validate(file)).thenReturn("image/png");
+        when(images.validate(panorama)).thenThrow(new BusinessException(
+                HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid"));
+        assertThatThrownBy(() -> service.create(input(), file, panorama, administrator))
+                .isInstanceOf(BusinessException.class);
+        verifyNoInteractions(storage, cleanup, lock);
+    }
+
+    @Test
+    void recordsCleanupBeforeAnAmbiguousUploadFailureAndDoesNotSaveReferences() {
+        when(images.validate(file)).thenReturn("image/png");
+        doThrow(new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE", "Unavailable"))
+                .when(storage).upload(any(), any(), any());
+        assertThatThrownBy(() -> service.create(input(), file, file, administrator))
+                .isInstanceOf(BusinessException.class);
+        var order = inOrder(cleanup, storage);
+        order.verify(cleanup).trackUpload(any());
+        order.verify(storage).upload(any(), any(), any());
+        verifyNoInteractions(repository, lock, audit);
     }
 
     @Test
@@ -92,13 +127,16 @@ class SpaceServiceTest {
         var existing = new Space(id, "Cancha", 4, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
                 SpaceStatus.ACTIVE, Set.of(Discipline.TENNIS), preview, panorama);
         when(repository.findById(id)).thenReturn(Optional.of(existing));
-        when(images.read(file)).thenReturn(new SpaceImage("image/jpeg", new byte[]{2}));
+        when(images.validate(file)).thenReturn("image/jpeg");
+        String oldPreview = preview.getStorageKey();
+        String oldPanorama = panorama.getStorageKey();
 
         service.replaceImage(id, SpaceService.ImageKind.PREVIEW, file, administrator);
 
-        assertThat(preview.getContent()).containsExactly((byte) 2);
+        assertThat(preview.getStorageKey()).startsWith("spaces/" + id + "/preview/").isNotEqualTo(oldPreview);
         assertThat(preview.getContentType()).isEqualTo("image/jpeg");
-        assertThat(panorama.getContent()).containsExactly((byte) 1);
+        assertThat(panorama.getStorageKey()).isEqualTo(oldPanorama);
+        verify(cleanup).scheduleDeletion(oldPreview);
         verify(audit).record("SPACE_IMAGE_UPDATED", "SPACE", id, administrator);
     }
 
@@ -108,6 +146,6 @@ class SpaceServiceTest {
     }
 
     private SpaceImage image() {
-        return new SpaceImage("image/png", new byte[]{1});
+        return new SpaceImage("image/png", "fixtures/" + UUID.randomUUID(), 1);
     }
 }

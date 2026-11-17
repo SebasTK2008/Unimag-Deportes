@@ -20,5 +20,5 @@ public final class SpaceDtos {
 
     public record SpaceList(List<SpaceInfo> spaces) { }
 
-    public record ImageContent(String contentType, byte[] content) { }
+    public record ImageReference(String contentType, String storageKey, long sizeBytes) { }
 }

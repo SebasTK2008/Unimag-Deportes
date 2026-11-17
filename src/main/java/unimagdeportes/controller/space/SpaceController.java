@@ -1,9 +1,10 @@
 package unimagdeportes.controller.space;
 
 import java.util.UUID;
+import java.io.IOException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,13 +22,16 @@ import unimagdeportes.security.UserPrincipal;
 import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.space.SpaceService.ImageKind;
 import unimagdeportes.service.checkin.QrService;
+import unimagdeportes.exception.BusinessException;
 
 @RestController
 public class SpaceController {
     private final SpaceService spaces;
     private final QrService qr;
-
-    public SpaceController(SpaceService spaces, QrService qr) { this.spaces = spaces; this.qr = qr; }
+    public SpaceController(SpaceService spaces, QrService qr) {
+        this.spaces = spaces;
+        this.qr = qr;
+    }
 
     @GetMapping(value = "/admin/spaces/{id}/qr", produces = "image/svg+xml;charset=UTF-8")
     String qr(@PathVariable UUID id) { return qr.generate(id); }
@@ -50,9 +54,32 @@ public class SpaceController {
     }
 
     @GetMapping("/spaces/{id}/images/{kind}")
-    ResponseEntity<byte[]> image(@PathVariable UUID id, @PathVariable ImageKind kind) {
-        var image = spaces.image(id, kind);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(image.contentType())).body(image.content());
+    void image(@PathVariable UUID id, @PathVariable ImageKind kind, HttpServletResponse response) throws IOException {
+        try (var image = spaces.image(id, kind)) {
+            response.setContentType(image.contentType());
+            response.setContentLengthLong(image.sizeBytes());
+            response.setHeader("Cache-Control", "private, no-store");
+            image.content().transferTo(response.getOutputStream());
+        } catch (IOException exception) {
+            if (response.isCommitted()) throw exception;
+            resetImageResponse(response);
+            throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE",
+                    "No fue posible leer la imagen almacenada.", exception);
+        }
+    }
+
+    private void resetImageResponse(HttpServletResponse response) {
+        // Servlet has no portable removeHeader: reset the image while retaining CORS and security headers.
+        var headers = new java.util.LinkedHashMap<String, java.util.List<String>>();
+        for (String name : response.getHeaderNames()) {
+            if (!name.equalsIgnoreCase("Content-Length") && !name.equalsIgnoreCase("Content-Type")
+                    && !name.equalsIgnoreCase("Cache-Control")) {
+                headers.put(name, java.util.List.copyOf(response.getHeaders(name)));
+            }
+        }
+        response.reset();
+        headers.forEach((name, values) -> values.forEach(value -> response.addHeader(name, value)));
+        response.setHeader("Cache-Control", "no-store");
     }
 
     @PutMapping("/admin/spaces/{id}")
