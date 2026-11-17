@@ -3,14 +3,14 @@ package unimagdeportes.mapper.checkin;
 import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 import unimagdeportes.dto.checkin.CheckInResponse;
-import unimagdeportes.model.reservation.Reservation;
+import unimagdeportes.service.reservation.ReservationService.CheckInCandidate;
 
 @Component
 public class CheckInMapper {
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
 
-    public CheckInResponse toResponse(Reservation reservation) {
-        return new CheckInResponse(reservation.getId(), reservation.getSpaceId(), reservation.getStatus(),
-                reservation.getCheckedInAt().atZone(BOGOTA).toOffsetDateTime());
+    public CheckInResponse toResponse(CheckInCandidate reservation) {
+        return new CheckInResponse(reservation.id(), reservation.spaceId(), reservation.status(),
+                reservation.checkedInAt().atZone(BOGOTA).toOffsetDateTime());
     }
 }

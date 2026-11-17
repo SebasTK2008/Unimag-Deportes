@@ -21,11 +21,17 @@ public class AuditLog {
     protected AuditLog() { }
 
     public AuditLog(UUID id, String action, String entityType, UUID entityId, UUID userId, Instant createdAt) {
+        this(id, action, entityType, entityId, userId, createdAt, null);
+    }
+
+    public AuditLog(UUID id, String action, String entityType, UUID entityId, UUID userId, Instant createdAt,
+            String detail) {
         this.id = id;
         this.action = action;
         this.entityType = entityType;
         this.entityId = entityId;
         this.userId = userId;
         this.createdAt = createdAt;
+        this.detail = detail;
     }
 }

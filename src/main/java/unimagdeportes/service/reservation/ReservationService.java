@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -80,8 +81,57 @@ public class ReservationService {
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
-    public List<Reservation> checkInCandidates(UUID spaceId, UUID userId) {
-        return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId);
+    public List<CheckInCandidate> checkInCandidates(UUID spaceId, UUID userId) {
+        return reservations.findBySpaceIdAndUserIdOrderByStartAtAsc(spaceId, userId).stream()
+                .map(this::checkInCandidate).toList();
+    }
+
+    public record CheckInCandidate(UUID id, UUID userId, UUID spaceId, Instant startAt, Instant endAt,
+            ReservationStatus status, Instant checkedInAt, int checkinOpeningMinutes) { }
+
+    private CheckInCandidate checkInCandidate(Reservation reservation) {
+        return new CheckInCandidate(reservation.getId(), reservation.getUserId(), reservation.getSpaceId(),
+                reservation.getStartAt(), reservation.getEndAt(), reservation.getStatus(),
+                reservation.getCheckedInAt(), reservation.getCheckinOpeningMinutes());
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public CheckInCandidate registerCheckIn(UUID id, Instant now) {
+        var reservation = reservations.findById(id).orElseThrow();
+        reservation.checkIn(now);
+        return checkInCandidate(reservation);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UUID> closedWithoutCheckIn() {
+        return reservations.findClosedWithoutCheckIn(clock.instant());
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public Optional<CheckInCandidate> noShowCandidate(UUID id, Instant now) {
+        return reservations.findById(id)
+                .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED && r.getCheckedInAt() == null
+                        && !now.isBefore(r.getEndAt())).map(this::checkInCandidate);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public void registerNoShow(UUID id) {
+        reservations.findById(id).orElseThrow().markNoShow();
+    }
+
+    @Transactional(readOnly = true)
+    public long noShowsInPeriod(UUID userId, Instant from, Instant to) {
+        return reservations.countByUserIdAndStatusAndEndAtGreaterThanEqualAndEndAtLessThan(
+                userId, ReservationStatus.NO_SHOW, from, to);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public List<ReservationInfo> cancelDuringSuspension(UUID userId, Instant now, Instant until) {
+        var affected = reservations.findByUserIdAndStatusInAndStartAtGreaterThanAndEndAtLessThanEqual(
+                userId, List.of(ReservationStatus.CONFIRMED, ReservationStatus.IN_USE), now, until);
+        affected.forEach(Reservation::cancelBySuspension);
+        return affected.stream().map(r -> new ReservationInfo(r.getId(), r.getUserId(), r.getSpaceId(),
+                r.getStartAt(), r.getEndAt(), r.getStatus())).toList();
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)

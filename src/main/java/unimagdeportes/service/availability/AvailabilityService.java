@@ -69,7 +69,8 @@ public class AvailabilityService {
         var end = date.plusDays(1).atStartOfDay(ZONE).toInstant();
         var occupancy = overlapping(spaceId, start, end);
         var slots = policy.catalog(date, space.openingTime(), space.closingTime(), ZONE, clock.instant(),
-                Duration.ofMinutes(settings.bookingToleranceMinutes()), space.status() == SpaceStatus.ACTIVE,
+                Duration.ofMinutes(settings.bookingToleranceMinutes()), Duration.ofMinutes(settings.minAdvanceMinutes()),
+                space.status() == SpaceStatus.ACTIVE,
                 occupancy.occupied(), occupancy.blocked()).stream().map(mapper::toSlot).toList();
         return new Calendar(spaceId, date, discipline, slots);
     }

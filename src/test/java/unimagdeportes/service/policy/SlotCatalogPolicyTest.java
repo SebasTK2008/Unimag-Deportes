@@ -42,7 +42,7 @@ class SlotCatalogPolicyTest {
     @Test
     void alignsSlotsToWholeHoursAfterOpening() {
         var result = policy.catalog(LocalDate.parse("2026-11-11"), LocalTime.of(8, 30), LocalTime.of(11, 30),
-                ZoneId.of("America/Bogota"), start, Duration.ofMinutes(10), true, List.of(), List.of());
+                ZoneId.of("America/Bogota"), start, Duration.ofMinutes(10), Duration.ZERO, true, List.of(), List.of());
 
         assertThat(result).extracting(SlotCatalogPolicy.SlotDecision::startAt)
                 .containsExactly(Instant.parse("2026-11-11T14:00:00Z"), Instant.parse("2026-11-11T15:00:00Z"));
@@ -51,6 +51,6 @@ class SlotCatalogPolicyTest {
     private List<SlotCatalogPolicy.SlotDecision> catalog(Instant now, boolean active,
             List<Interval> occupied, List<Block> blocks) {
         return policy.catalog(LocalDate.parse("2026-11-11"), LocalTime.of(8, 0), LocalTime.of(11, 30),
-                ZoneId.of("America/Bogota"), now, Duration.ofMinutes(10), active, occupied, blocks);
+                ZoneId.of("America/Bogota"), now, Duration.ofMinutes(10), Duration.ZERO, active, occupied, blocks);
     }
 }

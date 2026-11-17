@@ -11,15 +11,14 @@ import unimagdeportes.config.UsageRuleSettings;
 import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.event.ReservationNotificationEvent;
 import unimagdeportes.event.ReservationNotificationEvent.Type;
-import unimagdeportes.model.reservation.Reservation;
-import unimagdeportes.model.reservation.ReservationStatus;
 import unimagdeportes.model.user.AppUser;
-import unimagdeportes.repository.reservation.ReservationRepository;
 import unimagdeportes.repository.sanction.MonthlySuspensionRepository;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.parameter.ParameterService;
 import unimagdeportes.service.policy.SanctionPolicy;
 import unimagdeportes.service.reservation.ReservationLock;
+import unimagdeportes.service.reservation.ReservationService;
+import unimagdeportes.service.reservation.ReservationService.CheckInCandidate;
 import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.user.UserService;
 
@@ -33,7 +32,7 @@ import unimagdeportes.service.user.UserService;
 @Service
 public class SanctionService {
     private static final String SUSPENSION_REASON = "suspensión de tu cuenta por inasistencias";
-    private final ReservationRepository reservations;
+    private final ReservationService reservations;
     private final MonthlySuspensionRepository monthlySuspensions;
     private final ReservationLock lock;
     private final Clock clock;
@@ -45,7 +44,7 @@ public class SanctionService {
     private final ApplicationEventPublisher events;
     private final SanctionPolicy policy = new SanctionPolicy();
 
-    public SanctionService(ReservationRepository reservations, MonthlySuspensionRepository monthlySuspensions,
+    public SanctionService(ReservationService reservations, MonthlySuspensionRepository monthlySuspensions,
             ReservationLock lock, Clock clock, UserService users, SpaceService spaces, ParameterService parameters,
             UsageRuleSettings settings, AuditService audit, ApplicationEventPublisher events) {
         this.reservations = reservations;
@@ -62,62 +61,51 @@ public class SanctionService {
 
     @Transactional(readOnly = true)
     public List<UUID> closedWithoutCheckIn() {
-        return reservations.findClosedWithoutCheckIn(clock.instant());
+        return reservations.closedWithoutCheckIn();
     }
 
     /** Idempotente: tras el bloqueo relee la reserva y no hace nada si ya no corresponde marcarla. */
     @Transactional
     public void markNoShow(UUID reservationId) {
         lock.acquire();
-        var reservation = reservations.findById(reservationId).orElse(null);
         Instant now = clock.instant();
-        if (reservation == null || reservation.getStatus() != ReservationStatus.CONFIRMED
-                || reservation.getCheckedInAt() != null || now.isBefore(reservation.getEndAt())) {
-            return;
-        }
+        var reservation = reservations.noShowCandidate(reservationId, now).orElse(null);
+        if (reservation == null) return;
         // Orden global de bloqueo de filas (plan general §4.1): primero el usuario.
-        var user = users.findForUpdate(reservation.getUserId());
-        reservation.markNoShow();
-        audit.record("NO_SHOW_REGISTERED", "RESERVATION", reservation.getId(), null);
-        var spaceName = spaces.get(reservation.getSpaceId()).name();
-        events.publishEvent(new ReservationNotificationEvent(Type.NO_SHOW, reservation.getId(), user.getEmail(),
-                user.getName(), spaceName, reservation.getStartAt(), null, null));
+        var user = users.findForUpdate(reservation.userId());
+        reservations.registerNoShow(reservation.id());
+        audit.record("NO_SHOW_REGISTERED", "RESERVATION", reservation.id(), null);
+        var spaceName = spaces.get(reservation.spaceId()).name();
+        events.publishEvent(new ReservationNotificationEvent(Type.NO_SHOW, reservation.id(), user.getEmail(),
+                user.getName(), spaceName, reservation.startAt(), null, null));
         evaluateSuspension(user, reservation, spaceName, now);
     }
 
-    private void evaluateSuspension(AppUser user, Reservation noShow, String spaceName, Instant now) {
-        var month = policy.absenceMonth(noShow.getEndAt());
+    private void evaluateSuspension(AppUser user, CheckInCandidate noShow, String spaceName, Instant now) {
+        var month = policy.absenceMonth(noShow.endAt());
         var range = policy.range(month);
-        long noShows = reservations.countByUserIdAndStatusAndEndAtGreaterThanEqualAndEndAtLessThan(
-                user.getId(), ReservationStatus.NO_SHOW, range.start(), range.end());
+        long noShows = reservations.noShowsInPeriod(user.getId(), range.start(), range.end());
         Instant until = policy.suspensionEnd(now, settings.suspensionDays(), user.getSuspendedUntil());
         if (!policy.reachesThreshold(noShows, parameters.current().noShowThreshold())
                 || !monthlySuspensions.register(user.getId(), month, now, until)) {
             return;
         }
         user.suspendUntil(until);
-        audit.record("USER_SUSPENDED", "USER", user.getId(), null);
-        events.publishEvent(new ReservationNotificationEvent(Type.SUSPENSION, noShow.getId(), user.getEmail(),
-                user.getName(), spaceName, noShow.getStartAt(), null, until));
+        audit.recordSuspension(user.getId(), until);
+        events.publishEvent(new ReservationNotificationEvent(Type.SUSPENSION, noShow.id(), user.getEmail(),
+                user.getName(), spaceName, noShow.startAt(), null, until));
         cancelReservationsDuringSuspension(user, now, until);
-    }
-
-    @Transactional(readOnly = true)
-    public long countUsersSuspendedDuring(Instant from, Instant to) {
-        return monthlySuspensions.countUsersOverlapping(from, to);
     }
 
     /** Solo las contenidas por completo en la suspensión; las parcialmente solapadas se conservan (RN-40). */
     private void cancelReservationsDuringSuspension(AppUser user, Instant now, Instant until) {
-        var affected = reservations.findByUserIdAndStatusAndStartAtGreaterThanAndEndAtLessThanEqual(
-                user.getId(), ReservationStatus.CONFIRMED, now, until);
+        var affected = reservations.cancelDuringSuspension(user.getId(), now, until);
         for (var reservation : affected) {
-            reservation.cancelBySuspension();
-            audit.record("RESERVATION_CANCELLED_BY_SUSPENSION", "RESERVATION", reservation.getId(), null);
-            events.publishEvent(new ReservationNotificationEvent(Type.CANCELLATION, reservation.getId(),
-                    user.getEmail(), user.getName(), spaces.get(reservation.getSpaceId()).name(),
-                    reservation.getStartAt(), SUSPENSION_REASON, null));
-            events.publishEvent(new AvailabilityChangedEvent(reservation.getSpaceId()));
+            audit.record("RESERVATION_CANCELLED_BY_SUSPENSION", "RESERVATION", reservation.id(), null);
+            events.publishEvent(new ReservationNotificationEvent(Type.CANCELLATION, reservation.id(),
+                    user.getEmail(), user.getName(), spaces.get(reservation.spaceId()).name(),
+                    reservation.startAt(), SUSPENSION_REASON, null));
+            events.publishEvent(new AvailabilityChangedEvent(reservation.spaceId()));
         }
     }
 }

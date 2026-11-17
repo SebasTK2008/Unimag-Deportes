@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import unimagdeportes.dto.checkin.CheckInResponse;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.mapper.checkin.CheckInMapper;
-import unimagdeportes.model.reservation.Reservation;
+import unimagdeportes.service.reservation.ReservationService.CheckInCandidate;
 import unimagdeportes.model.reservation.ReservationStatus;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.policy.CheckInWindowPolicy;
@@ -46,40 +46,40 @@ public class CheckInService {
         if (reservations.hasOtherUserInProgress(spaceId, userId, now)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "FORBIDDEN", "La reserva pertenece a otro usuario.");
         }
-        List<Reservation> candidates = reservations.checkInCandidates(spaceId, userId);
-        Reservation reservation = select(candidates, now);
-        if (reservation.getStatus() == ReservationStatus.IN_USE) return mapper.toResponse(reservation);
-        if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
-            if (reservation.getStatus().name().startsWith("CANCELLED_")) {
+        List<CheckInCandidate> candidates = reservations.checkInCandidates(spaceId, userId);
+        CheckInCandidate reservation = select(candidates, now);
+        if (reservation.status() == ReservationStatus.IN_USE) return mapper.toResponse(reservation);
+        if (reservation.status() != ReservationStatus.CONFIRMED) {
+            if (reservation.status().name().startsWith("CANCELLED_")) {
                 throw new BusinessException(HttpStatus.CONFLICT, "RESERVATION_CANCELLED", "La reserva fue cancelada.");
             }
             throw new BusinessException(HttpStatus.CONFLICT, "CHECKIN_WINDOW_CLOSED", "La ventana de check-in ya cerró.");
         }
-        Instant opensAt = window.opensAt(reservation.getStartAt(), reservation.getCheckinOpeningMinutes());
+        Instant opensAt = window.opensAt(reservation.startAt(), reservation.checkinOpeningMinutes());
         if (now.isBefore(opensAt)) {
             throw new BusinessException(HttpStatus.CONFLICT, "CHECKIN_TOO_EARLY",
                     "El check-in aún no está disponible.",
                     Map.of("opensAt", opensAt.atZone(ZoneId.of("America/Bogota")).toOffsetDateTime()));
         }
-        if (!window.isOpen(now, reservation.getStartAt(), reservation.getEndAt(),
-                reservation.getCheckinOpeningMinutes())) {
+        if (!window.isOpen(now, reservation.startAt(), reservation.endAt(),
+                reservation.checkinOpeningMinutes())) {
             throw new BusinessException(HttpStatus.CONFLICT, "CHECKIN_WINDOW_CLOSED", "La ventana de check-in ya cerró.");
         }
-        reservation.checkIn(now.truncatedTo(ChronoUnit.MICROS));
-        audit.record("CHECK_IN", "RESERVATION", reservation.getId(), userId);
-        return mapper.toResponse(reservation);
+        var registered = reservations.registerCheckIn(reservation.id(), now.truncatedTo(ChronoUnit.MICROS));
+        audit.record("CHECK_IN", "RESERVATION", reservation.id(), userId);
+        return mapper.toResponse(registered);
     }
 
-    private Reservation select(List<Reservation> candidates, Instant now) {
+    private CheckInCandidate select(List<CheckInCandidate> candidates, Instant now) {
         return candidates.stream()
-                .filter(r -> (r.getStatus() == ReservationStatus.CONFIRMED || r.getStatus() == ReservationStatus.IN_USE)
-                        && r.getEndAt().isAfter(now))
+                .filter(r -> (r.status() == ReservationStatus.CONFIRMED || r.status() == ReservationStatus.IN_USE)
+                        && r.endAt().isAfter(now))
                 .findFirst()
-                .orElseGet(() -> candidates.stream().filter(r -> !r.getStartAt().isBefore(now)).findFirst()
+                .orElseGet(() -> candidates.stream().filter(r -> !r.startAt().isBefore(now)).findFirst()
                         .orElseGet(() -> candidates.isEmpty() ? noReservation() : candidates.getLast()));
     }
 
-    private Reservation noReservation() {
+    private CheckInCandidate noReservation() {
         throw new BusinessException(HttpStatus.NOT_FOUND, "NO_ACTIVE_RESERVATION",
                 "No tiene una reserva activa en este espacio.");
     }

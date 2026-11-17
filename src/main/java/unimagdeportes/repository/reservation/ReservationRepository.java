@@ -38,8 +38,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     long countByUserIdAndStatusAndEndAtGreaterThanEqualAndEndAtLessThan(
             UUID userId, ReservationStatus status, Instant from, Instant to);
 
-    List<Reservation> findByUserIdAndStatusAndStartAtGreaterThanAndEndAtLessThanEqual(
-            UUID userId, ReservationStatus status, Instant after, Instant until);
+    List<Reservation> findByUserIdAndStatusInAndStartAtGreaterThanAndEndAtLessThanEqual(
+            UUID userId, Collection<ReservationStatus> statuses, Instant after, Instant until);
 
     long countByIdInAndStatus(Collection<UUID> ids, ReservationStatus status);
 

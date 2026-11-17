@@ -27,10 +27,4 @@ public class MonthlySuspensionRepository {
                 """, userId, absenceMonth, Timestamp.from(createdAt), Timestamp.from(suspendedUntil)) == 1;
     }
 
-    public long countUsersOverlapping(Instant from, Instant to) {
-        return jdbc.queryForObject("""
-                select count(distinct user_id) from monthly_suspension
-                where created_at < ? and suspended_until > ?
-                """, Long.class, Timestamp.from(to), Timestamp.from(from));
-    }
 }
