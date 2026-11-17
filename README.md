@@ -34,6 +34,14 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `APP_AUTH_CODE_MAX_REQUESTS_PER_EMAIL` | Entero positivo, solicitudes por hora rodante por correo; `5`. El límite por IP permanece fijo en 30/h. |
 | `APP_AUTH_ADMIN_EMAILS` | Correos separados por comas; vacío por defecto. |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes del cliente separados por comas; vacío por defecto. No usa credenciales de cookies. |
+| `APP_STORAGE_SUPABASE_URL` | Origen HTTPS del proyecto Supabase; vacío por defecto. |
+| `APP_STORAGE_SUPABASE_BUCKET` | Bucket privado de imágenes; `space-images`. |
+| `APP_STORAGE_SUPABASE_KEY` | Clave exclusiva del servidor: secreta `sb_secret_...` o JWT heredado `service_role`. Sin clave u origen, las operaciones de Storage responden `503 STORAGE_NOT_CONFIGURED`. Nunca exponer al cliente. |
+| `APP_STORAGE_SUPABASE_TIMEOUT` | Duración ISO-8601 de al menos 1 ms y menor que una hora; `PT1M`. Plazo total de subida/borrado; conexión y espera de lectura para descargas. |
+| `APP_STORAGE_MAX_IMAGE_PIXELS` | Máximo positivo de ancho × alto antes de decodificar; `64000000`. No redimensiona ni comprime. |
+| `APP_STORAGE_MAX_IMAGE_DIMENSION` | Máximo positivo de cada dimensión; `16384`. Protege también frente a imágenes extremadamente estrechas o altas. |
+| `PORT` | Puerto HTTP; `8080`. `SERVER_PORT` también puede sobrescribirlo mediante la configuración nativa de Spring. |
+| `APP_JOBS_STORAGE_CLEANUP_CRON` | Cada cinco minutos (`0 */5 * * * *`); `-` desactiva la limpieza de objetos pendientes. |
 | `APP_CHECKIN_FRONTEND_ORIGIN` | Origen público del frontend para los QR de UC05; vacío por defecto. Requiere HTTPS, salvo HTTP en perfiles `dev` o `test`; sin un origen válido, el endpoint QR responde `503 QR_NOT_CONFIGURED`. |
 | `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
@@ -79,3 +87,39 @@ La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es 
 El diseño D-26 conserva versiones inmutables de cuota y umbral en `usage_parameters`; `usage_parameters_head` contiene únicamente la referencia vigente. Cada cambio efectivo crea una instantánea con número, UUID, fecha y administrador, y una auditoría `PARAMETERS_UPDATED` vinculada a esa versión. Las solicitudes sin cambios no crean otra versión. Los tres contratos REST de UC06 mantienen su forma; el historial se consulta en base de datos, sin endpoint adicional.
 
 Esta extensión reescribe la V1 existente: no hay V2 ni actualización automática de bases creadas con el esquema anterior. La instalación nueva inicia en versión 1 con cuota 4, umbral 3 y autor nulo. La fecha inicial indica cuándo se instaló el esquema. Antes de recrear una base anterior, respalde y coordine la conservación de los datos necesarios; no basta con reparar el checksum, porque también cambia la estructura.
+
+### Imágenes de espacios: Supabase Storage (UC07)
+
+El backend recibe los archivos multipart, detecta su formato con ImageIO y los sube a un bucket privado mediante la API HTTP de Supabase. PostgreSQL conserva solamente `id`, `storage_key`, `content_type` y `size_bytes`; no guarda binarios ni enlaces temporales. Se conservan ambas imágenes obligatorias, el límite de 30 MiB por archivo y 64 MiB por solicitud. Se validan dimensiones antes de decodificar y se usa una muestra de hasta 1024 × 1024 píxeles para comprobar la decodificación sin crear el raster completo. Esa muestra se descarta: el archivo almacenado y entregado es el original, sin recodificar. La consulta `GET /spaces/{id}/images/{kind}` mantiene la autenticación Bearer y transmite el archivo mediante el service, sin revelar credenciales ni URL pública al cliente.
+
+1. En el proyecto `https://teiezrgnhzarhhsycwsh.supabase.co`, mantener privado el bucket `space-images`, ya creado según el responsable del prototipo. Su límite de archivo debe admitir al menos 31.457.280 bytes; sus restricciones MIME deben admitir los formatos que se vayan a usar.
+2. En la configuración API de Supabase, obtener una clave de servidor secreta o la heredada `service_role`. Configurar `APP_STORAGE_SUPABASE_URL`, `APP_STORAGE_SUPABASE_BUCKET` y `APP_STORAGE_SUPABASE_KEY` en el entorno del backend. `.env.example` incluye el origen y bucket indicados, pero deja la clave vacía. La plantilla requiere importación explícita como se explica arriba; Compose recibe las variables en el servicio `app`.
+3. Subir las imágenes desde el cliente a los endpoints existentes; el backend hace el resto. No hace falta conectar el frontend con Supabase ni sustituir la autenticación de la aplicación. La credencial de servidor tiene privilegios elevados: nunca usar `anon`/`publishable` para esta integración ni publicar la clave secreta.
+
+Las subidas ocurren antes de la transacción de negocio, sin mantener su bloqueo global durante la transferencia. Antes de cada subida se registra una compensación persistente en `storage_object_cleanup`, con una hora de margen. El plazo total de subida es inferior a ese margen. Al terminar, también si falla, se renueva la compensación por otra hora y se recrea si una limpieza excepcionalmente adelantada ya la retiró. Al confirmar las referencias, se retiran esas compensaciones en la misma transacción; si una referencia expiró, no se confirma el espacio parcialmente. Si la subida o la transacción falla, el job elimina los objetos sin referencia después del margen, incluso tras reiniciar el backend. En reemplazos se encola el objeto anterior en la transacción y se elimina después del commit; los fallos de Storage se reintentan a los cinco minutos. Cada ejecución procesa hasta 20 entradas y comprueba que ningún objeto a borrar esté referenciado. No se reintentan automáticamente las subidas.
+
+La limpieza usa un scheduler dedicado, separado de los tres hilos de los jobs de negocio. Mantiene una conexión y el bloqueo de la fila de compensación durante cada borrado, pero no el bloqueo global de reservas. El plazo total también acota el borrado; la conexión compartida a PostgreSQL sigue siendo un recurso que debe dimensionarse.
+
+Sin configuración de Storage, el resto del backend puede iniciar; las operaciones que lo necesitan responden `503 STORAGE_NOT_CONFIGURED`. Los errores remotos, permisos incorrectos o archivos remotos ausentes responden `503 STORAGE_UNAVAILABLE`, sin exponer la respuesta del proveedor. Un corte después de empezar a transmitir puede truncar la descarga: ya no es posible reemplazarla por un error JSON. Si el alojamiento suspende el backend, también se aplaza la limpieza. Las descargas consumen transferencia tanto de Supabase como del backend; los planes gratuitos no son ilimitados.
+
+Este cambio también reescribe la V1 editable y añade la cola de limpieza: una base creada anteriormente no se actualiza automáticamente. El responsable confirmó que no hay imágenes ni datos que migrar; no se incluye una migración de binarios ni se recrean bases automáticamente. Mantener estables el proyecto y bucket mientras haya referencias o compensaciones pendientes.
+
+Las pruebas del cliente Storage usan un servidor HTTP local y las pruebas de integración usan un doble de almacenamiento con PostgreSQL de Testcontainers; no utilizan credenciales ni archivos reales de Supabase. La aceptación contra el bucket real queda pendiente de configurar la clave en el servidor.
+
+### Salud, integración y aceptación de despliegue
+
+Actuator publica únicamente `GET /health`, `/health/liveness` y `/health/readiness`, sin autenticación ni detalles internos. Liveness representa el proceso; readiness comprueba aceptación de tráfico y PostgreSQL. Un fallo de readiness responde 503 sin implicar que deba reiniciarse el proceso. SMTP y Supabase no se consultan desde estas sondas. El `HEALTHCHECK` de la imagen y Compose usan `/health/readiness` mediante `docker/healthcheck.sh`; no requieren instalar curl y respetan `SERVER_PORT`, `PORT` o 8080.
+
+Hikari espera como máximo 2 segundos para obtener una conexión y 1 segundo para validarla; no son un timeout general de todas las consultas SQL. El cierre por fase de Spring se limita a 5 segundos y Compose concede 30 segundos para detener el proceso. Las solicitudes interrumpidas no equivalen a operaciones confirmadas: el cliente debe comprobar el resultado antes de repetir escrituras.
+
+Para mostrar imágenes privadas, React debe descargarlas con `fetch` y `Authorization: Bearer`, convertir la respuesta a blob y gestionar la URL de objeto (incluida su liberación). Un `<img src>` convencional no añade ese encabezado. Los errores tempranos de descarga conservan CORS y cabeceras de seguridad; después de iniciar la entrega, un corte solo puede dar una descarga incompleta.
+
+Antes de aceptar un despliegue:
+
+- Configurar PostgreSQL de destino (JDBC, TLS, permisos de Flyway y `btree_gist`) y comprobar una instalación limpia. Si se usa un pooler externo, verificar su compatibilidad; contratar Storage no configura la base de datos del backend.
+- Configurar Supabase privado y probar subida, lectura, reemplazo y limpieza con la clave de servidor real. Verificar límites de archivo, MIME, capacidad y transferencia.
+- Configurar SMTP, remitente y enlaces reales; comprobar recepción en los destinatarios previstos. Mailpit solo prueba entrega local. Revisar restricciones de puertos del hosting.
+- Fijar CORS, orígenes QR, URLs de contacto y cancelación, HTTPS/HSTS y confianza del proxy. Probar puerto, límites multipart y tiempos de espera. No activar `dev` en producción.
+- Para SSE, desactivar buffering del proxy, configurar su timeout y reconexión del cliente. Actualmente se envía un comentario inicial, no un heartbeat periódico; aceptar ese límite o acordar su implementación antes de exigir conexiones inactivas persistentes.
+- Si el hosting se duerme, aceptar el retraso de los jobs funcionales y de limpieza; no equivale a operación continua.
+- Completar aceptación con React: perfil, expiración y retorno al destino, reautenticación, multipart, imágenes, SSE, reservas, QR y enlaces. Las pruebas locales no sustituyen la aceptación del frontend y de los servicios reales.

@@ -81,6 +81,7 @@ public class SecurityConfig {
                         csp.policyDirectives("default-src 'none'; frame-ancestors 'none'")))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.GET, "/health", "/health/liveness", "/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST, "/dev/login", "/auth/code", "/auth/verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/reservations").hasRole("USER")
                         .requestMatchers("/auth/reauth/**").hasRole("ADMIN")

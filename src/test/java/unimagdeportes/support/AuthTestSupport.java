@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -50,6 +51,9 @@ import unimagdeportes.mail.MailSender;
         "app.jobs.reminder-cron=-",
         "app.jobs.reservation-lifecycle-cron=-",
         "app.jobs.auth-cleanup-cron=-",
+        "app.jobs.storage-cleanup-cron=-",
+        "app.storage.supabase.url=",
+        "app.storage.supabase.key=",
         "spring.docker.compose.enabled=false" })
 @Import({TestcontainersConfiguration.class, AuthTestSupport.Fixtures.class})
 @ActiveProfiles("auth-test")
@@ -62,7 +66,15 @@ public abstract class AuthTestSupport {
     @Autowired protected JsonMapper json;
     @Autowired protected JwtDecoder decoder;
     @Autowired protected JwtEncoder encoder;
+    @Autowired protected TestImageStorage imageStorage;
+    @Autowired private unimagdeportes.service.availability.AvailabilityStream availabilityStream;
     protected final HttpClient client = HttpClient.newHttpClient();
+
+    @AfterEach
+    void closeHttpResources() {
+        availabilityStream.closeSubscriptions();
+        client.close();
+    }
 
     @BeforeEach
     void resetState() {
@@ -74,6 +86,8 @@ public abstract class AuthTestSupport {
         mail.pdfs.clear();
         mail.sentCount.set(0);
         mail.failing = false;
+        imageStorage.reset();
+        jdbc.execute("truncate table storage_object_cleanup");
     }
 
     protected void resetUsageParameters() {
@@ -90,6 +104,7 @@ public abstract class AuthTestSupport {
     public static class Fixtures {
         @Bean @Primary MutableClock testClock() { return new MutableClock(); }
         @Bean @Primary TestMail testMail() { return new TestMail(); }
+        @Bean @Primary TestImageStorage testImageStorage() { return new TestImageStorage(); }
     }
 
     // Exercise shared security without implementing endpoints belonging to other UCs.
