@@ -33,6 +33,7 @@ import unimagdeportes.security.TokenService;
         "app.auth.jwt.secret=test-only-012345678901234567890123456789",
         "app.auth.code.hmac-secret=test-only-hmac-012345678901234567890123456789",
         "APP_MAIL_CONTACT_RECIPIENT=smtp-contact@example.org",
+        "app.jobs.reminder-cron=-",
         "app.jobs.reservation-lifecycle-cron=-",
         "spring.docker.compose.enabled=false" })
 @Import(TestcontainersConfiguration.class)

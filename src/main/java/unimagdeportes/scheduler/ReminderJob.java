@@ -13,7 +13,7 @@ public class ReminderJob {
 
     public ReminderJob(ReservationService reservations) { this.reservations = reservations; }
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(cron = "${app.jobs.reminder-cron:0 * * * * *}")
     public synchronized void sendReminders() {
         for (var id : reservations.dueReminders()) {
             try {
