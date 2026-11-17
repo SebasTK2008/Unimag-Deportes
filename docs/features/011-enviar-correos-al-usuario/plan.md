@@ -125,7 +125,7 @@ Contenido de los avisos, todos en America/Bogota y con el canal de contacto:
 - [ ] **T019** Revisar los correos con Mailpit.
 - [ ] **T020** Verificar que un fallo de correo no revierte operaciones y ejecutar `./mvnw clean verify`.
 
-**Avance verificado:** el generador y DTO se prueban con y sin implementos y zona Bogotá; `ReservationCreationService` construye y publica el evento de comprobante, incluidos los implementos. La entrega desde el flujo real y el comportamiento ante rollback o fallo de correo aún necesitan pruebas específicas. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
+**Avance verificado:** el generador y DTO se prueban con y sin implementos y zona Bogotá; `ReservationCreationService` construye y publica el evento de comprobante, incluidos los implementos. `EquipmentIntegrationTest` crea una reserva real con dos implementos y comprueba nombre y cantidad en el PDF capturado por el adaptador de prueba. No acredita entrega SMTP real ni rollback o fallo de correo en ese flujo. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
 
 **Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo. `ReminderFlowIntegrationTest` lo prueba con una reserva creada por `POST /reservations` (UC03): envía el enlace de cancelación y omite la reserva cancelada.
 
@@ -136,7 +136,7 @@ Los cinco avisos se prueban desde sus productores reales:
 - inasistencia, suspensión y cancelación por suspensión en `ReservationLifecycleIntegrationTest` (UC10);
 - recordatorio en `ReminderFlowIntegrationTest`.
 
-En la cancelación y la inasistencia se verifica además que un fallo de correo no revierte la operación; para el bloqueo lo cubre la prueba controlada de `NotificationEventsTest`. T012–T015 quedan cubiertas. T006, T008 y T009 (comprobante) siguen abiertas por la cobertura pendiente del flujo real. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
+En la cancelación y la inasistencia se verifica además que un fallo de correo no revierte la operación; para el bloqueo lo cubre la prueba controlada de `NotificationEventsTest`. T012–T015 quedan cubiertas. T006, T008 y T009 (comprobante) siguen abiertas: existe una prueba del flujo real con implementos y correo simulado, pero no se ha completado toda la cobertura de envío y fallos. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
 
 **Límite del recordatorio:** el job serializa sus ejecuciones dentro de una instancia. Conforme a `docs/techincal-plan/plan-general.md` §5.2, el despliegue previsto es de una sola instancia; varias instancias requieren coordinación adicional. Si SMTP acepta el mensaje pero falla el marcado posterior o cae el proceso, un reintento puede duplicarlo. No se garantiza entrega exactamente una vez.
 

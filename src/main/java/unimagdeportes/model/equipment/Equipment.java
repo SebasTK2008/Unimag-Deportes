@@ -22,6 +22,18 @@ public class Equipment {
 
     protected Equipment() { }
 
+    public Equipment(UUID id, String name, Discipline discipline, int stock, EquipmentStatus status) {
+        this.id = id;
+        update(name, discipline, stock, status);
+    }
+
+    public void update(String name, Discipline discipline, int stock, EquipmentStatus status) {
+        this.name = name;
+        this.discipline = discipline;
+        this.stock = stock;
+        this.status = status;
+    }
+
     public UUID getId() { return id; }
     public String getName() { return name; }
     public Discipline getDiscipline() { return discipline; }

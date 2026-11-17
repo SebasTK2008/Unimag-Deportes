@@ -142,7 +142,7 @@ UC03 depende de UC01, UC06, UC07-H1 y el esquema compartido, y de la base de UC0
 ## Notes
 
 - `[US1]` etiqueta la única historia de la SPEC 003.
-- La integración inicial de implementos y validación de stock se encuentra en la transacción de reserva; su cobertura y los demás componentes de UC13 siguen pendientes según su plan.
+- La integración de implementos y validación de stock se encuentra en la transacción de reserva; el catálogo y las pruebas integradas existen. Para la cobertura pendiente de UC13, consultar su plan.
 - La cuota se deriva; no hay tabla de saldo (D-06).
 
 ## Checklist de auto-revisión

@@ -12,4 +12,6 @@ public interface EquipmentRepository extends JpaRepository<Equipment, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Equipment e where e.id = :id")
     Optional<Equipment> findForUpdate(UUID id);
+
+    boolean existsByNameAndIdNot(String name, UUID id);
 }
