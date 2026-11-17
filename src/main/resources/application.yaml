@@ -42,6 +42,7 @@ app:
     checkin-opening-minutes: ${APP_RULES_CHECKIN_OPENING_MINUTES:10}
     suspension-days: ${APP_RULES_SUSPENSION_DAYS:7}
   jobs:
+    reminder-cron: ${APP_JOBS_REMINDER_CRON:0 * * * * *}
     reservation-lifecycle-cron: ${APP_JOBS_RESERVATION_LIFECYCLE_CRON:0 * * * * *}
   auth:
     jwt:

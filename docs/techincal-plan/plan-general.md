@@ -351,7 +351,7 @@ El sistema **no usa colas de mensajería**: los correos se envían después del 
 | Job | Origen | Regla |
 |---|---|---|
 | `ReservationLifecycleJob` (cada minuto; cron configurable con `APP_JOBS_RESERVATION_LIFECYCLE_CRON`) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in cuya ventana cerró pasan a `NO_SHOW`, se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
-| `ReminderJob` (cada minuto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. |
+| `ReminderJob` (cada minuto por defecto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. Cron configurable mediante `app.jobs.reminder-cron` (`APP_JOBS_REMINDER_CRON`); `-` desactiva la ejecución automática. Las pruebas de integración lo invocan explícitamente para no competir con la limpieza de BD. |
 | `AuthCleanupJob` (cada hora) | UC01 | Borra registros vencidos o usados solo después de conservarlos al menos una hora desde la solicitud. |
 
 Los cambios de estado del job son idempotentes. El correo es de mejor esfuerzo: un fallo se registra y no revierte la operación; no se garantiza recuperación tras una caída ni ausencia de duplicados si el proceso cae entre envío y marcado. **El reinicio semanal (UC08-H2) no tiene job**: ver D-06. Con una sola instancia no hace falta bloqueo de jobs; si algún día se despliegan varias, habrá que agregarlo.
