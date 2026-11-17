@@ -14,9 +14,16 @@ import unimagdeportes.model.user.AppUser;
 import unimagdeportes.model.user.Role;
 
 class TokenServiceTest {
+    @org.junit.jupiter.api.Test
+    void rejectsSharedAuthenticationSecrets() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> config.jwtKey(
+                "0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
     private static final Instant NOW = Instant.parse("2026-11-10T12:00:00Z");
     private final SecurityConfig config = new SecurityConfig();
-    private final javax.crypto.spec.SecretKeySpec key = config.jwtKey("0123456789abcdef0123456789abcdef");
+    private final javax.crypto.spec.SecretKeySpec key = config.jwtKey("0123456789abcdef0123456789abcdef",
+            "independent-code-key-01234567890123456789");
 
     @Test
     void issuesTokenWithDocumentedLifetime() {
@@ -35,7 +42,8 @@ class TokenServiceTest {
         String token = new TokenService(config.jwtEncoder(key), issuedClock).issue(user);
         var expiredClock = Clock.fixed(NOW.plus(Duration.ofHours(25)), ZoneOffset.UTC);
         assertThatThrownBy(() -> config.jwtDecoder(key, expiredClock).decode(token)).isInstanceOf(JwtException.class);
-        var otherKey = config.jwtKey("abcdef0123456789abcdef0123456789");
+        var otherKey = config.jwtKey("abcdef0123456789abcdef0123456789",
+                "independent-code-key-01234567890123456789");
         assertThatThrownBy(() -> config.jwtDecoder(otherKey, issuedClock).decode(token)).isInstanceOf(JwtException.class);
     }
 }

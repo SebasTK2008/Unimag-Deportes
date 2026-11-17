@@ -25,7 +25,6 @@ import unimagdeportes.service.policy.LoginCodePolicy;
 @Service
 public class LoginCodeService {
     private static final Duration WINDOW = Duration.ofHours(1);
-    private static final int MAX_REQUESTS_PER_EMAIL = 5;
     private static final int MAX_REQUESTS_PER_IP = 30;
     private final LoginCodeRepository codes;
     private final JdbcTemplate jdbc;
@@ -35,12 +34,17 @@ public class LoginCodeService {
     private final LoginCodePolicy policy;
     private final Duration validity;
     private final int maxAttempts;
+    private final Duration resendInterval;
+    private final int maxRequestsPerEmail;
 
     public LoginCodeService(LoginCodeRepository codes, JdbcTemplate jdbc, MailSender mail, LoginCodeMessage message,
             Clock clock, @Value("${app.auth.code.hmac-secret}") String secret,
             @Value("${app.auth.code.validity:PT15M}") Duration validity,
-            @Value("${app.auth.code.max-attempts:5}") int maxAttempts) {
-        if (validity.isNegative() || validity.isZero() || maxAttempts < 1) {
+            @Value("${app.auth.code.max-attempts:5}") int maxAttempts,
+            @Value("${app.auth.code.resend-interval:PT1M}") Duration resendInterval,
+            @Value("${app.auth.code.max-requests-per-email:5}") int maxRequestsPerEmail) {
+        if (validity.isNegative() || validity.isZero() || maxAttempts < 1
+                || resendInterval.isNegative() || resendInterval.isZero() || maxRequestsPerEmail < 1) {
             throw new IllegalArgumentException("Configuración de códigos inválida");
         }
         this.codes = codes;
@@ -51,6 +55,8 @@ public class LoginCodeService {
         this.policy = new LoginCodePolicy(new SecureRandom(), secret.getBytes(StandardCharsets.UTF_8));
         this.validity = validity;
         this.maxAttempts = maxAttempts;
+        this.resendInterval = resendInterval;
+        this.maxRequestsPerEmail = maxRequestsPerEmail;
     }
 
     @Transactional(noRollbackFor = BusinessException.class)
@@ -60,14 +66,15 @@ public class LoginCodeService {
         lock("ip:" + ip);
         Instant now = clock.instant();
         List<LoginCode> recent = codes.findByEmailAndCreatedAtAfterOrderByCreatedAtAsc(normalized, now.minus(WINDOW));
-        if (!recent.isEmpty()) {
-            Instant next = recent.getLast().getCreatedAt().plusSeconds(60);
+        var previous = codes.findFirstByEmailOrderByCreatedAtDesc(normalized);
+        if (previous.isPresent()) {
+            Instant next = previous.get().getCreatedAt().plus(resendInterval);
             if (now.isBefore(next)) {
                 throw limited("RESEND_TOO_SOON", next, now);
             }
         }
-        if (recent.size() >= MAX_REQUESTS_PER_EMAIL) {
-            throw limited("CODE_REQUEST_LIMIT", recent.get(recent.size() - MAX_REQUESTS_PER_EMAIL).getCreatedAt().plus(WINDOW), now);
+        if (recent.size() >= maxRequestsPerEmail) {
+            throw limited("CODE_REQUEST_LIMIT", recent.get(recent.size() - maxRequestsPerEmail).getCreatedAt().plus(WINDOW), now);
         }
         List<Instant> ipRequests = jdbc.query("select created_at from login_code_request_ip "
                         + "where ip_address = ? and created_at > ? order by created_at",
@@ -76,7 +83,7 @@ public class LoginCodeService {
             throw limited("IP_CODE_REQUEST_LIMIT", ipRequests.get(ipRequests.size() - MAX_REQUESTS_PER_IP).plus(WINDOW), now);
         }
         String code = policy.generate();
-        codes.findFirstByEmailOrderByCreatedAtDesc(normalized).ifPresent(previous -> previous.markUsed(now));
+        previous.ifPresent(codeRecord -> codeRecord.markUsed(now));
         LoginCode loginCode = codes.save(new LoginCode(UUID.randomUUID(), normalized, policy.hash(normalized, code),
                 now.plus(validity), now));
         jdbc.update("insert into login_code_request_ip (id, ip_address, created_at) values (?, ?, ?)",
@@ -112,6 +119,17 @@ public class LoginCodeService {
             throw invalid("INVALID_CODE", "El código no es correcto.", Map.of("attemptsRemaining", remaining));
         }
         current.markUsed(now);
+    }
+
+    /** Keep the complete rate-limit window, including failed deliveries and a longer resend interval. */
+    @Transactional
+    public void cleanupExpired() {
+        Instant now = clock.instant();
+        Duration retention = resendInterval.compareTo(WINDOW) > 0 ? resendInterval : WINDOW;
+        jdbc.update("delete from login_code where created_at <= ? and (used_at is not null or expires_at <= ?)",
+                java.sql.Timestamp.from(now.minus(retention)), java.sql.Timestamp.from(now));
+        jdbc.update("delete from login_code_request_ip where created_at <= ?",
+                java.sql.Timestamp.from(now.minus(WINDOW)));
     }
 
     private BusinessException invalid(String error, String message, Map<String, ?> details) {

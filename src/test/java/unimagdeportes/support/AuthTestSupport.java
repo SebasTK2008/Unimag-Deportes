@@ -49,6 +49,7 @@ import unimagdeportes.mail.MailSender;
         // Las pruebas mueven un reloj compartido; el job se invoca de forma explícita.
         "app.jobs.reminder-cron=-",
         "app.jobs.reservation-lifecycle-cron=-",
+        "app.jobs.auth-cleanup-cron=-",
         "spring.docker.compose.enabled=false" })
 @Import({TestcontainersConfiguration.class, AuthTestSupport.Fixtures.class})
 @ActiveProfiles("auth-test")

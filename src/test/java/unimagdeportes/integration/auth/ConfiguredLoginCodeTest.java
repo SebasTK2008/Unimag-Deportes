@@ -17,9 +17,54 @@ class ConfiguredLoginCodeTest extends AuthTestSupport {
     @Autowired TransactionTemplate transactions;
 
     @Test
+    void deploymentCanChangeResendAndRollingEmailLimit() {
+        var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage("https://client.example/contact"),
+                clock, "test-config-012345678901234567890123456789", Duration.ofMinutes(15), 5,
+                Duration.ofSeconds(30), 2);
+        String email = "configured-limit@unimagdalena.edu.co";
+        transactions.executeWithoutResult(status -> service.request(email, "127.0.0.1"));
+        BusinessException resend = transactions.execute(status -> {
+            try {
+                service.request(email, "127.0.0.1");
+                throw new AssertionError("Se esperaba límite de reenvío");
+            } catch (BusinessException ex) { return ex; }
+        });
+        assertThat(resend.getCode()).isEqualTo("RESEND_TOO_SOON");
+        clock.advance(Duration.ofSeconds(30));
+        transactions.executeWithoutResult(status -> service.request(email, "127.0.0.1"));
+        clock.advance(Duration.ofSeconds(30));
+        BusinessException hourly = transactions.execute(status -> {
+            try {
+                service.request(email, "127.0.0.1");
+                throw new AssertionError("Se esperaba límite por hora");
+            } catch (BusinessException ex) { return ex; }
+        });
+        assertThat(hourly.getCode()).isEqualTo("CODE_REQUEST_LIMIT");
+    }
+
+    @Test
+    void cleanupPreservesALongerResendWindow() {
+        var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage("https://client.example/contact"),
+                clock, "test-config-012345678901234567890123456789", Duration.ofMinutes(15), 5,
+                Duration.ofHours(2), 5);
+        String email = "long-resend@unimagdalena.edu.co";
+        transactions.executeWithoutResult(status -> service.request(email, "127.0.0.1"));
+        clock.advance(Duration.ofMinutes(61));
+        transactions.executeWithoutResult(status -> service.cleanupExpired());
+        assertThat(codes.findFirstByEmailOrderByCreatedAtDesc(email)).isPresent();
+        BusinessException limited = transactions.execute(status -> {
+            try {
+                service.request(email, "127.0.0.1");
+                throw new AssertionError("Se esperaba conservar el límite de reenvío");
+            } catch (BusinessException ex) { return ex; }
+        });
+        assertThat(limited.getCode()).isEqualTo("RESEND_TOO_SOON");
+    }
+
+    @Test
     void missingContactDoesNotSendCodeAndReturnsDeliveryFailure() {
         var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage(""), clock,
-                "test-config-012345678901234567890123456789", Duration.ofMinutes(15), 5);
+                "test-config-012345678901234567890123456789", Duration.ofMinutes(15), 5, Duration.ofMinutes(1), 5);
         String email = "missing-contact@unimagdalena.edu.co";
         BusinessException error = transactions.execute(status -> {
             try {
@@ -37,7 +82,7 @@ class ConfiguredLoginCodeTest extends AuthTestSupport {
     @Test
     void deploymentCanChangeValidityAndAttemptLimit() {
         var service = new LoginCodeService(codes, jdbc, mail, new LoginCodeMessage("https://client.example/contact"), clock,
-                "test-config-012345678901234567890123456789", Duration.ofMinutes(2), 2);
+                "test-config-012345678901234567890123456789", Duration.ofMinutes(2), 2, Duration.ofMinutes(1), 5);
         String email = "configured@unimagdalena.edu.co";
         transactions.executeWithoutResult(status -> service.request(email, "127.0.0.1"));
         var stored = codes.findFirstByEmailOrderByCreatedAtDesc(email).orElseThrow();
