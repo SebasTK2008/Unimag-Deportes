@@ -5,17 +5,15 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
 import org.springframework.context.ApplicationEventPublisher;
 import unimagdeportes.dto.block.BlockDtos.CreateBlock;
 import unimagdeportes.dto.block.BlockDtos.CreatedBlock;
-import unimagdeportes.exception.BusinessException;
 import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
 import unimagdeportes.model.block.InstitutionalBlock;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
-import unimagdeportes.repository.space.SpaceRepository;
+import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.reservation.ReservationLock;
 import unimagdeportes.service.reservation.ReservationService;
@@ -23,7 +21,7 @@ import unimagdeportes.service.reservation.ReservationService;
 @Service
 public class BlockService {
     private final InstitutionalBlockRepository blocks;
-    private final SpaceRepository spaces;
+    private final SpaceService spaces;
     private final ReservationLock lock;
     private final ReservationService reservations;
     private final BlockSchedule schedule;
@@ -31,7 +29,7 @@ public class BlockService {
     private final BlockMapper mapper;
     private final ApplicationEventPublisher events;
 
-    public BlockService(InstitutionalBlockRepository blocks, SpaceRepository spaces, ReservationLock lock,
+    public BlockService(InstitutionalBlockRepository blocks, SpaceService spaces, ReservationLock lock,
             ReservationService reservations, BlockSchedule schedule, AuditService audit, BlockMapper mapper,
             ApplicationEventPublisher events) {
         this.blocks = blocks;
@@ -48,9 +46,7 @@ public class BlockService {
     public CreatedBlock create(CreateBlock request, UUID administratorId) {
         lock.acquire();
         var slots = schedule.materialize(request);
-        if (!spaces.existsById(request.spaceId())) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "SPACE_NOT_FOUND", "El espacio no existe.");
-        }
+        spaces.get(request.spaceId());
         int cancelled = reservations.cancelForBlock(request.spaceId(), slots, request.reason(), administratorId);
         UUID group = request.recurrence() == null ? null : UUID.randomUUID();
         for (var slot : slots) {

@@ -30,26 +30,45 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `APP_AUTH_CODE_HMAC_SECRET` | Obligatoria; clave HMAC de al menos 32 bytes UTF-8, distinta de la clave JWT. |
 | `APP_AUTH_CODE_VALIDITY` | Duración ISO-8601 positiva; `PT15M`. |
 | `APP_AUTH_CODE_MAX_ATTEMPTS` | Entero positivo; `5`. |
+| `APP_AUTH_CODE_RESEND_INTERVAL` | Duración ISO-8601 positiva entre solicitudes de un correo; `PT1M`. |
+| `APP_AUTH_CODE_MAX_REQUESTS_PER_EMAIL` | Entero positivo, solicitudes por hora rodante por correo; `5`. El límite por IP permanece fijo en 30/h. |
 | `APP_AUTH_ADMIN_EMAILS` | Correos separados por comas; vacío por defecto. |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes del cliente separados por comas; vacío por defecto. No usa credenciales de cookies. |
 | `APP_CHECKIN_FRONTEND_ORIGIN` | Origen público del frontend para los QR de UC05; vacío por defecto. Requiere HTTPS, salvo HTTP en perfiles `dev` o `test`; sin un origen válido, el endpoint QR responde `503 QR_NOT_CONFIGURED`. |
 | `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
+| `APP_MAIL_FROM` | Remitente autorizado por el proveedor SMTP; dirección simple validada al arrancar. Opcional para Mailpit. |
 | `APP_MAIL_CONTACT_URL` | URL del formulario de contacto del frontend; pendiente de definir para despliegue. Si está vacía, el código de acceso no se envía y la solicitud responde `503 MAIL_DELIVERY_FAILED`; tampoco se envían comprobantes ni avisos. |
 | `APP_MAIL_CONTACT_RECIPIENT` | Destinatario de UC12: configurar `salcendra@unimagdalena.edu.co` mediante el entorno. Sin valor predeterminado en la aplicación; si está vacío, `POST /contact` responde `503 CONTACT_NOT_CONFIGURED`. No asigna roles de administrador. |
 | `APP_MAIL_CANCELLATION_URL` | URL del flujo de cancelación del frontend con `{id}` como identificador de la reserva; pendiente de definir para despliegue. Sin ella no se envía el recordatorio. |
 | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Conexión externa si no se usa la detección automática de Compose. |
+| `APP_RULES_BOOKING_TOLERANCE_MINUTES`, `APP_RULES_LATE_CANCELLATION_MINUTES`, `APP_RULES_MIN_ADVANCE_MINUTES`, `APP_RULES_CHECKIN_OPENING_MINUTES` | Enteros no negativos; `10`, `60`, `0`, `10`. La aplicación rechaza configuraciones negativas al arrancar. |
+| `APP_RULES_SUSPENSION_DAYS` | Entero positivo; `7`. |
+| `APP_JOBS_RESERVATION_LIFECYCLE_CRON`, `APP_JOBS_REMINDER_CRON` | Cron de seis campos, cada minuto por defecto (`0 * * * * *`); `-` desactiva cada job. |
+| `APP_JOBS_AUTH_CLEANUP_CRON` | Cada hora (`0 0 * * * *`); `-` lo desactiva. Limpia códigos vencidos/usados y solicitudes IP fuera de su retención. |
 
 Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
 
-`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye pruebas de contrato de los endpoints, límites, concurrencia, rollback, expiración, estado vigente y seguridad. La última verificación terminó con 225 pruebas sin fallos ni omisiones.
+`./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye contratos, límites, concurrencia, rollback, expiración, configuración y seguridad. El resultado y número de pruebas de cada ejecución quedan en `target/surefire-reports/`; no se deduce el estado vigente de cifras de ejecuciones anteriores.
 
 Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
 
 UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `frontend.example` de la plantilla son ilustrativas. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
+
+### Preparación funcional para el cliente
+
+El calendario y la creación usan la misma política temporal, incluida la anticipación mínima. ADMIN conserva consultas, cuota, contacto y operaciones sobre reservas propias; solo USER crea reservas. Los contratos están en `docs/techincal-plan/contracts/`.
+
+El primer check-in respeta la ventana y rechaza una reserva de otro usuario en curso. Repetir sobre una reserva aún `IN_USE` devuelve su registro original, incluso después del fin antes de que el job la complete. Una suspensión cancela también reservas futuras con check-in anticipado completamente contenidas; no cancela las ya iniciadas.
+
+Los indicadores de suspendidos se basan en auditorías `USER_SUSPENDED` y su fecha de fin conservada en `detail`. Para auditorías anteriores sin esa fecha se usa la última marca mensual creada no después del evento, si existe. No hace falta cambiar el esquema ni reparar Flyway para estos cambios.
+
+Los envíos SMTP reintentan hasta dos veces los fallos de envío, con esperas de 100 y 200 ms; preparación y autenticación no se reintentan. Siguen siendo de mejor esfuerzo: no se garantizan recuperación tras caída ni ausencia de duplicados. La limpieza de autenticación conserva como mínimo una hora de solicitudes y, para códigos, el intervalo de reenvío si es mayor; no borra códigos activos ni reinicia los límites.
+
+Para una prueba local con el cliente en `http://localhost:5173`, configure explícitamente `SPRING_PROFILES_ACTIVE=dev`, el origen QR y CORS con ese origen, contacto en `http://localhost:5173/app/contacto` y cancelación en `http://localhost:5173/reservations/{id}/cancel`. Sustituya el puerto si el cliente usa otro. Esto solo prepara configuración: no realiza la integración ni prueba navegación, dispositivos o accesibilidad del frontend.
 
 En producción se requiere HTTPS y HSTS en el punto de entrada. Por defecto no se confía en encabezados reenviados: el límite por IP usa la dirección remota de la conexión. Si existe un proxy, configure explícitamente su confianza y evite que la API sea accesible directamente; no habilite la confianza indiscriminada en `X-Forwarded-For`. No active logs de cuerpos HTTP, credenciales SMTP o tokens.
 

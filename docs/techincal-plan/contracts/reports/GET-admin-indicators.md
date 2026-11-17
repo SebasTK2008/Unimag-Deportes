@@ -57,8 +57,8 @@ GET /admin/indicators?period=WEEKLY
 
 - Los períodos son fijos semanal y mensual; el frontend permite elegir cuál ver (OQ-08).
 - El período actual es `[from, to)` en America/Bogota. `reservations` cuenta creaciones registradas en el período; `lateCancellations` y `noShows` cuentan transiciones registradas en el período; `suspendedUsers` cuenta usuarios distintos suspendidos durante cualquier parte del período, según auditoría de suspensión y su fecha de fin.
-- El solapamiento usa intervalos semiabiertos: inicio de suspensión anterior a `to` y fin posterior a `from`. Se cuentan usuarios distintos a partir del historial `monthly_suspension`; no es posible reconstruir automáticamente las fechas de fin históricas no conservadas.
-- **Desviación pendiente:** el conteo implementado consulta `monthly_suspension` y no consulta los registros de auditoría `USER_SUSPENDED` exigidos para esta métrica.
+- El solapamiento usa intervalos semiabiertos: inicio de suspensión anterior a `to` y fin posterior a `from`. Se cuentan usuarios distintos a partir de auditorías `USER_SUSPENDED`, cuyo `detail` conserva la fecha de fin ISO-8601. Una marca mensual sin auditoría no se cuenta.
+- Para auditorías anteriores sin `detail`, se consulta la última marca `monthly_suspension` del usuario creada no después del evento. Si tampoco existe esa fecha histórica, no se inventa una duración ni se cuenta un intervalo no reconstruible.
 - `lateCancellations` cuenta las reservas con cancelación auditada en el período cuyo estado es `CANCELLED_LATE`.
 - El período mensual es el mes calendario en curso, desde el día 1 a las 00:00 en America/Bogota.
 - El período semanal comienza el lunes a las 00:00 en America/Bogota (RNF-07).

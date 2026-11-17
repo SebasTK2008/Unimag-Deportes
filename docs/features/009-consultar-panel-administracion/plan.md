@@ -66,7 +66,7 @@ src/test/java/unimagdeportes/{contract/reports,integration/reports}/
   - `lateCancellations`: reservas con `RESERVATION_CANCELLED` en el período y estado `CANCELLED_LATE`. La auditoría de UC04 no distingue el tipo de cancelación, por eso se cruza con el estado.
   - `noShows`: auditorías `NO_SHOW_REGISTERED` del período.
   - `suspendedUsers`: usuarios distintos con intervalos de suspensión solapados con el período, consultados mediante `SanctionService` y `monthly_suspension`.
-- **Desviación pendiente de RNF-003 y del contrato**: el conteo de suspendidos usa `monthly_suspension` directamente y no consulta la auditoría `USER_SUSPENDED`.
+- **Fuente de suspendidos**: auditorías `USER_SUSPENDED` con su fecha de fin en `detail`; para eventos anteriores sin instantánea se usa la última marca mensual creada no después del evento. Una marca sin auditoría no se cuenta.
 - **Fronteras de módulo**: `AuditService` expone `count` y `distinctEntities`; `ReservationService` expone `countWithStatus`. El módulo `report` no usa repositorios ajenos.
 - **Mapper**: `ReportMapper` es una interfaz MapStruct [D-24].
 
@@ -139,11 +139,11 @@ UC09 depende de UC01, UC03, UC07 y UC10. US1 y US2 son independientes entre sí.
 - `[US1]` y `[US2]` son independientes.
 - Períodos fijos semanal y mensual (OQ-08).
 - No se crean tablas nuevas.
-- La fecha de fin se conserva en `monthly_suspension` para nuevas suspensiones. Las fechas históricas no conservadas no pueden reconstruirse automáticamente.
+- Las nuevas auditorías `USER_SUSPENDED` conservan su fecha de fin en `detail`. Para eventos anteriores sin esa instantánea se usa la última marca mensual creada no después del evento, si existe; no se inventan fechas históricas. `IndicatorsIntegrationTest` prueba instantáneas sin marca y excluye marcas sin auditoría.
 
 ## Checklist de auto-revisión
 
-- [ ] Alineado con SPEC 009 y `contracts/reports/`: pendiente resolver la fuente de auditoría para suspendidos.
+- [x] Alineado con SPEC 009 y `contracts/reports/`: suspendidos derivados de auditoría y fecha de fin.
 - [x] RF/RNF/CE/HU trazados.
 - [x] Solo lectura y rol `ADMIN`.
 - [x] Períodos y filtros correctos.

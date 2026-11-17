@@ -251,6 +251,26 @@ class EquipmentIntegrationTest extends RulesTestSupport {
                 Integer.class, item)).isEqualTo(1);
     }
 
+    @Test
+    void partiallyOverlappingRangesUsePeakCommitmentAndDoNotOversell() throws Exception {
+        String admin = administrator();
+        String first = completeLogin("partial-first@unimagdalena.edu.co");
+        String second = completeLogin("partial-second@unimagdalena.edu.co");
+        UUID item = createItem(admin, 3);
+        String twoSlots = reservation(space(), item, 2, "08:00").replace("\"slots\":1", "\"slots\":2");
+        assertThat(send("POST", "/reservations", twoSlots, first).statusCode()).isEqualTo(201);
+        UUID secondSpace = space();
+        error(send("POST", "/reservations", reservation(secondSpace, item, 2, "09:00"), second),
+                409, "EQUIPMENT_UNAVAILABLE");
+        assertThat(send("POST", "/reservations", reservation(secondSpace, item, 1, "09:00"), second).statusCode())
+                .isEqualTo(201);
+        var available = body(send("GET", "/equipment/availability?startAt=2026-11-11T13:00:00Z"
+                + "&endAt=2026-11-11T15:00:00Z", null, first)).get("items");
+        assertThat(available.valueStream().noneMatch(value -> value.get("equipmentId").asString().equals(item.toString())))
+                .isTrue();
+        error(send("PUT", "/admin/equipment/" + item, "{\"stock\":2}", admin), 409, "STOCK_BELOW_COMMITTED");
+    }
+
     private UUID createItem(String admin, int stock) throws Exception {
         var response = send("POST", "/admin/equipment",
                 "{\"name\":\"Item " + UUID.randomUUID() + "\",\"stock\":" + stock + "}", admin);

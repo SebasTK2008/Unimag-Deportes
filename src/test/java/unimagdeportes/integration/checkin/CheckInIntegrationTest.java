@@ -35,6 +35,51 @@ class CheckInIntegrationTest extends AuthTestSupport {
     }
 
     @Test
+    void repeatsExistingCheckInAtAndAfterEndWithoutAnotherAudit() throws Exception {
+        String user = completeLogin("repeat-ended@unimagdalena.edu.co");
+        UUID userId = UUID.fromString(decoder.decode(user).getSubject());
+        UUID space = space();
+        UUID id = reservation(space, userId, "2026-11-11T12:00:00Z", "2026-11-11T13:00:00Z");
+        var first = send("POST", "/checkin/" + space, null, user);
+        assertThat(first.statusCode()).isEqualTo(200);
+        for (Instant now : new Instant[]{Instant.parse("2026-11-11T13:00:00Z"), Instant.parse("2026-11-11T13:00:01Z")}) {
+            clock.set(now);
+            assertThat(send("POST", "/checkin/" + space, null, user).body()).isEqualTo(first.body());
+        }
+        assertThat(jdbc.queryForObject("select count(*) from audit_log where entity_id=? and action='CHECK_IN'",
+                Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test
+    void previousOccupantStillPreventsCheckInInsideOwnEarlyWindow() throws Exception {
+        String user = completeLogin("next@unimagdalena.edu.co");
+        String other = completeLogin("previous@unimagdalena.edu.co");
+        UUID space = space();
+        reservation(space, UUID.fromString(decoder.decode(other).getSubject()),
+                "2026-11-11T11:00:00Z", "2026-11-11T12:05:00Z");
+        reservation(space, UUID.fromString(decoder.decode(user).getSubject()),
+                "2026-11-11T12:05:00Z", "2026-11-11T13:05:00Z");
+        error(send("POST", "/checkin/" + space, null, user), 403, "FORBIDDEN");
+        clock.set(Instant.parse("2026-11-11T12:05:00Z"));
+        assertThat(send("POST", "/checkin/" + space, null, user).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void realReservationCreatedWithinToleranceCanCheckIn() throws Exception {
+        String user = completeLogin("tolerance-checkin@unimagdalena.edu.co");
+        UUID space = space();
+        jdbc.update("insert into space_discipline (space_id,discipline) values (?, 'TENNIS')", space);
+        clock.set(Instant.parse("2026-11-11T12:05:00Z"));
+        var created = send("POST", "/reservations", """
+                {"spaceId":"%s","startAt":"2026-11-11T07:00:00-05:00","slots":1}
+                """.formatted(space), user);
+        assertThat(created.statusCode()).isEqualTo(201);
+        var response = send("POST", "/checkin/" + space, null, user);
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(body(response).get("reservationId")).isEqualTo(body(created).get("id"));
+    }
+
+    @Test
     void rejectsEarlyClosedCancelledMissingAndUnauthenticated() throws Exception {
         String user = completeLogin("usuario@unimagdalena.edu.co");
         UUID userId = UUID.fromString(decoder.decode(user).getSubject());

@@ -24,6 +24,17 @@ public class AuditService {
         logs.save(new AuditLog(UUID.randomUUID(), action, entityType, entityId, userId, clock.instant()));
     }
 
+    @Transactional
+    public void recordSuspension(UUID userId, Instant suspendedUntil) {
+        logs.save(new AuditLog(UUID.randomUUID(), "USER_SUSPENDED", "USER", userId, null,
+                clock.instant(), suspendedUntil.toString()));
+    }
+
+    @Transactional(readOnly = true)
+    public long countSuspendedUsers(Instant from, Instant to) {
+        return logs.countSuspendedUsers(from, to);
+    }
+
     /** Registros de la acción en el intervalo {@code [from, to)}. */
     @Transactional(readOnly = true)
     public long count(String action, Instant from, Instant to) {

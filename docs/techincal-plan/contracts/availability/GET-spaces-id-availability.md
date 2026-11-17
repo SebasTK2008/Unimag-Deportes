@@ -25,6 +25,8 @@ GET /spaces/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/availability?date=2026-11-11&di
 
 ## Respuestas
 
+`bookable` aplica la misma política temporal que la creación de reservas: tolerancia, anticipación mínima configurada y horizonte. La disponibilidad es orientativa; la creación vuelve a validar cuota, suspensión, solapes y stock transaccionalmente.
+
 ### 200 OK
 
 ```json

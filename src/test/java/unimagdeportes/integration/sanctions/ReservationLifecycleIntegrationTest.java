@@ -117,6 +117,26 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
     }
 
     @Test
+    void suspensionCancelsFutureEarlyCheckInButPreservesAlreadyStartedUse() throws Exception {
+        UUID userId = user("early-suspension");
+        reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(2)), START.minus(Duration.ofDays(2)).plusSeconds(3600));
+        reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(1)), START.minus(Duration.ofDays(1)).plusSeconds(3600));
+        reservation(userId, space(), "CONFIRMED", START.minusSeconds(7200), START.minusSeconds(3600));
+        UUID started = reservation(userId, space(), "IN_USE", START.minusSeconds(60), START.plusSeconds(60), START, START);
+        UUID early = reservation(userId, space(), "IN_USE", START.plusSeconds(300), START.plusSeconds(3900), START, START);
+        UUID item = equipment("Implemento anticipado", 1).id();
+        jdbc.update("insert into reservation_equipment (reservation_id,equipment_id,quantity) values (?,?,1)", early, item);
+        job.closeFinishedReservations();
+        assertThat(statusOf(started)).isEqualTo("IN_USE");
+        assertThat(statusOf(early)).isEqualTo("CANCELLED_BY_SUSPENSION");
+        assertThat(jdbc.queryForObject("select count(*) from reservation_equipment where reservation_id=?",
+                Integer.class, early)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select checked_in_at from reservation where id=?", Timestamp.class, early)
+                .toInstant()).isEqualTo(START);
+        assertThat(mail.bodies.get("early-suspension@unimagdalena.edu.co")).contains("cancelada", "suspensión");
+    }
+
+    @Test
     void appliesAtMostOneSuspensionPerMonth() {
         UUID userId = user("repeat");
         UUID space = space();
@@ -267,6 +287,37 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         job.closeFinishedReservations();
 
         assertThat(statusOf(closed)).isEqualTo("NO_SHOW");
+    }
+
+    @Test
+    void failureDuringSuspensionCancellationRollsBackTheWholeSanctionAndCanRetry() {
+        UUID userId = user("rollback-suspension");
+        reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(2)), START.minus(Duration.ofDays(2)).plusSeconds(3600));
+        reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(1)), START.minus(Duration.ofDays(1)).plusSeconds(3600));
+        UUID closed = reservation(userId, space(), "CONFIRMED", START.minusSeconds(7200), START.minusSeconds(3600));
+        UUID future = reservation(userId, space(), "CONFIRMED", START.plusSeconds(3600), START.plusSeconds(7200));
+        jdbc.execute("create function reject_suspension_cancellation() returns trigger language plpgsql as $$ "
+                + "begin if NEW.action='RESERVATION_CANCELLED_BY_SUSPENSION' then "
+                + "raise exception 'test rollback'; end if; return NEW; end $$");
+        jdbc.execute("create trigger reject_suspension_cancellation before insert on audit_log "
+                + "for each row execute function reject_suspension_cancellation()");
+        try {
+            job.closeFinishedReservations();
+            assertThat(statusOf(closed)).isEqualTo("CONFIRMED");
+            assertThat(statusOf(future)).isEqualTo("CONFIRMED");
+            assertThat(audits("USER_SUSPENDED")).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from monthly_suspension where user_id=?",
+                    Integer.class, userId)).isZero();
+            assertThat(jdbc.queryForObject("select suspended_until from app_user where id=?",
+                    Timestamp.class, userId)).isNull();
+            assertThat(mail.bodies).doesNotContainKey("rollback-suspension@unimagdalena.edu.co");
+        } finally {
+            jdbc.execute("drop trigger reject_suspension_cancellation on audit_log");
+            jdbc.execute("drop function reject_suspension_cancellation()");
+        }
+        job.closeFinishedReservations();
+        assertThat(statusOf(closed)).isEqualTo("NO_SHOW");
+        assertThat(statusOf(future)).isEqualTo("CANCELLED_BY_SUSPENSION");
     }
 
     private UUID user(String name) {

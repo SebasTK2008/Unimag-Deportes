@@ -17,7 +17,6 @@ import unimagdeportes.model.reservation.ReservationStatus;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.policy.WeekCalculator;
 import unimagdeportes.service.reservation.ReservationService;
-import unimagdeportes.service.sanction.SanctionService;
 
 /**
  * Indicadores de uso del período en curso {@code [from, to)} en America/Bogota (UC09-H2, OQ-08),
@@ -35,16 +34,14 @@ public class IndicatorService {
     private static final ZoneId ZONE = ZoneId.of("America/Bogota");
     private final AuditService audit;
     private final ReservationService reservations;
-    private final SanctionService sanctions;
     private final ReportMapper mapper;
     private final Clock clock;
     private final WeekCalculator weeks = new WeekCalculator();
 
-    public IndicatorService(AuditService audit, ReservationService reservations, SanctionService sanctions,
+    public IndicatorService(AuditService audit, ReservationService reservations,
             ReportMapper mapper, Clock clock) {
         this.audit = audit;
         this.reservations = reservations;
-        this.sanctions = sanctions;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -65,7 +62,7 @@ public class IndicatorService {
         return mapper.toIndicators(new IndicatorSnapshot(period, from, to,
                 audit.count("RESERVATION_CREATED", from, to), lateCancellations,
                 audit.count("NO_SHOW_REGISTERED", from, to),
-                sanctions.countUsersSuspendedDuring(from, to)));
+                audit.countSuspendedUsers(from, to)));
     }
 
     private Period period(String value) {

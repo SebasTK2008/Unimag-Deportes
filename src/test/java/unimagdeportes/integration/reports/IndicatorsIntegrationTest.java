@@ -65,6 +65,21 @@ class IndicatorsIntegrationTest extends ReservationTestSupport {
         jdbc.update("insert into monthly_suspension (user_id, absence_month, created_at, suspended_until) "
                         + "values (?, cast(? as date), ?, ?)", user, month,
                 java.sql.Timestamp.from(start), java.sql.Timestamp.from(end));
+        fixtureAudit("USER_SUSPENDED", "USER", user, start);
+    }
+
+    @Test
+    void countsAuditedEndSnapshotsWithoutDependingOnMonthlyMarks() throws Exception {
+        UUID user = fixtureUser("audited-snapshot");
+        jdbc.update("insert into audit_log (id,action,entity_type,entity_id,created_at,detail) "
+                        + "values (?, 'USER_SUSPENDED', 'USER', ?, ?, ?)",
+                UUID.randomUUID(), user, java.sql.Timestamp.from(THIS_WEEK), THIS_WEEK.plus(Duration.ofDays(7)).toString());
+        UUID unaudited = fixtureUser("unaudited-mark");
+        jdbc.update("insert into monthly_suspension (user_id,absence_month,created_at,suspended_until) "
+                        + "values (?,date '2026-11-01',?,?)", unaudited, java.sql.Timestamp.from(THIS_WEEK),
+                java.sql.Timestamp.from(THIS_WEEK.plus(Duration.ofDays(7))));
+        String admin = completeLogin("admin@unimagdalena.edu.co");
+        assertThat(indicators(admin, "WEEKLY").get("suspendedUsers").asInt()).isEqualTo(1);
     }
 
     @Test

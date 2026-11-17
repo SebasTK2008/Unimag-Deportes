@@ -74,7 +74,7 @@ public class OccupancyService {
                 .map(item -> new Block(new Interval(item.startAt(), item.endAt()), item.reason())).toList();
         // La tolerancia solo influye en "bookable", que el panel no expone.
         var slots = policy.catalog(date, space.openingTime(), space.closingTime(), ZONE, clock.instant(),
-                Duration.ZERO, space.status() == SpaceStatus.ACTIVE, occupied, blocked).stream()
+                Duration.ZERO, Duration.ZERO, space.status() == SpaceStatus.ACTIVE, occupied, blocked).stream()
                 .map(slot -> mapper.toSlot(slot, occupant(slot, dayReservations)))
                 .toList();
         return new SpaceOccupancy(space.id(), space.name(), slots);

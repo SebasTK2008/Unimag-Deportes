@@ -37,10 +37,14 @@ import unimagdeportes.service.audit.AuditService;
 @Configuration
 public class SecurityConfig {
     @Bean
-    SecretKeySpec jwtKey(@Value("${app.auth.jwt.secret}") String secret) {
+    SecretKeySpec jwtKey(@Value("${app.auth.jwt.secret}") String secret,
+            @Value("${app.auth.code.hmac-secret}") String codeSecret) {
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalArgumentException("app.auth.jwt.secret debe tener al menos 32 bytes");
+        }
+        if (secret.equals(codeSecret)) {
+            throw new IllegalArgumentException("Las claves JWT y HMAC deben ser independientes");
         }
         return new SecretKeySpec(bytes, "HmacSHA256");
     }

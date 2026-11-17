@@ -43,6 +43,7 @@ Como Usuario con una reserva, quiero escanear con mi celular el código QR del e
 **Regla de la ventana de check-in** (RN-36, RN-30):
 
 - Toda reserva: desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable por hora de inicio; una en curso precede a una futura.
+- La ventana limita el primer registro. Si otro usuario tiene una reserva en curso en el espacio se rechaza también dentro de la ventana anticipada propia. Si la seleccionada sigue `IN_USE`, repetir devuelve su check-in original, incluso después del fin antes del cierre por el job, sin otra auditoría.
 
 ---
 
@@ -94,7 +95,7 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 - **RF-002**: El sistema DEBE comprobar, al escanear, que el Usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in; si todo coincide, la reserva pasa a "En uso" (RN-33).
 - **RF-003**: El sistema DEBE pedir el inicio de sesión cuando no haya una sesión vigente (sin token o con el token expirado) y continuar con el check-in en el mismo espacio una vez autenticado el Usuario; si el enlace se abre en un navegador distinto al de la sesión, DEBE pedir iniciar sesión de nuevo (RN-34).
 - **RF-004**: El sistema DEBE mostrar el motivo cuando el check-in falle: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada (RN-35).
-- **RF-005**: El sistema DEBE aplicar la apertura configurada y permitir el check-in hasta el fin de la reserva, sin incluir ese instante, también para reservas creadas dentro de la tolerancia (RN-30, RN-36).
+- **RF-005**: El sistema DEBE aplicar la ventana al primer check-in, también para reservas creadas dentro de la tolerancia, y rechazarlo si otro usuario ocupa la franja en curso. La repetición sobre una reserva todavía `IN_USE` DEBE devolver el registro original sin modificarlo (RN-30, RN-36).
 - **RF-006**: El sistema DEBE permitir al Administrador generar el QR de cada espacio (RF-16).
 - **RF-007**: El sistema DEBE generar el QR como un código estático que contiene un enlace fijo al espacio, sin identificar al Usuario (RN-31, RN-32).
 - **RF-008**: El sistema DEBE permitir imprimir el QR (RF-16).
@@ -115,7 +116,7 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 
 ### Resultados Medibles
 
-- **CE-001**: Cumplimiento de Reglas, "100% de los check-in fuera de la ventana, sin reserva en el espacio o con la reserva cancelada son rechazados con su motivo".
+- **CE-001**: Cumplimiento de Reglas, "100% de los primeros check-in fuera de la ventana, sin reserva en el espacio o con la reserva cancelada son rechazados con su motivo; las repeticiones sobre `IN_USE` conservan el registro original".
 - **CE-002**: Autonomía, "0 check-in que requieran intervención de un vigilante o del administrador".
 - **CE-003**: Correspondencia, "100% de los QR generados dirigen al enlace de check-in del espacio correcto".
 - **CE-004**: Privacidad, "0 QR que contengan datos de un Usuario".

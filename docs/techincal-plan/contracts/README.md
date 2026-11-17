@@ -13,6 +13,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 - Las rutas son relativas a la raíz de la API.
 - Salvo los endpoints públicos, se envía `Authorization: Bearer <token>`.
 - El token se obtiene en `POST /auth/verify` y no viaja en cookies ni en la URL (RN-55).
+- ADMIN conserva las capacidades compartidas (consultas, reglas, cuota, contacto y operaciones sobre reservas propias); `POST /reservations` sigue siendo exclusivo de USER. Nunca permite operar reservas ajenas.
 - Las solicitudes con cuerpo usan `Content-Type: application/json`, salvo las cargas de imágenes de UC07, que usan `multipart/form-data`.
 
 ### Identificadores y fechas
@@ -58,6 +59,8 @@ Todos los errores usan el mismo cuerpo:
 - `401`: token ausente, vencido o inválido.
 - `403`: autenticado sin permiso, perfil incompleto, reautenticación requerida o usuario suspendido.
 - `404`: recurso inexistente.
+- `405`: método HTTP no permitido.
+- `415`: tipo de contenido no soportado.
 - `409`: conflicto con el estado actual (franja ocupada, cuota, solape, stock, cancelación no permitida).
 - `429`: límite de solicitudes.
 - `500`: error no controlado.
@@ -74,6 +77,9 @@ Todos los errores usan el mismo cuerpo:
 | `FORBIDDEN` | 403 | Rol insuficiente o recurso de otro usuario. |
 | `SUSPENDED` | 403 | Usuario suspendido intentando crear una reserva (RN-40). |
 | `INTERNAL_ERROR` | 500 | Error no controlado. |
+| `RESOURCE_NOT_FOUND` | 404 | Ruta inexistente, incluido `/dev/login` fuera del perfil `dev`. |
+| `METHOD_NOT_ALLOWED` | 405 | Método no soportado por una ruta existente. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | Tipo de contenido incompatible con el endpoint. |
 
 ## Catálogo de errores del dominio
 

@@ -22,14 +22,14 @@ import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
-import unimagdeportes.repository.space.SpaceRepository;
+import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.reservation.ReservationLock;
 import unimagdeportes.service.reservation.ReservationService;
 
 class BlockServiceTest {
     private final InstitutionalBlockRepository blocks = mock(InstitutionalBlockRepository.class);
-    private final SpaceRepository spaces = mock(SpaceRepository.class);
+    private final SpaceService spaces = mock(SpaceService.class);
     private final ReservationLock lock = mock(ReservationLock.class);
     private final ReservationService reservations = mock(ReservationService.class);
     private final AuditService audit = mock(AuditService.class);
@@ -41,7 +41,6 @@ class BlockServiceTest {
 
     @Test
     void locksBeforeReadingAndCreatesOneRowPerHour() {
-        when(spaces.existsById(spaceId)).thenReturn(true);
         when(reservations.cancelForBlock(eq(spaceId), any(), eq("Evento"), eq(admin)))
                 .thenReturn(2);
 
@@ -52,7 +51,7 @@ class BlockServiceTest {
         assertThat(result.recurrenceGroup()).isNull();
         var order = inOrder(lock, spaces, reservations);
         order.verify(lock).acquire();
-        order.verify(spaces).existsById(spaceId);
+        order.verify(spaces).get(spaceId);
         order.verify(reservations).cancelForBlock(eq(spaceId), any(), eq("Evento"), eq(admin));
         verify(blocks, org.mockito.Mockito.times(2)).save(any());
         verify(events).publishEvent(new AvailabilityChangedEvent(spaceId));
@@ -60,7 +59,6 @@ class BlockServiceTest {
 
     @Test
     void doesNotCreateBlocksWhenReservationIsInUse() {
-        when(spaces.existsById(spaceId)).thenReturn(true);
         when(reservations.cancelForBlock(eq(spaceId), any(), eq("Evento"), eq(admin)))
                 .thenThrow(new BusinessException(HttpStatus.CONFLICT, "RESERVATION_IN_USE", "En curso."));
 

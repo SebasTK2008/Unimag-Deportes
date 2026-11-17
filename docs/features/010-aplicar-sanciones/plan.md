@@ -77,6 +77,7 @@ src/test/java/unimagdeportes/{integration/sanctions,service/policy,scheduler}/
 - **Inicio de la suspensión**: dura `APP_RULES_SUSPENSION_DAYS` (7 por defecto) contados desde que el job registra la falta.
 - **Suspensión vigente**: una suspensión nueva nunca acorta una vigente; se conserva la fecha más lejana.
 - **Reservas canceladas por la suspensión**: cada una envía un correo `CANCELLATION` con la fecha y el motivo, y publica `AvailabilityChangedEvent`. Se consideran contenidas las que empiezan después del momento de la suspensión y terminan, como tarde, en su fecha de fin.
+- **Check-in anticipado**: se cancelan también las futuras `IN_USE` completamente contenidas, conservando su check-in como historial. Las ya iniciadas no se cancelan. `ReservationLifecycleIntegrationTest` cubre ambos casos.
 - **Auditoría**: las acciones del sistema se registran sin actor (`user_id` nulo) con los códigos `NO_SHOW_REGISTERED`, `USER_SUSPENDED` y `RESERVATION_CANCELLED_BY_SUSPENSION`.
 - **Bloqueo**: cada reserva se procesa en su propia transacción; se adquiere el bloqueo asesor global, se relee la reserva y se bloquea la fila del usuario antes de modificarla.
 - **Programación**: `APP_JOBS_RESERVATION_LIFECYCLE_CRON` (por defecto, cada minuto); las pruebas lo desactivan con `-` e invocan el job directamente.
