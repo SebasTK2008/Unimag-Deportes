@@ -2,6 +2,13 @@
 
 Esta guía prepara y comprueba la API sin ejecutar ni modificar el cliente React. La integración visual y la navegación del cliente se validarán por separado.
 
+El cliente de `../UnimagDeportes_Frontend` dispone de conexión HTTP mediante
+`VITE_API_URL` y proxy local mediante `VITE_BACKEND_URL`. Su demostración es opcional:
+`VITE_DEMO_LOGIN=false` la desactiva por defecto; solo `true` habilita las sesiones
+simuladas del navegador, independientes de `/dev/login`. Consulte el README del
+cliente para ejecución, pruebas y despliegue. Esto no acredita aceptación visual
+ni entrega de correo institucional.
+
 ## Direcciones locales
 
 | Servicio | Dirección predeterminada |
@@ -143,6 +150,9 @@ Puntos que el cliente debe respetar:
 - El QR utiliza el origen configurado y la ruta `/checkin/{spaceId}`.
 - SSE usa Bearer en encabezados: `EventSource` nativo no permite establecer `Authorization`. Usar un cliente compatible, nunca un token en query.
 - El evento `availability-changed` invalida el calendario; consultar de nuevo. Cerrar el stream al abandonar la pantalla o sesión.
+- Al crear o editar espacios, no combinar `FOOTBALL_5` y `FOOTBALL_11`: el formulario
+  lo impide y la API responde `400 VALIDATION_ERROR` con `details.fields.disciplines`.
+  Las demás combinaciones de disciplinas siguen permitidas.
 
 Para validar eventos en tiempo real sin cliente web, use `AvailabilityIntegrationTest`: abre el stream autenticado con un origen CORS permitido, crea un bloqueo y comprueba la recepción del evento confirmado.
 

@@ -15,6 +15,7 @@ import unimagdeportes.exception.BusinessException;
 import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.space.SpaceMapper;
 import unimagdeportes.model.space.Space;
+import unimagdeportes.model.space.Discipline;
 import unimagdeportes.model.space.SpaceStatus;
 import unimagdeportes.model.space.SpaceImage;
 import unimagdeportes.repository.space.SpaceRepository;
@@ -130,6 +131,9 @@ public class SpaceService {
         } else if (input.disciplines() == null || input.disciplines().isEmpty()
                 || input.disciplines().stream().anyMatch(java.util.Objects::isNull)) {
             field = "disciplines"; message = "debe contener al menos una disciplina válida";
+        } else if (input.disciplines().contains(Discipline.FOOTBALL_5)
+                && input.disciplines().contains(Discipline.FOOTBALL_11)) {
+            field = "disciplines"; message = "Fútbol 5 y Fútbol 11 no pueden pertenecer al mismo espacio.";
         }
         if (field != null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",

@@ -101,7 +101,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 
 | ID | Regla |
 |---|---|
-| RN-06 | Cada espacio tiene: nombre, disciplina(s), aforo máximo, requisitos de uso, horario de operación y estado (activo o en mantenimiento). |
+| RN-06 | Cada espacio tiene: nombre, disciplina(s), aforo máximo, requisitos de uso, horario de operación y estado (activo o en mantenimiento). Al crear o editar, no se permite combinar fútbol 5 y fútbol 11 en un mismo espacio; las demás combinaciones de disciplinas se mantienen permitidas. |
 | RN-07 | Si un mismo espacio físico sirve para varias disciplinas (por ejemplo, baloncesto y voleibol), **la reserva bloquea el espacio completo**, sin importar la disciplina elegida. |
 | RN-08 | Las franjas son de 60 minutos dentro del horario de operación de cada espacio. |
 | RN-09 | Un espacio en mantenimiento no aparece como reservable. |
