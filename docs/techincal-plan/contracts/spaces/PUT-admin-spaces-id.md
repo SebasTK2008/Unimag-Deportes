@@ -24,7 +24,7 @@ Se envían solo los campos que se quieren modificar.
 | `openingTime` | `HH:mm` | Inicio del horario de operación. |
 | `closingTime` | `HH:mm` | Fin del horario de operación. |
 | `status` | enum `SpaceStatus` | `ACTIVE` o `MAINTENANCE`. |
-| `disciplines` | array `Discipline` | Disciplinas que sirve el espacio. |
+| `disciplines` | array `Discipline` | Disciplinas que sirve el espacio; no puede contener simultáneamente `FOOTBALL_5` y `FOOTBALL_11`. |
 
 ```json
 {
@@ -67,7 +67,7 @@ Se envían solo los campos que se quieren modificar.
 
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
-| `VALIDATION_ERROR` | 400 | Valores inválidos o combinación de horario incoherente. | RN-06, RN-08 |
+| `VALIDATION_ERROR` | 400 | Valores inválidos, combinación Fútbol 5 + Fútbol 11 o combinación de horario incoherente. | RN-06, RN-08 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 | `SPACE_NOT_FOUND` | 404 | El espacio no existe. | — |
@@ -77,3 +77,4 @@ Se envían solo los campos que se quieren modificar.
 - "Desactivar" un espacio equivale a ponerlo en `MAINTENANCE` (OQ-12).
 - Los cambios rigen solo para operaciones nuevas: las reservas existentes se mantienen y no se cancelan (OQ-05).
 - Un espacio en mantenimiento no aparece como reservable (RN-09).
+- Se valida el resultado completo de combinar la solicitud con los valores actuales. Si el espacio ya tiene Fútbol 5 + Fútbol 11, debe retirar una disciplina para guardar; no se corrigen datos automáticamente. El error usa `details.fields.disciplines`.

@@ -46,6 +46,35 @@ class SpaceImageIntegrationTest extends RulesTestSupport {
     }
 
     @Test
+    void rejectsIncompatibleFootballOnCreateAndUpdateWithoutPersistingChanges() throws Exception {
+        String admin = administrator();
+        byte[] image = image(0xff0000);
+        String incompatible = SPACE.replace("[\"TENNIS\"]", "[\"FOOTBALL_5\",\"FOOTBALL_11\"]");
+        int before = jdbc.queryForObject("select count(*) from space", Integer.class);
+
+        var rejected = multipart("POST", "/admin/spaces", admin, incompatible, image, image, null);
+        assertThat(rejected.statusCode()).as(rejected.body()).isEqualTo(400);
+        assertThat(body(rejected).get("code").asString()).isEqualTo("VALIDATION_ERROR");
+        assertThat(body(rejected).get("details").get("fields").get("disciplines").asString())
+                .contains("Fútbol 5", "Fútbol 11");
+        assertThat(jdbc.queryForObject("select count(*) from space", Integer.class)).isEqualTo(before);
+
+        var created = multipart("POST", "/admin/spaces", admin,
+                SPACE.replace("TENNIS", "FOOTBALL_5"), image, image, null);
+        assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+        String id = body(created).get("id").asString();
+        var updated = send("PUT", "/admin/spaces/" + id, incompatible, admin);
+        assertThat(updated.statusCode()).as(updated.body()).isEqualTo(400);
+        assertThat(jdbc.queryForList("select discipline from space_discipline where space_id = ?",
+                String.class, java.util.UUID.fromString(id))).containsExactly("FOOTBALL_5");
+
+        var valid = send("PUT", "/admin/spaces/" + id,
+                "{\"disciplines\":[\"BASKETBALL\",\"VOLLEYBALL\"]}", admin);
+        assertThat(valid.statusCode()).as(valid.body()).isEqualTo(200);
+        assertThat(valid.body()).contains("BASKETBALL", "VOLLEYBALL");
+    }
+
+    @Test
     void rejectsCreationWithoutBothImagesOrWithInvalidContent() throws Exception {
         String admin = administrator();
         byte[] image = image(0xff0000);
