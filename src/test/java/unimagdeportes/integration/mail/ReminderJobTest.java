@@ -75,8 +75,9 @@ class ReminderJobTest extends AuthTestSupport {
                 user, name + "@unimagdalena.edu.co", name, Timestamp.from(START));
         UUID preview = UUID.randomUUID();
         UUID panorama = UUID.randomUUID();
-        jdbc.update("insert into space_image (id, content_type, content) values (?, 'image/png', ?), (?, 'image/png', ?)",
-                preview, new byte[]{1}, panorama, new byte[]{1});
+        jdbc.update("insert into space_image (id,content_type,storage_key,size_bytes) "
+                + "values (?, 'image/png', ?, 1), (?, 'image/png', ?, 1)",
+                preview, "fixtures/" + preview, panorama, "fixtures/" + panorama);
         jdbc.update("insert into space (id, name, capacity, opening_time, closing_time, status, preview_image_id, panorama_image_id) "
                 + "values (?, ?, 1, '06:00', '22:00', 'ACTIVE', ?, ?)", space, name, preview, panorama);
         jdbc.update("insert into reservation (id, user_id, space_id, start_at, end_at, status, created_at, "

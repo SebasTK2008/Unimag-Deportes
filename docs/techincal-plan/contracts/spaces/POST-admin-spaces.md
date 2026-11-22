@@ -10,6 +10,10 @@
 
 La solicitud es `multipart/form-data` con tres partes obligatorias: `space` (JSON con `Content-Type: application/json`), `preview` y `panorama` (archivos de imagen). Cada archivo tiene un máximo de 30 MiB (31.457.280 bytes). El contenido debe ser reconocido por un lector ImageIO disponible; el tipo declarado por el cliente no determina el formato almacenado.
 
+La solicitud completa admite hasta 64 MiB. El límite de ancho × alto es configurable mediante `APP_STORAGE_MAX_IMAGE_PIXELS` (64.000.000 por defecto) y se comprueba antes de decodificar. El backend sube los archivos originales a Supabase Storage privado y guarda solo sus referencias y metadatos en PostgreSQL; no hay carga directa del cliente a Supabase ni compresión.
+
+Cada dimensión admite hasta `APP_STORAGE_MAX_IMAGE_DIMENSION` (16.384 por defecto). La validación decodifica una muestra acotada, que se descarta; no cambia el archivo original.
+
 Campos de la parte `space`:
 
 | Campo | Tipo | Obligatorio | Descripción |
@@ -72,8 +76,11 @@ Campos de la parte `space`:
 | `VALIDATION_ERROR` | 400 | Campos o imágenes faltantes, imágenes inválidas o demasiado grandes, disciplinas vacías u horario inválido. | RN-06, RN-08 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
+| `STORAGE_NOT_CONFIGURED` | 503 | Falta el origen o la credencial de servidor de Storage. | Técnico |
+| `STORAGE_UNAVAILABLE` | 503 | Fallo de red, permisos o respuesta no exitosa de Storage. | Técnico |
 
 ## Notas
 
 - Las franjas de 60 minutos se derivan del horario de operación (RN-08).
 - Un espacio nuevo puede quedar en `ACTIVE` o directamente en `MAINTENANCE`.
+- No se confirman referencias parciales. Los objetos de una operación fallida quedan en una cola persistente para limpieza tras una hora de margen; no implica un borrado inmediato.

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Clock;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import unimagdeportes.exception.GlobalExceptionHandler;
 import unimagdeportes.exception.BusinessException;
@@ -25,6 +26,11 @@ class AvailabilityControllerTest {
     private final org.springframework.test.web.servlet.MockMvc mvc = MockMvcBuilders
             .standaloneSetup(new AvailabilityController(availability, stream))
             .setControllerAdvice(new GlobalExceptionHandler()).build();
+
+    @AfterEach
+    void closeStreams() {
+        stream.closeSubscriptions();
+    }
 
     @Test
     void rejectsInvalidDisciplineAndDateWithDocumentedErrors() throws Exception {

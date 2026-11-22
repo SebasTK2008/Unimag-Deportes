@@ -15,21 +15,26 @@ public class SpaceImage {
     @Column(nullable = false)
     private String contentType;
 
+    @Column(nullable = false, unique = true, length = 512)
+    private String storageKey;
+
     @Column(nullable = false)
-    private byte[] content;
+    private long sizeBytes;
 
     protected SpaceImage() { }
 
-    public SpaceImage(String contentType, byte[] content) {
+    public SpaceImage(String contentType, String storageKey, long sizeBytes) {
         this.id = UUID.randomUUID();
-        replace(contentType, content);
+        replace(contentType, storageKey, sizeBytes);
     }
 
-    public void replace(String contentType, byte[] content) {
+    public void replace(String contentType, String storageKey, long sizeBytes) {
         this.contentType = contentType;
-        this.content = content.clone();
+        this.storageKey = storageKey;
+        this.sizeBytes = sizeBytes;
     }
 
     public String getContentType() { return contentType; }
-    public byte[] getContent() { return content.clone(); }
+    public String getStorageKey() { return storageKey; }
+    public long getSizeBytes() { return sizeBytes; }
 }
