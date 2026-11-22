@@ -163,8 +163,9 @@ class CheckInIntegrationTest extends AuthTestSupport {
 
     private UUID space() {
         UUID id = UUID.randomUUID(), preview = UUID.randomUUID(), panorama = UUID.randomUUID();
-        jdbc.update("insert into space_image (id, content_type, content) values (?, 'image/png', ?), (?, 'image/png', ?)",
-                preview, new byte[]{1}, panorama, new byte[]{1});
+        jdbc.update("insert into space_image (id,content_type,storage_key,size_bytes) "
+                + "values (?, 'image/png', ?, 1), (?, 'image/png', ?, 1)",
+                preview, "fixtures/" + preview, panorama, "fixtures/" + panorama);
         jdbc.update("insert into space (id, name, capacity, opening_time, closing_time, status, preview_image_id, panorama_image_id) "
                 + "values (?, 'Cancha', 10, '06:00', '22:00', 'ACTIVE', ?, ?)", id, preview, panorama);
         return id;

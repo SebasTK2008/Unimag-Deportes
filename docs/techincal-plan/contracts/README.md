@@ -37,7 +37,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 
 ### Forma de error
 
-Todos los errores usan el mismo cuerpo:
+Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usan su formato operativo propio):
 
 ```json
 {
@@ -64,6 +64,7 @@ Todos los errores usan el mismo cuerpo:
 - `409`: conflicto con el estado actual (franja ocupada, cuota, solape, stock, cancelación no permitida).
 - `429`: límite de solicitudes.
 - `500`: error no controlado.
+- `503`: servicio externo no configurado o no disponible.
 
 ## Errores transversales
 
@@ -80,6 +81,10 @@ Todos los errores usan el mismo cuerpo:
 | `RESOURCE_NOT_FOUND` | 404 | Ruta inexistente, incluido `/dev/login` fuera del perfil `dev`. |
 | `METHOD_NOT_ALLOWED` | 405 | Método no soportado por una ruta existente. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Tipo de contenido incompatible con el endpoint. |
+
+## Salud operativa
+
+`GET /health`, `/health/liveness` y `/health/readiness` son públicos, sin detalles internos. Véase el [contrato de salud](health/GET-health.md). No sustituyen la aceptación de SMTP ni de Supabase reales.
 
 ## Catálogo de errores del dominio
 

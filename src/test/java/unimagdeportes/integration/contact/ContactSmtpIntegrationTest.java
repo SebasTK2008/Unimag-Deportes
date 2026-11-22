@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -59,6 +60,11 @@ class ContactSmtpIntegrationTest {
     @Autowired private Clock clock;
     @Autowired private JsonMapper json;
     private final HttpClient client = HttpClient.newHttpClient();
+
+    @AfterEach
+    void closeHttpClient() {
+        client.close();
+    }
 
     @Test
     void contactEndpointDeliversExactlyOneMessageToTheEnvironmentConfiguredRecipient() throws Exception {

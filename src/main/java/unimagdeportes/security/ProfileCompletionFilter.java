@@ -16,7 +16,9 @@ public class ProfileCompletionFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         boolean allowed = path.equals("/me") && request.getMethod().equals("GET")
                 || path.equals("/me/profile") && request.getMethod().equals("PUT")
-                || path.startsWith("/auth/");
+                || path.startsWith("/auth/")
+                || request.getMethod().equals("GET") && (path.equals("/health")
+                        || path.equals("/health/liveness") || path.equals("/health/readiness"));
         if (!allowed && authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("PROFILE_INCOMPLETE"))) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);

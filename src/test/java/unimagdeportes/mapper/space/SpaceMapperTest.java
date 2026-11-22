@@ -19,7 +19,7 @@ class SpaceMapperTest {
     @Test
     void mapsSpaceFieldsWithoutExposingImages() {
         UUID id = UUID.randomUUID();
-        var image = new SpaceImage("image/png", new byte[]{1});
+        var image = new SpaceImage("image/png", "spaces/preview", 1);
         var space = new Space(id, "Cancha", 12, "Calzado", LocalTime.of(6, 0), LocalTime.of(22, 0),
                 SpaceStatus.ACTIVE, Set.of(Discipline.VOLLEYBALL, Discipline.BASKETBALL), image, image);
 
@@ -37,13 +37,13 @@ class SpaceMapperTest {
     }
 
     @Test
-    void mapsImageContentWithoutExposingStoredArray() {
-        var image = new SpaceImage("image/png", new byte[]{1, 2});
+    void mapsImageMetadataWithoutBinaryContent() {
+        var image = new SpaceImage("image/png", "spaces/preview", 2);
 
-        var result = mapper.toImageContent(image);
-        result.content()[0] = 9;
+        var result = mapper.toImageReference(image);
 
         assertThat(result.contentType()).isEqualTo("image/png");
-        assertThat(image.getContent()).containsExactly((byte) 1, (byte) 2);
+        assertThat(result.storageKey()).isEqualTo("spaces/preview");
+        assertThat(result.sizeBytes()).isEqualTo(2);
     }
 }

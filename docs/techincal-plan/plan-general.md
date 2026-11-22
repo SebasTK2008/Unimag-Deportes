@@ -12,7 +12,7 @@
 
 UnimagDeportes es una aplicación web para reservar canchas de la universidad (baloncesto, voleibol, fútbol 5, fútbol 11 y tenis de campo) con disponibilidad en tiempo real, confirmación automática y reglas de uso aplicadas sin intervención del administrador. No hay cobros: el único control es la cuota semanal.
 
-Se construye como **un monolito (un solo despliegue) con arquitectura de n capas**: `controller → service → repository → model`, con **PostgreSQL**. No hay colas de mensajería ni microservicios; el único sistema externo es el **servicio de correo**.
+Se construye como **un monolito (un solo despliegue) con arquitectura de n capas**: `controller → service → repository → model`, con **PostgreSQL**. No hay broker de mensajería ni microservicios; las dependencias externas son el **servicio de correo** y **Supabase Storage privado** para las imágenes. PostgreSQL conserva una cola transaccional de compensación de archivos, no un broker.
 
 El acceso se hace con un **código de un solo uso enviado al correo institucional** y un **token JWT de 24 horas, sin cookies**: el cliente lo guarda en el almacenamiento del navegador y lo envía en cada petición con `Authorization: Bearer` (RN-49 a RN-58). No hay sesión en el servidor. Es un prototipo 100 % funcional pensado para ser **sustituido por el inicio de sesión de Microsoft** de la universidad sin tocar los casos de uso de negocio (§7.1, D-08, D-09).
 
@@ -81,6 +81,7 @@ flowchart LR
     USR["Usuario (celular)"]
     ADM["Administrador"]
     MAIL["Servicio de correo"]
+    STORAGE["Supabase Storage privado"]
   end
 
   DB[("PostgreSQL")]
@@ -95,6 +96,7 @@ flowchart LR
   ADM -- "REST, token Bearer" --> CTL
   REP --> DB
   SRV -- "puerto MailSender (SMTP)" --> MAIL
+  SRV -- "puerto ImageStorage (HTTPS)" --> STORAGE
 ```
 
 ### 3.2 Decisión de capas: n capas simples en un solo módulo
@@ -106,7 +108,7 @@ flowchart LR
 | Repository | `repository` | Acceso a datos (Spring Data JPA; consultas nativas donde haga falta). |
 | Model | `model` | Entidades JPA y enumeraciones. |
 
-Paquetes transversales: `dto`, `mapper`, `security`, `mail`, `scheduler`, `exception`, `config`.
+Paquetes transversales: `dto`, `mapper`, `security`, `mail`, `storage`, `scheduler`, `exception`, `config`. `storage` implementa la integración privada y su compensación persistente; los controllers solo acceden a ella mediante services.
 
 El tratamiento común de errores HTTP de los controllers se concentra en `exception/GlobalExceptionHandler`: transforma `BusinessException`, errores de validación y solicitudes mal formadas al formato `code`, `message` y `details` opcional definido en los contratos; para errores inesperados devuelve `INTERNAL_ERROR` sin exponer el detalle interno. Los filtros de Spring Security operan fuera de los controllers y necesitan sus propios manejadores para producir ese mismo formato.
 
@@ -148,7 +150,8 @@ Unimag-Deportes/
 │   ├── security/         # JwtAuthenticationFilter, UserPrincipal, SecurityConfig (sin estado, sin CSRF, CORS, CSP),
 │   │                     # control de roles y de reautenticación, límite de solicitudes y de intentos de código
 │   ├── mail/             # MailSender (puerto), SmtpMailSender, plantillas, ReceiptPdfGenerator
-│   ├── scheduler/        # ReservationLifecycleJob, ReminderJob, AuthCleanupJob
+│   ├── storage/          # ImageStorage, SupabaseImageStorage, StorageObjectCleanup
+│   ├── scheduler/        # ReservationLifecycleJob, ReminderJob, AuthCleanupJob, StorageCleanupJob
 │   ├── exception/        # BusinessException y derivadas + GlobalExceptionHandler
 │   └── config/           # Spring, Clock (America/Bogota), seguridad, SSE
 ├── src/main/resources/{application.properties, db/migration/V*.sql}
@@ -198,7 +201,7 @@ Convenciones: UUID como identificadores, `timestamptz` para instantes (se interp
 
 **Decisión de desarrollo:** toda la persistencia se concentra en `src/main/resources/db/migration/V1__shared_schema.sql`, una única migración Flyway editable. Al modificar una migración ya aplicada, Flyway detecta un cambio de checksum: debe coordinarse la recreación de las bases locales o de prueba afectadas, sin borrar datos que deban conservarse. Antes de conservar datos reales o estabilizar un despliegue compartido se acordará una estrategia de evolución del esquema.
 
-**Ampliación UC07 — imágenes de espacios:** cada espacio requiere al crearse una imagen de vista previa y una panorámica 360. PostgreSQL guarda sus contenidos y tipos en `space_image`; `space` conserva dos referencias obligatorias. El Administrador puede reemplazarlas independientemente, sin eliminarlas, y su consulta individual requiere autenticación. El límite es 30 MiB por imagen; los binarios no se incluyen en listados. El detector ImageIO acepta los formatos reconocidos por sus lectores disponibles. La verificación integral está pendiente; véase el [plan UC07](../features/007-gestionar-espacios-y-franjas/plan.md).
+**Ampliación UC07 — imágenes de espacios:** cada espacio requiere al crearse una imagen de vista previa y una panorámica 360. El backend sube los archivos a Supabase Storage privado y PostgreSQL guarda sus claves estables, tipos y tamaños en `space_image`; `space` conserva dos referencias obligatorias. El Administrador puede reemplazarlas independientemente, sin eliminarlas, y su consulta individual requiere autenticación; el backend entrega el archivo mediante streaming. El límite es 30 MiB por imagen y 64.000.000 de píxeles por defecto (configurable); no se comprime ni redimensiona. El detector ImageIO acepta los formatos reconocidos por sus lectores disponibles. Las transferencias de subida se hacen antes de adquirir el bloqueo global de negocio. `storage_object_cleanup` registra compensaciones antes de subir y borrados posteriores al reemplazo; un job reintenta los fallos sin borrar objetos referenciados. La verificación integral está pendiente; véase el [plan UC07](../features/007-gestionar-espacios-y-franjas/plan.md).
 
 **Actualización del prototipo:** la clasificación vigente de parámetros y reglas está en §4 y RN-30, RN-36, RN-37, RN-43 y RN-65 del contexto. Solo cuota y umbral de inasistencias son editables por Administrador. Las reservas conservan las reglas vigentes al crearse; las referencias anteriores a diez minutos de vigencia del código, cierre de check-in al fin de tolerancia o edición administrativa de todos los parámetros deben sustituirse por esas reglas.
 
@@ -217,7 +220,8 @@ Se aplica como máximo una suspensión por usuario y mes de inasistencia; las fa
 | `app_user` | `id`, `email`, `name` (vacío hasta el primer ingreso), `suspended_until`, `role`, `created_at` | `UNIQUE(email)` guardado en minúsculas y sin espacios; solo nombre y correo como datos personales (RNF-09) |
 | `login_code` | `id`, `email`, `code_hash` (HMAC con clave del servidor), `expires_at`, `attempts`, `used_at`, `created_at` | Un solo uso; solicitudes contadas por `created_at`; conservar cada registro al menos una hora, incluso si venció o fue usado. El límite fijo por IP exige conservar sus solicitudes durante la ventana de una hora. |
 | `space` | `id`, `name`, `capacity`, `requirements`, `opening_time`, `closing_time` **[TÉC]**, `status` (`ACTIVE`, `MAINTENANCE`), `preview_image_id`, `panorama_image_id` | RN-06; referencias obligatorias y distintas a `space_image` |
-| `space_image` | `id`, `content_type`, `content` | Contenido obligatorio de 1 a 31.457.280 bytes |
+| `space_image` | `id`, `content_type`, `storage_key`, `size_bytes` | Clave única y obligatoria; tamaño de 1 a 31.457.280 bytes; sin binarios |
+| `storage_object_cleanup` | `storage_key`, `not_before` | Clave primaria por objeto; compensaciones de subida y borrados reintentables |
 | `space_discipline` | `space_id`, `discipline` (baloncesto, voleibol, fútbol 5, fútbol 11, tenis de campo) | `PRIMARY KEY(space_id, discipline)` |
 | `reservation` | `id`, `user_id`, `space_id`, `start_at`, `end_at`, `status`, `created_at`, `checked_in_at`, `reminder_sent_at`, instantánea de umbral de cancelación y apertura de check-in | `CHECK(end_at > start_at)`; restricciones de exclusión por espacio y por usuario para rangos que se solapan; RN-11. |
 | `institutional_block` | `id`, `space_id`, `type` (clases y grupos formativos, eventos o torneos, mantenimiento), `reason`, `start_at`, `end_at`, `recurrence_group` (nullable; agrupa las ocurrencias de un bloqueo recurrente) | Índice por `(space_id, start_at)`; los bloqueos recurrentes se materializan en una fila por franja (OQ-06) |
@@ -345,6 +349,8 @@ erDiagram
 | C3 | Usuario → sistema | UC05-H1 | Enlace fijo del QR | `/checkin/{id_espacio}` (ruta del cliente) que llama al endpoint de check-in con el token; sin token vigente, el cliente lleva al login y regresa; en otro navegador se inicia sesión de nuevo |
 | C4 | Sistema → Servicio de correo | UC01, UC11, UC12 | Envío | SMTP mediante el puerto `MailSender` |
 | C5 | Sistema → sistema | UC10, UC11-H2, limpieza de UC01 | Eventos por tiempo | Scheduler |
+| C6 | Sistema → Supabase Storage privado | UC07 | Subida, lectura y borrado compensatorio | HTTPS mediante `ImageStorage`; credencial solo en el backend |
+| C7 | Plataforma → sistema | Operación | Liveness y readiness | GET público `/health/liveness` y `/health/readiness`, sin Bearer ni detalles internos |
 
 El sistema **no usa colas de mensajería**: los correos se envían después del commit mediante un evento interno. El código de acceso es la excepción: se envía dentro de la solicitud, porque el Usuario espera el correo para continuar y debe saber si falló.
 
@@ -355,6 +361,9 @@ El sistema **no usa colas de mensajería**: los correos se envían después del 
 | `ReservationLifecycleJob` (cada minuto; cron configurable con `APP_JOBS_RESERVATION_LIFECYCLE_CRON`) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in cuya ventana cerró pasan a `NO_SHOW`, se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
 | `ReminderJob` (cada minuto por defecto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. Cron configurable mediante `app.jobs.reminder-cron` (`APP_JOBS_REMINDER_CRON`); `-` desactiva la ejecución automática. Las pruebas de integración lo invocan explícitamente para no competir con la limpieza de BD. |
 | `AuthCleanupJob` (cada hora; `APP_JOBS_AUTH_CLEANUP_CRON`, `-` lo desactiva) | UC01 | Borra códigos vencidos o usados tras conservarlos al menos una hora o el intervalo de reenvío si es mayor; conserva códigos activos. Borra solicitudes IP fuera de la ventana rodante de una hora. |
+| `StorageCleanupJob` (cada cinco minutos; `APP_JOBS_STORAGE_CLEANUP_CRON`, `-` lo desactiva) | UC07 | Invoca el servicio de compensación `StorageObjectCleanup`: hasta 20 objetos por ejecución; bloqueo de fila y comprobación de referencias antes de borrar. Fallos reintentados a los cinco minutos. Las compensaciones de subida tienen una hora de margen, renovada al terminar la transferencia, incluso si falla. |
+
+`SchedulingConfig` separa el scheduler de negocio (`taskScheduler`, tres hilos) del de limpieza (`storageTaskScheduler`, un hilo). La lentitud de Storage no ocupa los hilos de recordatorios o ciclo de vida. Cada borrado mantiene una transacción corta respecto al timeout configurado, con una conexión y bloqueo de su fila de compensación durante la operación; no adquiere el bloqueo global de negocio. Ambos schedulers se cancelan al cerrar el contexto, con hasta cinco segundos de espera de terminación. Si el hosting suspende el proceso, ningún scheduler continúa ejecutándose.
 
 Los cambios de estado del job son idempotentes. El correo es de mejor esfuerzo: un fallo se registra y no revierte la operación; no se garantiza recuperación tras una caída ni ausencia de duplicados si el proceso cae entre envío y marcado. **El reinicio semanal (UC08-H2) no tiene job**: ver D-06. Con una sola instancia no hace falta bloqueo de jobs; si algún día se despliegan varias, habrá que agregarlo.
 
@@ -595,11 +604,16 @@ Notas para la migración:
 | Dependencia | Timeout | Reintentos | Comportamiento ante fallo |
 |---|---|---|---|
 | Servicio de correo (SMTP) | 10 s por operación SMTP | Hasta 2 reintentos de `MailSendException`, con esperas de 100 y 200 ms | No se reintentan errores de preparación o autenticación. Se registra el fallo; **no se revierte** la reserva, cancelación ni sanción (OQ-04). Si falla el código de acceso, se informa al Usuario y puede pedir otro. El envío sigue siendo de mejor esfuerzo y puede duplicarse si SMTP aceptó antes del error. |
+| Supabase Storage | `APP_STORAGE_SUPABASE_TIMEOUT`, `PT1M` por defecto, mayor que cero y menor que una hora | No se reintentan subidas; borrados mediante la cola persistente | Plazo total de subida/borrado, incluyendo escritura y respuesta; en descargas limita conexión y espera de lectura. `503 STORAGE_NOT_CONFIGURED` o `STORAGE_UNAVAILABLE`; el seguimiento de subida se renueva al finalizar, antes de confirmar referencias. |
 | Jobs programados | — | Se reintentan en la siguiente ejecución | Idempotentes; un fallo no deja estados a medias |
 | Reservas concurrentes | — | — | Gana la primera; la segunda recibe "La franja ya no está disponible" con el calendario actualizado (RN-10) |
 
 ### 7.3 Observabilidad
-Actuator (`/health`), logs con `reservation_id` y `user_id`. Métricas mínimas: fallos de envío de correo, ejecuciones de jobs y reservas por estado. De autenticación: códigos enviados y fallidos, verificaciones fallidas (un pico indica abuso) y tokens rechazados por expirados o inválidos (un pico de inválidos indica manipulación o una llave mal rotada).
+Actuator expone únicamente salud: `GET /health`, `/health/liveness` y `/health/readiness`, públicos y sin detalles de componentes. Liveness consulta el estado del proceso; readiness combina aceptación de tráfico y PostgreSQL. Un estado no saludable responde 503. SMTP está excluido y Storage no tiene indicador: estas sondas no certifican entrega de correo ni permisos o cuotas de Supabase. El contenedor comprueba HTTP 200 de `/health/readiness`, no solo que el puerto esté abierto. Véase el [contrato de salud](contracts/health/GET-health.md).
+
+El pool Hikari limita la obtención de conexión a 2 segundos y su validación a 1 segundo; esto permite fallar readiness rápidamente cuando la base no está disponible, pero no impone un límite global a todas las consultas SQL. Spring limita cada fase de cierre a 5 segundos y Compose concede 30 segundos de gracia al proceso.
+
+Los logs operativos no deben contener cuerpos, claves ni tokens. Las métricas de negocio previstas (fallos de correo, jobs, reservas por estado y rechazos de autenticación) no cuentan con instrumentación dedicada verificada ni un endpoint HTTP expuesto; quedan pendientes, sin atribuir esa cobertura a la instalación de Actuator.
 
 ### 7.4 Configuración **[TÉC]**
 En configuración por entorno se establecen el servidor de correo y los valores configurables por despliegue de la sección 4 del contexto. Solo la cuota semanal y el umbral de inasistencias viven en `usage_parameters` y los edita el Administrador. El dominio institucional, la zona horaria y demás valores identificados como fijos no son editables. Las claves de autenticación de la tabla llevan el prefijo `app.auth.`; la de CORS conserva `app.cors.`.
