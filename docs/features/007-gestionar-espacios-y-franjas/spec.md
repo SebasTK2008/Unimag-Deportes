@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC07 - Gestionar espacios y franjas
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-06 y OQ-12; reautenticación en bloqueos)
+**Última revisión**: 2026-11-17 (incompatibilidad de fútbol 5 y fútbol 11 al crear y editar espacios)
 
 **Imágenes de espacios:** al crear un espacio se requieren una imagen de vista previa y una panorámica 360°. Cada una puede reemplazarse, pero no eliminarse. El almacenamiento y los contratos se describen en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios).
 
@@ -70,7 +70,12 @@ Como Administrador, quiero bloquear franjas de un espacio por clases y grupos fo
   Baloncesto, voleibol, fútbol 5, fútbol 11 y tenis de campo (sección 1 del contexto).
 
 - **¿Cómo se comporta un espacio que sirve para varias disciplinas?**
-  La reserva bloquea el espacio completo, sin importar la disciplina elegida (RN-07).
+   La reserva bloquea el espacio completo, sin importar la disciplina elegida (RN-07).
+
+- **¿Qué combinación de disciplinas es incompatible?**
+  Fútbol 5 y Fútbol 11 no pueden coexistir en el mismo espacio, al crear ni al editar.
+  La API devuelve `400 VALIDATION_ERROR` en `details.fields.disciplines`; el formulario
+  debe impedir seleccionar la combinación. Las demás combinaciones se mantienen permitidas.
 
 - **¿Qué duración tienen las franjas?**
   60 minutos fijos dentro del horario de operación de cada espacio (RN-08).

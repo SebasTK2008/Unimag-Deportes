@@ -120,6 +120,65 @@ class SpaceServiceTest {
     }
 
     @Test
+    void rejectsIncompatibleFootballDisciplinesBeforeReadingImagesOrSaving() {
+        var invalid = new SpaceInput("Cancha", 22, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
+                null, Set.of(Discipline.FOOTBALL_5, Discipline.FOOTBALL_11));
+
+        assertThatThrownBy(() -> service.create(invalid, file, file, administrator))
+                .isInstanceOf(BusinessException.class)
+                .extracting(error -> ((BusinessException) error).getCode())
+                .isEqualTo("VALIDATION_ERROR");
+        verify(images, never()).read(any());
+        verify(repository, never()).save(any());
+        verify(audit, never()).record(any(), any(), any(), any());
+    }
+
+    @Test
+    void rejectsIncompatibleUpdateWithoutChangingExistingSpace() {
+        UUID id = UUID.randomUUID();
+        var existing = new Space(id, "Cancha", 10, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
+                SpaceStatus.ACTIVE, Set.of(Discipline.FOOTBALL_5), image(), image());
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.update(id, new SpaceInput("Otro nombre", null, null, null, null,
+                null, Set.of(Discipline.FOOTBALL_5, Discipline.FOOTBALL_11)), administrator))
+                .isInstanceOf(BusinessException.class);
+        assertThat(existing.getName()).isEqualTo("Cancha");
+        assertThat(existing.getDisciplines()).containsExactly(Discipline.FOOTBALL_5);
+        verify(audit, never()).record(any(), any(), any(), any());
+        verify(events, never()).publishEvent(any(AvailabilityChangedEvent.class));
+    }
+
+    @Test
+    void permitsEachFootballDisciplineAndOtherCombinations() {
+        when(images.read(file)).thenAnswer(invocation -> image());
+        for (var disciplines : java.util.List.of(Set.of(Discipline.FOOTBALL_5),
+                Set.of(Discipline.FOOTBALL_11), Set.of(Discipline.BASKETBALL, Discipline.VOLLEYBALL),
+                Set.of(Discipline.FOOTBALL_5, Discipline.TENNIS))) {
+            var input = new SpaceInput("Cancha", 22, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
+                    null, disciplines);
+            assertThat(service.create(input, file, file, administrator).disciplines())
+                    .containsExactlyInAnyOrderElementsOf(disciplines);
+        }
+    }
+
+    @Test
+    void repairsExistingIncompatibleSpaceByRemovingOneFootballDiscipline() {
+        UUID id = UUID.randomUUID();
+        var existing = new Space(id, "Cancha", 22, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
+                SpaceStatus.ACTIVE, Set.of(Discipline.FOOTBALL_5, Discipline.FOOTBALL_11), image(), image());
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.update(id,
+                new SpaceInput("Otro nombre", null, null, null, null, null, null), administrator))
+                .isInstanceOf(BusinessException.class);
+        var repaired = service.update(id,
+                new SpaceInput(null, null, null, null, null, null, Set.of(Discipline.FOOTBALL_11)),
+                administrator);
+        assertThat(repaired.disciplines()).containsExactly(Discipline.FOOTBALL_11);
+    }
+
+    @Test
     void replacesOnlyTheSelectedImage() {
         UUID id = UUID.randomUUID();
         var preview = image();

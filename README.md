@@ -11,10 +11,10 @@ Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` instituc
 
 ### Configuración
 
-El repositorio incluye `.env.example` como plantilla local; `.env` y sus variantes están excluidos de Git. El archivo no se carga automáticamente. Para usarlo, cópielo, complete las claves obligatorias y configure explícitamente la importación de Spring desde la raíz del proyecto:
+El repositorio incluye `.env.example` como plantilla local para un cliente futuro en `http://localhost:5173`; `.env` y sus variantes están excluidos de Git. El archivo no se carga automáticamente. Para usarlo, cópielo si no existe, complete las claves obligatorias y configure explícitamente la importación de Spring desde la raíz del proyecto:
 
 ```powershell
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 # Edite .env: establezca claves independientes y los valores necesarios.
 $env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
 .\mvnw.cmd spring-boot:run
@@ -34,6 +34,7 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `APP_AUTH_CODE_MAX_REQUESTS_PER_EMAIL` | Entero positivo, solicitudes por hora rodante por correo; `5`. El límite por IP permanece fijo en 30/h. |
 | `APP_AUTH_ADMIN_EMAILS` | Correos separados por comas; vacío por defecto. |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes del cliente separados por comas; vacío por defecto. No usa credenciales de cookies. |
+| `SERVER_PORT` | Puerto de Spring al ejecutar con Maven/JAR; `8080`. En Compose, `APP_PORT` publica el puerto del host y el contenedor sigue escuchando en `8080`. |
 | `APP_STORAGE_SUPABASE_URL` | Origen HTTPS del proyecto Supabase; vacío por defecto. |
 | `APP_STORAGE_SUPABASE_BUCKET` | Bucket privado de imágenes; `space-images`. |
 | `APP_STORAGE_SUPABASE_KEY` | Clave exclusiva del servidor: secreta `sb_secret_...` o JWT heredado `service_role`. Sin clave u origen, las operaciones de Storage responden `503 STORAGE_NOT_CONFIGURED`. Nunca exponer al cliente. |
@@ -62,11 +63,13 @@ Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvn
 
 Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
 
-UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `frontend.example` de la plantilla son ilustrativas. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
+UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `localhost:5173` de la plantilla son solo locales. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
 
 ### Preparación funcional para el cliente
+
+La [guía de conexión del backend](docs/techincal-plan/backend-connection.md) contiene configuración local, arranque con Maven/Compose, comprobaciones HTTP sin frontend y requisitos para desplegar. Preparar la API no implica haber integrado el repositorio React.
 
 El calendario y la creación usan la misma política temporal, incluida la anticipación mínima. ADMIN conserva consultas, cuota, contacto y operaciones sobre reservas propias; solo USER crea reservas. Los contratos están en `docs/techincal-plan/contracts/`.
 

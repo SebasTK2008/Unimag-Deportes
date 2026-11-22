@@ -148,6 +148,25 @@ class AuthSecurityTest extends AuthTestSupport {
     }
 
     @Test
+    void browserCanReadAuthenticationErrorsAndAuthenticatedResponses() throws Exception {
+        String token = completeLogin("browser@unimagdalena.edu.co");
+        for (String bearer : new String[]{"invalid-token", token}) {
+            var response = client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/me"))
+                    .header("Origin", "https://client.example")
+                    .header("Authorization", "Bearer " + bearer).GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+
+            assertThat(response.statusCode()).isEqualTo(bearer.equals(token) ? 200 : 401);
+            assertThat(response.headers().firstValue("Access-Control-Allow-Origin")).contains("https://client.example");
+            assertThat(response.headers().firstValue("Access-Control-Allow-Credentials")).isEmpty();
+            assertThat(response.headers().firstValue("Set-Cookie")).isEmpty();
+            if (!bearer.equals(token)) {
+                assertThat(body(response).get("code").asString()).isEqualTo("TOKEN_INVALID");
+            }
+        }
+    }
+
+    @Test
     void codesAndTokensDoNotLeakIntoDatabaseAuditOrApplicationLogs(CapturedOutput output) throws Exception {
         String email = "secrets@unimagdalena.edu.co";
         requestCode(email);

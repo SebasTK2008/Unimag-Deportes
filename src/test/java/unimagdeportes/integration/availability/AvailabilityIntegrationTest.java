@@ -78,10 +78,13 @@ class AvailabilityIntegrationTest extends RulesTestSupport {
         UUID id = space("ACTIVE");
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/spaces/" + id
                         + "/availability/stream"))
+                .header("Origin", "https://client.example")
                 .header("Authorization", "Bearer " + admin).header("Accept", "text/event-stream").GET().build();
         var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("text/event-stream");
+        assertThat(response.headers().firstValue("Access-Control-Allow-Origin")).contains("https://client.example");
+        assertThat(response.headers().firstValue("Set-Cookie")).isEmpty();
         try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(response.body()))) {
             assertThat(reader.readLine()).startsWith(":");
             blocks.create(new CreateBlock(id, BlockType.CLASS, "Clase", Instant.parse("2026-11-11T15:00:00Z"),

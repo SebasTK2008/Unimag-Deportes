@@ -24,7 +24,7 @@ Campos de la parte `space`:
 | `openingTime` | `HH:mm` | Sí | Inicio del horario de operación. |
 | `closingTime` | `HH:mm` | Sí | Fin del horario de operación. |
 | `status` | enum `SpaceStatus` | No | Por defecto `ACTIVE`. |
-| `disciplines` | array `Discipline` | Sí | Al menos una disciplina. |
+| `disciplines` | array `Discipline` | Sí | Al menos una disciplina; no puede contener simultáneamente `FOOTBALL_5` y `FOOTBALL_11`. |
 
 ```json
 {
@@ -73,7 +73,7 @@ Campos de la parte `space`:
 
 | `code` | HTTP | Cuándo ocurre | Regla |
 |---|---|---|---|
-| `VALIDATION_ERROR` | 400 | Campos o imágenes faltantes, imágenes inválidas o demasiado grandes, disciplinas vacías u horario inválido. | RN-06, RN-08 |
+| `VALIDATION_ERROR` | 400 | Campos o imágenes faltantes, imágenes inválidas o demasiado grandes, disciplinas vacías, combinación Fútbol 5 + Fútbol 11 u horario inválido. | RN-06, RN-08 |
 | `TOKEN_EXPIRED` | 401 | El token venció. | RN-56 |
 | `FORBIDDEN` | 403 | El usuario no tiene rol `ADMIN`. | D-21 |
 | `STORAGE_NOT_CONFIGURED` | 503 | Falta el origen o la credencial de servidor de Storage. | Técnico |
@@ -83,4 +83,5 @@ Campos de la parte `space`:
 
 - Las franjas de 60 minutos se derivan del horario de operación (RN-08).
 - Un espacio nuevo puede quedar en `ACTIVE` o directamente en `MAINTENANCE`.
+- La incompatibilidad de Fútbol 5 + Fútbol 11 devuelve `details.fields.disciplines`; las demás combinaciones siguen permitidas.
 - No se confirman referencias parciales. Los objetos de una operación fallida quedan en una cola persistente para limpieza tras una hora de margen; no implica un borrado inmediato.
