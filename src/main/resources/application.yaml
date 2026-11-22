@@ -13,11 +13,11 @@ spring:
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
-      mail.smtp.connectiontimeout: 10000
-      mail.smtp.timeout: 10000
-      mail.smtp.writetimeout: 10000
-      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
-      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+      "[mail.smtp.connectiontimeout]": 10000
+      "[mail.smtp.timeout]": 10000
+      "[mail.smtp.writetimeout]": 10000
+      "[mail.smtp.auth]": ${MAIL_SMTP_AUTH:false}
+      "[mail.smtp.starttls.enable]": ${MAIL_SMTP_STARTTLS:false}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -33,7 +33,10 @@ spring:
 # Keep forwarded headers disabled unless a trusted reverse proxy is configured.
 server:
   port: ${PORT:8080}
-  forward-headers-strategy: none
+  request:
+    header:
+      forwarded:
+        strategy: none
 
 management:
   endpoints:

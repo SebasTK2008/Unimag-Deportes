@@ -11,11 +11,18 @@ import java.util.UUID;
 public class AuditLog {
     @Id
     private UUID id;
+    // Hibernate reads these fields directly; audit queries do not require Java getters.
+    @SuppressWarnings("unused")
     private String action;
+    @SuppressWarnings("unused")
     private String entityType;
+    @SuppressWarnings("unused")
     private UUID entityId;
+    @SuppressWarnings("unused")
     private UUID userId;
+    @SuppressWarnings("unused")
     private String detail;
+    @SuppressWarnings("unused")
     private Instant createdAt;
 
     protected AuditLog() { }

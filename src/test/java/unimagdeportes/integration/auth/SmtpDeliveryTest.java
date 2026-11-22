@@ -20,6 +20,7 @@ import unimagdeportes.mail.SmtpMailSender;
 @Testcontainers
 class SmtpDeliveryTest {
     @Container
+    @SuppressWarnings("resource") // The @Testcontainers extension stops this shared container after the class.
     static final GenericContainer<?> MAILPIT = new GenericContainer<>(DockerImageName.parse("axllent/mailpit:latest"))
             .withExposedPorts(1025, 8025);
 

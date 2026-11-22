@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import unimagdeportes.dto.reservation.ReservationDtos;
@@ -23,6 +24,7 @@ import unimagdeportes.service.reservation.ReservationCreationService;
 import unimagdeportes.service.reservation.ReservationQueryService;
 
 @RestController
+@RequestMapping("/reservations")
 public class ReservationController {
     private static final ZoneId ZONE = ZoneId.of("America/Bogota");
     private final ReservationCreationService reservations;
@@ -36,7 +38,7 @@ public class ReservationController {
         this.cancellations = cancellations;
     }
 
-    @PostMapping("/reservations")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ReservationDtos.Response create(@RequestBody ReservationDtos.Request request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -83,18 +85,18 @@ public class ReservationController {
                         item.equipmentId(), item.name(), item.quantity())).toList());
     }
 
-    @GetMapping("/reservations/mine")
+    @GetMapping("/mine")
     ReservationDtos.MineResponse mine(@AuthenticationPrincipal UserPrincipal principal) {
         return new ReservationDtos.MineResponse(query.listMine(principal.id()));
     }
 
-    @GetMapping("/reservations/{id}/cancellation-preview")
+    @GetMapping("/{id}/cancellation-preview")
     ReservationDtos.CancellationPreview cancellationPreview(@PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
         return cancellations.preview(principal.id(), id);
     }
 
-    @PostMapping("/reservations/{id}/cancellation")
+    @PostMapping("/{id}/cancellation")
     ReservationDtos.CancellationResult cancel(@PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
         return cancellations.cancel(principal.id(), id);

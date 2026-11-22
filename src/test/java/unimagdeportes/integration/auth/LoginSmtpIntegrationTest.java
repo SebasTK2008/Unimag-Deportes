@@ -9,6 +9,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,6 +42,7 @@ class LoginSmtpIntegrationTest {
     private static final String ORIGIN = "http://localhost:5173";
 
     @Container
+    @SuppressWarnings("resource") // The @Testcontainers extension stops this shared container after the class.
     static final GenericContainer<?> MAILPIT = new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.27"))
             .withExposedPorts(1025, 8025);
 
@@ -57,6 +59,11 @@ class LoginSmtpIntegrationTest {
     @LocalServerPort private int port;
     @Autowired private JsonMapper json;
     private final HttpClient client = HttpClient.newHttpClient();
+
+    @AfterEach
+    void closeHttpClient() {
+        client.close();
+    }
 
     @Test
     void localClientCanCompleteRealEmailLoginAndReadProtectedResources() throws Exception {

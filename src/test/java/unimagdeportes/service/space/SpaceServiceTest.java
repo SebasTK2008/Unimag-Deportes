@@ -120,7 +120,7 @@ class SpaceServiceTest {
     }
 
     @Test
-    void rejectsIncompatibleFootballDisciplinesBeforeReadingImagesOrSaving() {
+    void rejectsIncompatibleFootballDisciplinesBeforeValidatingImagesOrSaving() {
         var invalid = new SpaceInput("Cancha", 22, null, LocalTime.of(8, 0), LocalTime.of(18, 0),
                 null, Set.of(Discipline.FOOTBALL_5, Discipline.FOOTBALL_11));
 
@@ -128,9 +128,10 @@ class SpaceServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(error -> ((BusinessException) error).getCode())
                 .isEqualTo("VALIDATION_ERROR");
-        verify(images, never()).read(any());
+        verify(images, never()).validate(any());
         verify(repository, never()).save(any());
         verify(audit, never()).record(any(), any(), any(), any());
+        verifyNoInteractions(storage, cleanup);
     }
 
     @Test
@@ -151,7 +152,7 @@ class SpaceServiceTest {
 
     @Test
     void permitsEachFootballDisciplineAndOtherCombinations() {
-        when(images.read(file)).thenAnswer(invocation -> image());
+        when(images.validate(file)).thenReturn("image/png");
         for (var disciplines : java.util.List.of(Set.of(Discipline.FOOTBALL_5),
                 Set.of(Discipline.FOOTBALL_11), Set.of(Discipline.BASKETBALL, Discipline.VOLLEYBALL),
                 Set.of(Discipline.FOOTBALL_5, Discipline.TENNIS))) {

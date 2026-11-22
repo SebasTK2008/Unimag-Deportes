@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import unimagdeportes.dto.report.ReportDtos.Indicators;
@@ -16,6 +17,7 @@ import unimagdeportes.service.report.OccupancyService;
 
 /** Panel del Administrador (UC09); el rol lo exige la regla {@code /admin/**} de {@code SecurityConfig}. */
 @RestController
+@RequestMapping("/admin")
 public class ReportController {
     private final OccupancyService occupancy;
     private final IndicatorService indicators;
@@ -25,7 +27,7 @@ public class ReportController {
         this.indicators = indicators;
     }
 
-    @GetMapping("/admin/occupancy")
+    @GetMapping("/occupancy")
     Occupancy occupancy(@RequestParam(required = false) String date,
             @RequestParam(required = false) String discipline, @RequestParam(required = false) UUID spaceId) {
         if (date == null || date.isBlank()) {
@@ -41,7 +43,7 @@ public class ReportController {
         return occupancy.occupancy(parsed, discipline, spaceId);
     }
 
-    @GetMapping("/admin/indicators")
+    @GetMapping("/indicators")
     Indicators indicators(@RequestParam String period) {
         return indicators.indicators(period);
     }

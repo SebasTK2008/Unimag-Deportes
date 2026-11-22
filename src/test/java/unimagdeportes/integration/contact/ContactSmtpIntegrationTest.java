@@ -41,6 +41,7 @@ import unimagdeportes.security.TokenService;
 @Testcontainers
 class ContactSmtpIntegrationTest {
     @Container
+    @SuppressWarnings("resource") // The @Testcontainers extension stops this shared container after the class.
     static final GenericContainer<?> MAILPIT = new GenericContainer<>(DockerImageName.parse("axllent/mailpit:v1.27"))
             .withExposedPorts(1025, 8025);
 

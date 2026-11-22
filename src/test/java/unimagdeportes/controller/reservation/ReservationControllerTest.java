@@ -28,7 +28,7 @@ class ReservationControllerTest {
     @Test
     void identifiesMissingOrInvalidFields() {
         var request = new ReservationDtos.Request(null, null, 3, null);
-        var error = catchThrowableOfType(() -> controller.create(request, null), BusinessException.class);
+        var error = catchThrowableOfType(BusinessException.class, () -> controller.create(request, null));
 
         assertThat(error.getCode()).isEqualTo("VALIDATION_ERROR");
         assertThat(error.getDetails().get("fields")).isEqualTo(Map.of(
@@ -41,7 +41,7 @@ class ReservationControllerTest {
         var item = new ReservationDtos.EquipmentRequest(id, 1);
         var request = new ReservationDtos.Request(UUID.randomUUID(), OffsetDateTime.parse("2026-11-11T08:00:00-05:00"),
                 1, List.of(item, item));
-        var error = catchThrowableOfType(() -> controller.create(request, null), BusinessException.class);
+        var error = catchThrowableOfType(BusinessException.class, () -> controller.create(request, null));
 
         assertThat(error.getCode()).isEqualTo("VALIDATION_ERROR");
         assertThat(error.getDetails().get("fields")).isEqualTo(
