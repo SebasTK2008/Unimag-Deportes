@@ -32,6 +32,8 @@ import unimagdeportes.TestcontainersConfiguration;
         "app.auth.admin-emails=",
         "app.cors.allowed-origins=http://localhost:5173",
         "app.mail.contact-url=http://localhost:5173/app/contacto",
+        "app.mail.from=deportes@example.org",
+        "app.mail.from-name=Unimag Deportes",
         "app.jobs.auth-cleanup-cron=-",
         "app.jobs.reminder-cron=-",
         "app.jobs.reservation-lifecycle-cron=-",
@@ -54,6 +56,7 @@ class LoginSmtpIntegrationTest {
         registry.add("spring.mail.password", () -> "");
         registry.add("spring.mail.properties.mail.smtp.auth", () -> false);
         registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> false);
+        registry.add("spring.mail.properties.mail.smtp.starttls.required", () -> false);
     }
 
     @LocalServerPort private int port;
@@ -74,6 +77,8 @@ class LoginSmtpIntegrationTest {
         var messages = mailpit("/api/v1/messages");
         assertThat(messages.get("total").asInt()).isEqualTo(1);
         var message = messages.get("messages").get(0);
+        assertThat(message.get("From").get("Address").asString()).isEqualTo("deportes@example.org");
+        assertThat(message.get("From").get("Name").asString()).isEqualTo("Unimag Deportes");
         assertThat(message.get("To").get(0).get("Address").asString()).isEqualTo(email);
         String text = mailpit("/api/v1/message/" + message.get("ID").asString()).get("Text").asString();
         assertThat(text).contains(ORIGIN + "/app/contacto");
