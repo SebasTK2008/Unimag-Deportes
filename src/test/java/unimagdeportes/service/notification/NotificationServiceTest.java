@@ -1,6 +1,7 @@
 package unimagdeportes.service.notification;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import unimagdeportes.event.ReservationNotificationEvent;
 import unimagdeportes.event.ReservationNotificationEvent.Type;
 import unimagdeportes.mail.MailSender;
+import unimagdeportes.mail.MailBody;
 import unimagdeportes.service.reservation.ReservationService;
 
 class NotificationServiceTest {
@@ -29,7 +31,7 @@ class NotificationServiceTest {
         service.onNotification(event);
         service.onNotification(event);
 
-        verify(mail, times(2)).send(anyString(), anyString(), anyString());
+        verify(mail, times(2)).send(anyString(), anyString(), any(MailBody.class));
         verify(reservations, times(2)).markReminderSent(id);
     }
 }

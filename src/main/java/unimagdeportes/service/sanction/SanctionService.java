@@ -104,7 +104,10 @@ public class SanctionService {
             audit.record("RESERVATION_CANCELLED_BY_SUSPENSION", "RESERVATION", reservation.id(), null);
             events.publishEvent(new ReservationNotificationEvent(Type.CANCELLATION, reservation.id(),
                     user.getEmail(), user.getName(), spaces.get(reservation.spaceId()).name(),
-                    reservation.startAt(), SUSPENSION_REASON, null));
+                    reservation.startAt(), SUSPENSION_REASON, null,
+                    new ReservationNotificationEvent.CancellationDetails(
+                            unimagdeportes.model.reservation.ReservationStatus.CANCELLED_BY_SUSPENSION,
+                            (int) java.time.Duration.between(reservation.startAt(), reservation.endAt()).toHours())));
             events.publishEvent(new AvailabilityChangedEvent(reservation.spaceId()));
         }
     }
