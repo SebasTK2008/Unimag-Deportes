@@ -61,12 +61,15 @@ POST /checkin/3b2a1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
 | `CHECKIN_TOO_EARLY` | 409 | Aún no ha abierto la ventana configurada para la reserva. | RN-36 |
 | `CHECKIN_WINDOW_CLOSED` | 409 | La ventana ya cerró. | RN-36 |
 | `RESERVATION_CANCELLED` | 409 | La reserva fue cancelada. | RN-35 |
+| `CHECKIN_SELECTION_REQUIRED` | 409 | Hay más de una reserva propia pendiente dentro de su ventana; se debe elegir por identificador. | RN-33 |
 
 ## Notas
 
-- La ventana abre según la configuración conservada por la reserva (10 minutos antes por defecto) y cierra al finalizarla, sin incluir ese instante (RN-30, RN-36).
-- Se selecciona la próxima reserva aplicable del usuario para el espacio por hora de inicio; si hay una en curso, se considera antes que una futura.
-- Si hay una reserva de otro usuario en curso en el espacio, se responde `FORBIDDEN` antes de seleccionar una reserva propia.
-- Si la reserva seleccionada ya está `IN_USE`, se devuelve el check-in existente con su `checkedInAt` original, sin modificarlo ni registrar otra auditoría. Esto también aplica después del fin mientras el job no la haya pasado a `COMPLETED`; la ventana limita el primer registro.
+- Endpoint conservado para compatibilidad. El flujo con selección usa [consulta de elegibles](GET-checkin-spaceId-reservations.md) y [confirmación por reserva](POST-checkin-spaceId-reservations-reservationId.md).
+- La ventana abre según la configuración conservada por la reserva (10 minutos antes por defecto) y cierra una hora después del fin, inclusive (RN-30, RN-36).
+- Si hay una única reserva propia `CONFIRMED` sin check-in dentro de su ventana, se confirma. Si hay varias, devuelve `CHECKIN_SELECTION_REQUIRED`, sin elegir ni modificar ninguna.
+- Una reserva terminada puede registrar asistencia aunque otro usuario ocupe el espacio. Antes del fin, la ocupación por otro usuario sigue produciendo `FORBIDDEN`.
+- Si no hay pendientes elegibles, conserva la búsqueda anterior como fallback: primero rechaza si hay otro usuario en curso; después selecciona la primera `CONFIRMED` o `IN_USE` con fin futuro, luego la primera con inicio no anterior a ahora y finalmente la última de la lista. Sin reservas devuelve `NO_ACTIVE_RESERVATION`. Las validaciones de estado y ventana determinan el resultado.
+- El primer check-in desde el fin deja la reserva en `COMPLETED`; antes del fin queda `IN_USE`. Si la seleccionada ya está `IN_USE` o `COMPLETED` con asistencia, devuelve su fecha original y estado actual, sin otra auditoría. Para reintentos inequívocos se recomienda confirmar por identificador.
 - Si el QR se abre sin sesión vigente o en otro navegador, el cliente lleva al login y vuelve a `/checkin/{spaceId}` (RN-34).
 - El QR es estático y no identifica al usuario (RN-31, RN-32).

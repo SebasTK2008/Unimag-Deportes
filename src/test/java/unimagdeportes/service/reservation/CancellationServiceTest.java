@@ -66,6 +66,10 @@ class CancellationServiceTest {
         order.verify(reservations).findById(reservation.getId());
         verify(events).publishEvent(new AvailabilityChangedEvent(spaceId));
         verify(events).publishEvent(any(ReservationNotificationEvent.class));
+        var notification = org.mockito.ArgumentCaptor.forClass(ReservationNotificationEvent.class);
+        verify(events).publishEvent(notification.capture());
+        assertThat(notification.getValue().cancellation().status()).isEqualTo(ReservationStatus.CANCELLED_ON_TIME);
+        assertThat(notification.getValue().cancellation().reservedHours()).isEqualTo(1);
     }
 
     @Test

@@ -27,7 +27,7 @@ Enfoque técnico: `ReservationQueryService` para la lectura y `CancellationServi
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; `reservation` y `reservation_equipment` (detalle).
 **Messaging**: evento de cancelación después del commit [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.
@@ -154,7 +154,7 @@ UC04 depende de UC01, UC03 y la base de UC11-H2. Toda cancelación adquiere prim
 - `[US1]` y `[US2]` permiten implementar consulta y cancelación por separado.
 - La cancelación tardía libera el espacio pero mantiene las horas (RN-22).
 - Los implementos cancelados se conservan como historial y liberan stock (OQ-19).
-- Una reserva cuya franja ya terminó (`now >= endAt`) no se puede cancelar ni previsualizar: responde `409 RESERVATION_NOT_CANCELLABLE`, porque su desenlace es `NO_SHOW` (§8 del plan general, RN-23).
+- Una reserva cuya franja ya terminó (`now >= endAt`) no se puede cancelar ni previsualizar: responde `409 RESERVATION_NOT_CANCELLABLE`. Todavía puede registrar asistencia hasta `endAt + 1 hora`, inclusive, y quedar `COMPLETED`; solo sin check-in y estrictamente después del cierre procede `NO_SHOW` (§8 del plan general, RN-23, RN-36, RN-37).
 - Pendiente de confirmar: la auditoría registra `RESERVATION_CANCELLED` sin distinguir entre a tiempo y tardía; el tipo se deduce del estado de la reserva.
 
 ## Checklist de auto-revisión

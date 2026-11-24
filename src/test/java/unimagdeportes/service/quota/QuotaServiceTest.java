@@ -2,11 +2,13 @@ package unimagdeportes.service.quota;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +17,7 @@ import unimagdeportes.mapper.quota.QuotaMapperImpl;
 import unimagdeportes.model.reservation.ReservationStatus;
 import unimagdeportes.service.parameter.ParameterService;
 import unimagdeportes.service.reservation.ReservationService;
+import unimagdeportes.service.reservation.ReservationService.ReservationInfo;
 
 class QuotaServiceTest {
     private static final Instant WEEK_START = Instant.parse("2026-11-09T05:00:00Z");
@@ -57,6 +60,20 @@ class QuotaServiceTest {
 
         assertThat(quota.usedHours()).isEqualTo(2);
         assertThat(quota.availableHours()).isZero();
+    }
+
+    @Test
+    void dailyUsageUsesTheRequestedBogotaDateAndClipsCrossingIntervals() {
+        Instant start = Instant.parse("2026-11-11T05:00:00Z");
+        Instant end = Instant.parse("2026-11-12T05:00:00Z");
+        when(reservations.overlappingQuotaReservations(userId, start, end)).thenReturn(List.of(
+                new ReservationInfo(UUID.randomUUID(), userId, UUID.randomUUID(),
+                        start.minusSeconds(3600), start.plusSeconds(3600), ReservationStatus.COMPLETED),
+                new ReservationInfo(UUID.randomUUID(), userId, UUID.randomUUID(),
+                        end.minusSeconds(3600), end.plusSeconds(3600), ReservationStatus.CONFIRMED)));
+        assertThat(service(WEEK_START).usedOnDate(userId, LocalDate.parse("2026-11-11")))
+                .isEqualTo(Duration.ofHours(2));
+        verify(reservations).overlappingQuotaReservations(userId, start, end);
     }
 
     private QuotaService service(Instant now) {

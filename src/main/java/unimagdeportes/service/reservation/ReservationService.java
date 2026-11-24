@@ -3,6 +3,7 @@ package unimagdeportes.service.reservation;
 import java.time.Instant;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,7 @@ import unimagdeportes.event.ReservationNotificationEvent.Type;
 import unimagdeportes.service.space.SpaceService;
 import unimagdeportes.service.user.UserService;
 import unimagdeportes.service.audit.AuditService;
+import unimagdeportes.service.policy.CheckInWindowPolicy;
 import unimagdeportes.service.block.BlockSchedule.Slot;
 
 @Service
@@ -99,19 +101,29 @@ public class ReservationService {
     public CheckInCandidate registerCheckIn(UUID id, Instant now) {
         var reservation = reservations.findById(id).orElseThrow();
         reservation.checkIn(now);
+        if (!now.isBefore(reservation.getEndAt())) reservation.complete();
         return checkInCandidate(reservation);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public CheckInCandidate checkInCandidate(UUID id) {
+        return checkInCandidate(reservations.findById(id).orElseThrow(() ->
+                new BusinessException(HttpStatus.NOT_FOUND, "RESERVATION_NOT_FOUND", "La reserva no existe.")));
     }
 
     @Transactional(readOnly = true)
     public List<UUID> closedWithoutCheckIn() {
-        return reservations.findClosedWithoutCheckIn(clock.instant());
+        Instant cutoff = clock.instant().minus(Duration.ofMinutes(CheckInWindowPolicy.CLOSING_MINUTES_AFTER_END));
+        // PostgreSQL guarda microsegundos: elevar el corte evita perder el primer nanosegundo tras el límite.
+        return reservations.findClosedWithoutCheckIn(cutoff.plusNanos(999).truncatedTo(ChronoUnit.MICROS));
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public Optional<CheckInCandidate> noShowCandidate(UUID id, Instant now) {
         return reservations.findById(id)
                 .filter(r -> r.getStatus() == ReservationStatus.CONFIRMED && r.getCheckedInAt() == null
-                        && !now.isBefore(r.getEndAt())).map(this::checkInCandidate);
+                        && now.isAfter(r.getEndAt().plus(Duration.ofMinutes(
+                                CheckInWindowPolicy.CLOSING_MINUTES_AFTER_END)))).map(this::checkInCandidate);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)

@@ -134,6 +134,7 @@ public class ReservationCreationService {
             throw new BusinessException(HttpStatus.CONFLICT, "OVERLAPPING_RESERVATION",
                     "Ya tienes una reserva que se solapa.");
         }
+        checkDailyQuota(userId, start, end);
         checkQuota(userId, start, end);
         var reserved = equipment.validateForReservation(requested, start, end);
         var reservation = new Reservation(UUID.randomUUID(), userId, spaceId, start, end, now,
@@ -144,9 +145,27 @@ public class ReservationCreationService {
         events.publishEvent(new AvailabilityChangedEvent(spaceId));
         events.publishEvent(new ReservationCreatedEvent(new Receipt(user.getEmail(), user.getName(), space.name(),
                 start, end, reserved.stream().map(item -> new Receipt.EquipmentItem(item.name(), item.quantity())).toList(),
-                "Cancelación tardía con menos de " + settings.lateCancellationMinutes()
-                + " minutos de anticipación.", contactUrl)));
+                "Con " + reservation.getCancellationThresholdMinutes() + " minutos o más de anticipación, "
+                + "la cancelación es a tiempo: las horas dejan de contar contra tus límites diario y semanal. "
+                + "Con menos anticipación, o si la franja ya comenzó, la cancelación es tardía: "
+                + "las horas siguen contando contra ambos límites. En ambos casos se liberan el espacio "
+                + "y los implementos asociados. No puedes cancelar después del check-in ni desde la finalización "
+                + "de la reserva.", contactUrl)));
         return new Created(reservation.getId(), spaceId, space.name(), start, end, reservation.getStatus(), now, reserved);
+    }
+
+    private void checkDailyQuota(UUID userId, Instant start, Instant end) {
+        var date = start.atZone(ZONE).toLocalDate();
+        Duration used = quota.usedOnDate(userId, date);
+        Duration requested = Duration.between(start, end);
+        Duration limit = Duration.ofHours(QuotaService.DAILY_LIMIT_HOURS);
+        if (used.plus(requested).compareTo(limit) > 0) {
+            throw new BusinessException(HttpStatus.CONFLICT, "DAILY_QUOTA_EXCEEDED",
+                    "La reserva supera el máximo de 2 horas por día.",
+                    Map.of("date", date, "dailyLimitHours", QuotaService.DAILY_LIMIT_HOURS,
+                            "usedHours", hours(used), "requestedHours", hours(requested),
+                            "availableHours", hours(quotaPolicy.available(limit, used))));
+        }
     }
 
     private void checkQuota(UUID userId, Instant start, Instant end) {

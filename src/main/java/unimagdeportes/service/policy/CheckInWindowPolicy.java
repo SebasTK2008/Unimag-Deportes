@@ -6,11 +6,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CheckInWindowPolicy {
+    public static final int CLOSING_MINUTES_AFTER_END = 60;
+
     public Instant opensAt(Instant start, int openingMinutes) {
         return start.minus(Duration.ofMinutes(openingMinutes));
     }
 
+    public Instant closesAt(Instant end) {
+        return end.plus(Duration.ofMinutes(CLOSING_MINUTES_AFTER_END));
+    }
+
     public boolean isOpen(Instant now, Instant start, Instant end, int openingMinutes) {
-        return !now.isBefore(opensAt(start, openingMinutes)) && now.isBefore(end);
+        return !now.isBefore(opensAt(start, openingMinutes)) && !now.isAfter(closesAt(end));
     }
 }

@@ -65,7 +65,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 5. **Escenario**: Notificación de la cancelación.
    - **Dado** que se cancela una reserva.
    - **Cuando** la cancelación queda registrada.
-   - **Entonces** el sistema envía una notificación por correo (ver SPEC 011).
+   - **Entonces** el sistema envía una notificación por correo con la causa conocida, si fue a tiempo o tardía, cuántas horas dejan de contar o se mantienen en los límites diario/semanal y la liberación del espacio e implementos (ver SPEC 011).
 
 **Regla de cancelación** (RN-21, RN-22):
 
@@ -87,7 +87,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
   No. Solo el Usuario cancela su reserva desde "Mis reservas" (RN-20). La cancelación por parte del administrador ocurre únicamente de forma automática por un bloqueo institucional, con estado "Cancelada por administrador" y sin descontar horas (RN-43; ver SPEC 007).
 
 - **¿Cuándo puede cancelar el Usuario?**
-  En cualquier momento, sin autorización del administrador (RN-20), salvo que ya exista check-in (RN-24) o que la franja ya haya terminado. Una franja terminada sin check-in desemboca en inasistencia (plan general §8); permitir cancelarla dejaría evitar la sanción (RN-23).
+  En cualquier momento, sin autorización del administrador (RN-20), salvo que ya exista check-in (RN-24) o que la franja ya haya terminado. Desde el fin no puede cancelarla, pero aún puede registrar asistencia hasta una hora después, inclusive, y quedar "Completada". Solo sin asistencia y estrictamente después de ese cierre procede la inasistencia (plan general §8); permitir cancelarla dejaría evitar la sanción (RN-23).
 
 - **¿Qué ocurre justo a 60 minutos del inicio?**
   Es a tiempo si la reserva conservó un umbral de 60 minutos; en general se compara con el umbral conservado al crearla (RN-21).

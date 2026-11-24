@@ -10,6 +10,64 @@ import unimagdeportes.support.RulesTestSupport;
 
 class ReservationCreationIntegrationTest extends RulesTestSupport {
     @Test
+    void dailyLimitAccumulatesAcrossSpacesButAllowsConsecutiveHoursAndAnotherDay() throws Exception {
+        String user = completeLogin("daily@unimagdalena.edu.co");
+        UUID first = space(), second = space();
+        assertThat(send("POST", "/reservations", request(first, "2026-11-11T07:00:00-05:00", 1), user)
+                .statusCode()).isEqualTo(201);
+        assertThat(send("POST", "/reservations", request(second, "2026-11-11T08:00:00-05:00", 1), user)
+                .statusCode()).isEqualTo(201);
+        var rejected = send("POST", "/reservations", request(first, "2026-11-11T09:00:00-05:00", 1), user);
+        error(rejected, 409, "DAILY_QUOTA_EXCEEDED");
+        assertThat(body(rejected).get("details").get("usedHours").asDouble()).isEqualTo(2);
+        assertThat(send("POST", "/reservations", request(first, "2026-11-12T08:00:00-05:00", 2), user)
+                .statusCode()).isEqualTo(201);
+        error(send("POST", "/reservations", request(first, "2026-11-13T08:00:00-05:00", 1), user),
+                409, "QUOTA_EXCEEDED");
+    }
+
+    @Test
+    void dailyLimitUsesTheSameStatesAsWeeklyQuota() throws Exception {
+        for (var status : unimagdeportes.model.reservation.ReservationStatus.values()) {
+            String user = completeLogin("daily-" + status.name().toLowerCase() + "@unimagdalena.edu.co");
+            UUID userId = UUID.fromString(decoder.decode(user).getSubject());
+            UUID space = space();
+            jdbc.update("insert into reservation (id,user_id,space_id,start_at,end_at,status,created_at,"
+                            + "cancellation_threshold_minutes,checkin_opening_minutes) values (?, ?, ?, "
+                            + "'2026-11-11T12:00:00Z', '2026-11-11T14:00:00Z', ?, now(), 60, 10)",
+                    UUID.randomUUID(), userId, space, status.name());
+            var response = send("POST", "/reservations", request(space, "2026-11-11T09:00:00-05:00", 1), user);
+            if (status.countsForQuota()) error(response, 409, "DAILY_QUOTA_EXCEEDED");
+            else assertThat(response.statusCode()).isEqualTo(201);
+        }
+    }
+
+    @Test
+    void concurrentRequestsCannotExceedTheDailyLimit() throws Exception {
+        String user = completeLogin("daily-concurrent@unimagdalena.edu.co");
+        UUID first = space(), second = space();
+        assertThat(send("POST", "/reservations", request(first, "2026-11-11T07:00:00-05:00", 1), user)
+                .statusCode()).isEqualTo(201);
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var a = executor.submit(() -> { start.await(); return send("POST", "/reservations",
+                    request(first, "2026-11-11T08:00:00-05:00", 1), user); });
+            var b = executor.submit(() -> { start.await(); return send("POST", "/reservations",
+                    request(second, "2026-11-11T09:00:00-05:00", 1), user); });
+            start.countDown();
+            var responses = java.util.List.of(a.get(), b.get());
+            assertThat(responses.stream().map(java.net.http.HttpResponse::statusCode))
+                    .containsExactlyInAnyOrder(201, 409);
+            error(responses.stream().filter(r -> r.statusCode() == 409).findFirst().orElseThrow(),
+                    409, "DAILY_QUOTA_EXCEEDED");
+        }
+    }
+
+    private String request(UUID space, String start, int slots) {
+        return "{\"spaceId\":\"%s\",\"startAt\":\"%s\",\"slots\":%d}".formatted(space, start, slots);
+    }
+
+    @Test
     void createsReservationAndRejectsConflictingSlot() throws Exception {
         String first = completeLogin("reserve-one@unimagdalena.edu.co");
         String second = completeLogin("reserve-two@unimagdalena.edu.co");

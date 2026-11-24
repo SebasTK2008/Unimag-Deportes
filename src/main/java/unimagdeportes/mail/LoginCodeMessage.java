@@ -21,4 +21,16 @@ public class LoginCodeMessage {
                 + " minutos. No lo compartas.";
         return body + "\n\nContacta al administrador: " + contactUrl;
     }
+
+    public MailBody compose(String code, Duration validity) {
+        String text = render(code, validity);
+        String html = MailLayout.render("Tu código de acceso",
+                MailLayout.paragraph("Ingresa este código en Unimag Deportes para continuar.")
+                        + "<p style=\"text-align:center;margin:28px 0;padding:20px 8px;background:#f2f5f8;"
+                        + "font-family:'Courier New',monospace;font-size:40px;font-weight:bold;"
+                        + "line-height:1.3;color:#20395f;\">" + MailLayout.escape(code) + "</p>"
+                        + MailLayout.paragraph("Vence en " + validity.toMinutes() + " minutos. No lo compartas.")
+                        + MailLayout.contact(contactUrl));
+        return new MailBody(text, html);
+    }
 }

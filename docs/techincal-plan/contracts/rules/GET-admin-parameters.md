@@ -23,6 +23,7 @@ Sin parámetros.
   },
   "quota": {
     "weeklyHours": 4,
+    "dailyHours": 2,
     "weekStartsOn": "MONDAY",
     "timeZone": "America/Bogota"
   },
@@ -31,7 +32,8 @@ Sin parámetros.
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtReservationEnd": true
+    "closesAtReservationEnd": false,
+    "closesMinutesAfterEnd": 60
   },
   "reminder": {
     "hoursBefore": 2
@@ -55,6 +57,7 @@ Sin parámetros.
 ## Notas
 
 - Muestra también valores fijos y de despliegue; solo `quota.weeklyHours` y `sanctions.noShowsForSuspension` se editan mediante `PUT /admin/parameters`.
+- `quota.dailyHours: 2` y `checkIn.closesMinutesAfterEnd: 60` son fijos; el cierre del check-in incluye el instante exacto.
 - Cuota y umbral proceden de la versión vigente; este endpoint no devuelve el historial ni sus metadatos. Véase D-26 del plan técnico.
 - Los parámetros de autenticación viven en `application.properties` y no se exponen ni se editan aquí (OQ-16).
 - `maxAdvanceDays` es fijo y expresa el desplazamiento máximo de fecha: `6` permite 7 fechas contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio.

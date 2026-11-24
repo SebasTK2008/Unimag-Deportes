@@ -24,15 +24,15 @@ UC11 implementa los correos de la plataforma: comprobante PDF de la reserva, not
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Mail, Scheduling, Data JPA. PDF: `com.github.librepdf:openpdf:3.0.5`. Plantillas de correo.
+**Primary Dependencies**: Spring Boot 4.2.0: Mail, Scheduling, Data JPA. PDF: `com.github.librepdf:openpdf:3.0.5`. Plantillas de correo.
 **Storage**: PostgreSQL; `reservation.reminder_sent_at` para el recordatorio.
 **Messaging**: eventos internos después del commit; sin colas [D-10].
-**Testing**: JUnit 5, AssertJ, Mockito, Testcontainers, GreenMail; Mailpit en local.
+**Testing**: JUnit 5, AssertJ, Mockito y Testcontainers con PostgreSQL y Mailpit.
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico; llamadas internas y `ReminderJob` [D-07].
 **Performance Goals**: correo en menos de 1 minuto en condiciones normales (RNF-11).
-**Constraints**: PDF con espacio, fecha, hora, nombre, implementos y reglas (RN-45, OQ-20); canal de contacto (RN-48); recordatorio 2 h antes (RN-46); avisos (RN-47); fallo no revierte (OQ-04); sin datos innecesarios (RNF-09).
-**Scale/Scope**: sin endpoints, sin migraciones, 15 RF + 4 RNF + 8 CE + 3 HU.
+**Constraints**: plantilla PDF definitiva sin rediseño, con datos de reserva/usuario, implementos y contacto; reglas y check-in solo en el correo (RN-45, OQ-20); recordatorio 2 h antes (RN-46); avisos con consecuencias reales de cancelación (RN-47); fallo no revierte (OQ-04); sin datos innecesarios (RNF-09).
+**Scale/Scope**: sin endpoints, sin migraciones, 17 RF + 4 RNF + 8 CE + 3 HU.
 
 ## Project Structure
 
@@ -48,22 +48,24 @@ docs/features/011-enviar-correos-al-usuario/
 
 ```text
 src/main/java/unimagdeportes/
-├── mail/{MailSender,SmtpMailSender,ReceiptPdfGenerator}.java
-├── mail/templates/
+├── mail/{MailSender,SmtpMailSender,MailBody,MailLayout,ReceiptPdfGenerator,ReceiptMessage,LoginCodeMessage}.java
 ├── service/notification/{ReceiptService,NotificationService}.java
 ├── scheduler/ReminderJob.java
 ├── event/{ReservationCreatedEvent,ReservationNotificationEvent}.java   # Type: REMINDER, CANCELLATION, BLOCK, NO_SHOW, SUSPENSION
 ├── service/reservation/  # consulta mediante servicio propietario
 └── dto/mail/
 
-src/test/java/unimagdeportes/{integration/mail,unit/mail}/
+src/test/java/unimagdeportes/mail/
+src/test/java/unimagdeportes/integration/mail/
+src/test/java/unimagdeportes/integration/auth/LoginSmtpIntegrationTest.java
+src/main/resources/pdf/comprobante-definitivo.pdf
 ```
 
 **Structure Decision**: `MailSender` es el puerto y `SmtpMailSender` el adaptador; los servicios de negocio publican eventos y `ReceiptService`/`NotificationService` los consumen después del commit [D-10].
 
 ## Reglas de negocio
 
-1. **Comprobante** [RN-45, OQ-20]: PDF con espacio, fecha, hora, nombre, implementos y reglas de cancelación.
+1. **Comprobante** [RN-45, OQ-20]: PDF sobre la plantilla original en `src/main/resources/pdf/comprobante-definitivo.pdf`. Se rellenan los datos; se conservan logos, firma gráfica, textos y dimensiones. El cuerpo de implementos es una única área enumerada; no se limita a tres artículos. El texto añadido se ajusta y las listas que exceden el área continúan sobre otra copia de la misma plantilla. Reglas de cancelación y check-in van solo en el correo.
 2. **Recordatorio** [RN-46]: 2 h antes, con enlace para cancelar.
 3. **Avisos** [RN-47]: cancelación, bloqueo, inasistencia y suspensión.
 4. **Canal de contacto** [RN-48, OQ-10]: formulario de UC12.
@@ -99,17 +101,21 @@ No aplica: UC11 es interno, sin endpoints. Los correos se disparan desde UC01, U
 
 Contenido de los avisos, todos en America/Bogota y con el canal de contacto:
 
-- **Cancelación:** fecha y hora de la reserva y, si existe, el motivo.
+- **Cancelación:** fecha/hora, causa conocida y efectos del estado resultante. `CancellationDetails` conserva estado y horas de la reserva en el evento post-commit; no se deduce el efecto del texto libre del motivo ni se vuelve a evaluar con reglas posteriores. A tiempo/suspensión libera horas y tardía las mantiene; bloqueo también libera horas. Se libera espacio e implementos.
 - **Inasistencia:** fecha y hora de la reserva, y aviso de que sus horas siguen contando en la cuota (RN-37).
 - **Suspensión:** la fecha en que el Usuario podrá reservar de nuevo (RN-39).
+
+**Presentación:** `MailBody` transporta texto plano y HTML; `SmtpMailSender` genera MIME alternativo y mantiene adjuntos/reintentos. Los métodos anteriores de texto plano se conservan para otros envíos. `MailLayout` escapa datos variables y usa tablas/estilos en línea sin recursos remotos; solo enlaza contactos HTTP(S) válidos. `ReceiptMessage` compone la confirmación con reglas y explicación de check-in. `LoginCodeMessage.compose` presenta el código como texto centrado de 40 px, con vigencia y contacto.
+
+**Plantilla verificable:** la copia original tiene SHA-256 `30e5c02c2fa2310b4c722a13f0501041ee412c131ba18d3887378dd32ea2679c`, una página carta de 612 × 792 puntos y no tiene AcroForm. OpenPDF importa la página y escribe los valores en coordenadas fijas; solo cubre el interior del cuerpo de implementos para unificar sus filas. No se requiere el archivo de Descargas en ejecución. La firma preservada es gráfica, no una firma digital criptográfica.
 
 ### Phase 3: User Stories
 
 - [x] **T005** [US1/P1] Implementar `ReceiptPdfGenerator`.
-- [ ] **T006** [US1/P1] Implementar `ReceiptService` y su escucha de `ReservationCreatedEvent`.
+- [x] **T006** [US1/P1] Implementar `ReceiptService` y su escucha de `ReservationCreatedEvent`.
 - [x] **T007** [US1/P1] Crear DTO de comprobante.
-- [ ] **T008** [US1/P1] Incluir el canal de contacto.
-- [ ] **T009** [US1/P1] Integración de comprobante sin implementos y envío post-commit; añadir la prueba con implementos al integrar UC13.
+- [x] **T008** [US1/P1] Incluir el canal de contacto.
+- [x] **T009** [US1/P1] Integración de comprobante sin implementos y envío post-commit; añadir la prueba con implementos al integrar UC13.
 - [x] **T010** [US2/P1] Implementar `NotificationService` y sus escuchas.
 - [x] **T011** [US2/P1] Crear las plantillas de correo.
 - [x] **T012** [US2/P1] Implementar `ReminderJob` (2 h antes, idempotente).
@@ -118,14 +124,14 @@ Contenido de los avisos, todos en America/Bogota y con el canal de contacto:
 - [x] **T015** [US2/P1] Integración de notificaciones por evento.
 - [x] **T016** [US3/P1] Crear la plantilla del código de acceso.
 - [x] **T017** [US3/P1] Integrar el envío desde `LoginCodeService`.
-- [ ] **T018** [US3/P1] Integración del correo del código y dominio inválido.
+- [x] **T018** [US3/P1] Integración del correo del código y dominio inválido.
 
 ### Phase 4: Polish
 
 - [ ] **T019** Revisar los correos con Mailpit.
-- [ ] **T020** Verificar que un fallo de correo no revierte operaciones y ejecutar `./mvnw clean verify`.
+- [x] **T020** Verificar que un fallo de correo no revierte operaciones y ejecutar `./mvnw clean verify`.
 
-**Avance verificado:** el generador y DTO se prueban con y sin implementos y zona Bogotá; `ReservationCreationService` construye y publica el evento de comprobante, incluidos los implementos. `EquipmentIntegrationTest` crea una reserva real con dos implementos y comprueba nombre y cantidad en el PDF capturado por el adaptador de prueba. No acredita entrega SMTP real ni rollback o fallo de correo en ese flujo. El correo de código usa `APP_MAIL_CONTACT_URL`; si falta, el envío falla y la solicitud devuelve `503 MAIL_DELIVERY_FAILED`, sin entregar un correo incompleto. La aceptación del contacto real queda pendiente. T018 y T020 siguen abiertas porque falta su integración completa.
+**Avance verificado el 24/11/2026:** `clean verify` aprobó 346 pruebas, sin fallos, errores ni omisiones, y generó el JAR. El generador conserva el hash de la plantilla original; se probaron comprobantes sin implementos, con cinco y con 35 repartidos en páginas de continuación, además de la ausencia de reglas/check-in dentro del PDF. La prueba de equipamiento relaciona cada nombre con su cantidad en la misma fila y rechaza cantidades intercambiadas. `EquipmentIntegrationTest` comprueba una creación real con implementos y correo simulado; `LoginSmtpIntegrationTest` recorre solicitud de código por SMTP, login, perfil, creación por `POST /reservations` y entrega del PDF por SMTP a Mailpit, con ambas alternativas de correo. El código usa `APP_MAIL_CONTACT_URL`; si falta, responde `503 MAIL_DELIVERY_FAILED`. La aceptación en buzones y enlaces públicos reales sigue pendiente; Mailpit no envía a cuentas institucionales.
 
 **Avance adicional:** `ReceiptService` y `NotificationService` consumen eventos posteriores al commit; las pruebas controladas cubren rollback, fallo de correo y los cinco tipos de aviso. `ReminderJob` selecciona reservas elegibles y marca el envío después de entregarlo. Su programación usa `app.jobs.reminder-cron` (`APP_JOBS_REMINDER_CRON`), cada minuto por defecto; `-` desactiva la ejecución automática. Las pruebas con reloj controlado desactivan ambos jobs y los invocan explícitamente para evitar interferencias con la limpieza de BD; `JobSchedulingIntegrationTest` comprueba que no quedan tareas programadas. `ReminderFlowIntegrationTest` lo prueba con una reserva creada por `POST /reservations` (UC03): envía el enlace de cancelación y omite la reserva cancelada.
 
@@ -136,7 +142,7 @@ Los cinco avisos se prueban desde sus productores reales:
 - inasistencia, suspensión y cancelación por suspensión en `ReservationLifecycleIntegrationTest` (UC10);
 - recordatorio en `ReminderFlowIntegrationTest`.
 
-En la cancelación y la inasistencia se verifica además que un fallo de correo no revierte la operación; para el bloqueo lo cubre la prueba controlada de `NotificationEventsTest`. T012–T015 quedan cubiertas. T006, T008 y T009 (comprobante) siguen abiertas: existe una prueba del flujo real con implementos y correo simulado, pero no se ha completado toda la cobertura de envío y fallos. Si no se configura el contacto, comprobantes y avisos no se envían; el recordatorio también requiere `APP_MAIL_CANCELLATION_URL` con `{id}`.
+En la cancelación y la inasistencia se verifica además que un fallo de correo no revierte la operación; para el bloqueo lo cubre la prueba controlada de `NotificationEventsTest`. T012–T015 quedan cubiertas. `NotificationEventsTest` también contrasta las consecuencias de cancelación a tiempo, tardía y por suspensión en texto y HTML. Comprobantes/notificaciones mantienen su escucha post-commit y las pruebas de rollback. Si no se configura el contacto no se envían; el recordatorio requiere además `APP_MAIL_CANCELLATION_URL` con `{id}`.
 
 **Límite del recordatorio:** el job serializa sus ejecuciones dentro de una instancia. Conforme a `docs/techincal-plan/plan-general.md` §5.2, el despliegue previsto es de una sola instancia; varias instancias requieren coordinación adicional. Si SMTP acepta el mensaje pero falla el marcado posterior o cae el proceso, un reintento puede duplicarlo. No se garantiza entrega exactamente una vez.
 

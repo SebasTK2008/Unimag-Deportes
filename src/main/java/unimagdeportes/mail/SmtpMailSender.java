@@ -98,4 +98,29 @@ public class SmtpMailSender implements MailSender {
             }
         }
     }
+
+    @Override
+    public void send(String recipient, String subject, MailBody body) {
+        sendFormatted(recipient, subject, body, null, null);
+    }
+
+    @Override
+    public void sendWithPdf(String recipient, String subject, MailBody body, String filename, byte[] pdf) {
+        sendFormatted(recipient, subject, body, filename, pdf);
+    }
+
+    private void sendFormatted(String recipient, String subject, MailBody body, String filename, byte[] pdf) {
+        var message = sender.createMimeMessage();
+        try {
+            var helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(recipient);
+            if (!from.isEmpty()) helper.setFrom(from);
+            helper.setSubject(subject);
+            helper.setText(body.text(), body.html());
+            if (filename != null) helper.addAttachment(filename, new ByteArrayResource(pdf), "application/pdf");
+        } catch (MessagingException ex) {
+            throw new MailPreparationException("No fue posible preparar el correo", ex);
+        }
+        sendWithRetry(() -> sender.send(message));
+    }
 }

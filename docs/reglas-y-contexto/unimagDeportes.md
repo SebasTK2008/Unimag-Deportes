@@ -65,12 +65,13 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | Umbral de cancelación tardía | Menos de 60 minutos antes del inicio; por despliegue |
 | Duración de una franja | 60 minutos; fijo |
 | Duración máxima de una reserva | 2 franjas consecutivas; fijo |
+| Máximo diario por usuario | 2 horas acumuladas entre todos los espacios; fijo; fecha en America/Bogota |
 | Cuota semanal por usuario | 4 horas; editable por Administrador |
 | Inicio de la semana de conteo | Lunes 00:00, America/Bogota; fijo |
 | Anticipación mínima para reservar | 0 minutos; por despliegue |
 | Anticipación máxima para reservar | 7 fechas calendario contando hoy: hasta hoy + 6 inclusive; fijo |
 | Horizonte del calendario | Desde hoy hasta hoy + 6 días inclusive (7 fechas); fijo |
-| Ventana de check-in | Desde 10 minutos antes del inicio (por despliegue) hasta el fin de la reserva |
+| Ventana de check-in | Desde 10 minutos antes del inicio (por despliegue) hasta una hora después del fin, inclusive |
 | Recordatorio previo a la reserva | 2 horas antes; fijo; se omite si se crea con menos de 2 horas de anticipación |
 | Suspensión por inasistencias | 3 inasistencias (editable por Administrador) por mes calendario; suspensión de 7 días (por despliegue) |
 | Dominio de correo permitido | `@unimagdalena.edu.co`; fijo |
@@ -116,6 +117,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | RN-13 | Si todas las validaciones pasan, la reserva se confirma al instante en pantalla y se envía el comprobante al correo. No hay aprobación manual. |
 | RN-14 | Solo se puede reservar dentro de las 7 fechas calendario desde hoy hasta hoy + 6 días inclusive, según America/Bogota (OQ-09, OQ-12). El límite incluye toda la última fecha, sujeto al horario del espacio, y se aplica por fecha, no por horas transcurridas. Si hoy es lunes a las 6:50, la última fecha es el domingo hasta las 23:59, no hasta las 6:50. |
 | RN-15 | Una reserva puede abarcar hasta 2 franjas consecutivas del mismo espacio.  |
+| RN-67 | Cada usuario puede reservar como máximo 2 horas acumuladas por fecha calendario en America/Bogota, entre todos los espacios. Se aplican los mismos estados de consumo que a la cuota semanal. Se permiten reservas separadas consecutivas dentro de ese máximo; no se fusionan automáticamente. El límite es fijo y adicional a la cuota semanal. |
 
 ### 5.4 Cuota semanal
 
@@ -157,7 +159,7 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 | RN-27 | Si un espacio está libre en una franja que ya comenzó, se puede reservar hasta el fin de la tolerancia configurada por despliegue (10 minutos por defecto). |
 | RN-28 | Pasada la tolerancia, la franja deja de ser reservable aunque siga libre. |
 | RN-29 | Una reserva hecha dentro de la tolerancia ocupa la franja completa y cuenta la franja completa contra la cuota. |
-| RN-30 | Una reserva hecha dentro de la tolerancia sigue la misma ventana de check-in: hasta el fin de la reserva. |
+| RN-30 | Una reserva hecha dentro de la tolerancia sigue la misma ventana de check-in: hasta una hora después del fin de la reserva, incluido ese instante. |
 
 *Ejemplo: en la franja de 2:00 a 3:00 p. m. un espacio libre se puede reservar hasta las 2:10 p. m.
 
@@ -167,10 +169,10 @@ Cada cambio efectivo de cuota o umbral conserva una versión inmutable con ambos
 |---|---|
 | RN-31 | Cada espacio tiene un **código QR estático** impreso en su entrada. El usuario lo escanea con su celular al ingresar. No interviene ningún vigilante ni el administrador.|
 | RN-32 | El QR contiene un enlace fijo al espacio (por ejemplo, `/checkin/{id_espacio}`). No identifica al usuario: la identidad sale de su sesión iniciada (token JWT vigente). |
-| RN-33 | Al escanear, el sistema comprueba que el usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in. Si todo coincide, la reserva pasa a "En uso". |
+| RN-33 | Al abrir el QR o enlace, el sistema permite consultar las reservas propias pendientes de asistencia cuya ventana esté abierta en ese espacio y confirmar cada una por su identificador. Revalida identidad, espacio, estado y hora al confirmar. Antes del fin pasa a "En uso"; desde el fin registra la asistencia y queda "Completada", sin prolongar la ocupación. |
 | RN-34 | Si no hay sesión vigente (no hay token o ya expiró), el sistema pide iniciarla con correo y código de acceso y, al terminar, continúa con el check-in en el mismo espacio. Como el token no se guarda en cookies, si el enlace del QR se abre en un navegador distinto al de la sesión, el usuario deberá iniciar sesión de nuevo. |
 | RN-35 | Si el check-in falla, se muestra el motivo: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada. |
-| RN-36 | El primer check-in va desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable del usuario en el espacio por hora de inicio. Una reserva de otro usuario en curso impide el check-in anticipado. Si la reserva seleccionada sigue `IN_USE`, repetir devuelve el registro original sin modificarlo ni auditar otra vez, incluso después del fin mientras el job no la haya completado. |
+| RN-36 | El primer check-in va desde la apertura configurada antes del inicio (10 minutos por defecto) hasta una hora después del fin, inclusive, usando la hora del servidor. Una reserva de otro usuario en curso impide el check-in anticipado, pero no registrar asistencia de una reserva propia ya terminada dentro del plazo. El usuario puede elegir entre todas sus reservas elegibles del espacio. Repetir la confirmación de una reserva `IN_USE` o `COMPLETED` con asistencia conserva su fecha original y no duplica auditoría; el plazo limita el primer registro. |
 
 ### 5.8 Inasistencias y sanciones
 
@@ -178,7 +180,7 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | ID | Regla |
 |---|---|
-| RN-37 | Si no hay check-in al finalizar la reserva, pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-16). |
+| RN-37 | Si no hay check-in y la hora del servidor es estrictamente posterior al fin de la reserva más una hora, el proceso automático puede pasarla a "Inasistencia" y sus horas siguen contando contra las cuotas semanal y diaria. En el límite exacto todavía se admite check-in y no se declara inasistencia. |
 | RN-38 | Las inasistencias se cuentan por mes calendario en America/Bogota y el conteo comienza de nuevo el día 1. Al registrar una inasistencia se evalúa el umbral vigente (3 por defecto); al alcanzarlo se suspende al usuario durante el plazo configurado por despliegue (7 días por defecto). Como máximo se aplica una suspensión por usuario y mes de inasistencia; faltas posteriores del mismo mes se registran y notifican, sin otra suspensión por ese mes. |
 | RN-39 | El usuario recibe un correo cuando se registra una inasistencia y cuando es suspendido, con la fecha en que podrá reservar de nuevo. |
 | RN-40 | Al suspender se cancelan las reservas con inicio estrictamente posterior al momento de suspensión y contenidas por completo en su período, incluidas las que están `IN_USE` por check-in anticipado; sus horas e implementos se liberan y se notifica por correo. Se conservan las ya iniciadas, las parcialmente solapadas y las demás fuera del período. El usuario no puede crear nuevas durante la suspensión. |
@@ -196,9 +198,9 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | ID | Regla |
 |---|---|
-| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación (OQ-20). |
+| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía el PDF basado en `COMPROBANTE-DEFINITIVO.pdf`, con nombre y correo institucional del usuario, espacio, fecha, horario, implementos y cantidades, y enlace de contacto. Se conservan diseño, logos, firma gráfica y textos de la plantilla; solo el cuerpo de implementos se unifica como lista enumerada sin tres filas fijas. Las reglas de cancelación y la explicación del check-in se incluyen en el correo, no en el PDF (OQ-20). |
 | RN-46 | **Recordatorio:** se envía 2 horas antes del inicio, con enlace para cancelar; se omite si la reserva se crea con menos de 2 horas de anticipación. |
-| RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. |
+| RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. Las cancelaciones informan su causa conocida y sus efectos reales: a tiempo libera horas de los límites diario y semanal; tardía las mantiene; bloqueo o suspensión las libera. En todos esos casos se liberan espacio e implementos; cancelar por suspensión no levanta la suspensión. |
 | RN-48 | Los correos incluyen un canal para contactar al administrador. |
 
 ### 5.11 Autenticación y sesión
@@ -239,13 +241,14 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
                     ┌─────────────────────────┐
                     │       CONFIRMADA        │
                     └───┬─────────┬─────────┬─┘
-        cancela ≥ umbral │         │ cancela │ check-in OK
+        cancela ≥ umbral │         │ cancela │ check-in antes del fin
                          │         │ < umbral│
                         ▼         ▼         ▼
              CANCELADA A    CANCELADA     EN USO ──► COMPLETADA
                 TIEMPO       TARDÍA
                                  
-   Sin check-in al cerrar la ventana ──► INASISTENCIA
+    CONFIRMADA ── check-in desde el fin hasta fin + 1 hora inclusive ──► COMPLETADA
+    Sin check-in después de fin + 1 hora ──► INASISTENCIA
    Bloqueo institucional ──► CANCELADA POR ADMINISTRADOR
 ```
 
@@ -345,7 +348,7 @@ La cancha de tenis 2 está libre de 2:00 a 3:00 p. m. A las 2:08 p. m. Marta la 
 
 **Escenario D: inasistencia**
 
-Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Al finalizar, la reserva pasa a "Inasistencia" y su hora sigue contando. Si alcanza el umbral vigente en el mes calendario queda suspendido y se cancelan sus reservas futuras durante la suspensión, liberando cuota e implementos y notificándolo.
+Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Puede registrar su asistencia hasta las 8:00 p. m. inclusive. Después, si sigue sin check-in, el job la pasa a "Inasistencia" y su hora sigue contando. Si alcanza el umbral vigente en el mes calendario queda suspendido y se cancelan sus reservas futuras durante la suspensión, liberando cuota e implementos y notificándolo.
 
 **Escenario E: bloqueo por evento**
 

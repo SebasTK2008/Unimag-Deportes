@@ -21,6 +21,7 @@ import unimagdeportes.service.reservation.ReservationService;
  */
 @Service
 public class QuotaService {
+    public static final int DAILY_LIMIT_HOURS = 2;
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
     private final ReservationService reservations;
     private final ParameterService parameters;
@@ -43,6 +44,13 @@ public class QuotaService {
                 .map(reservation -> new QuotaPolicy.Interval(reservation.startAt(), reservation.endAt()))
                 .toList();
         return policy.usedInWeek(intervals, weekStart, weekEnd);
+    }
+
+    @Transactional(readOnly = true)
+    public Duration usedOnDate(UUID userId, LocalDate date) {
+        Instant start = date.atStartOfDay(BOGOTA).toInstant();
+        Instant end = date.plusDays(1).atStartOfDay(BOGOTA).toInstant();
+        return usedInWeek(userId, start, end);
     }
 
     /** Cuota de la semana en curso (lunes 00:00 America/Bogota); se reinicia el lunes siguiente. */

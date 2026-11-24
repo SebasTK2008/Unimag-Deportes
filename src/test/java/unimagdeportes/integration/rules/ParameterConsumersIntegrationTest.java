@@ -26,7 +26,8 @@ class ParameterConsumersIntegrationTest extends ReservationTestSupport {
         error(send("POST", "/reservations", request.formatted(space, 2), user), 409, "QUOTA_EXCEEDED");
         assertThat(send("POST", "/reservations", request.formatted(space, 1), user).statusCode()).isEqualTo(201);
         UUID id = userId(user);
-        fixtureReservation(id, space(), "CONFIRMED", START.minus(Duration.ofHours(2)), START.minus(Duration.ofHours(1)));
+        fixtureReservation(id, space(), "CONFIRMED", START.minus(Duration.ofHours(2)).minusSeconds(1),
+                START.minus(Duration.ofHours(1)).minusSeconds(1));
         lifecycle.closeFinishedReservations();
         assertThat(jdbc.queryForObject("select suspended_until is not null from app_user where id=?",
                 Boolean.class, id)).isTrue();

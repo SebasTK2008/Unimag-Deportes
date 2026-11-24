@@ -1,24 +1,24 @@
 # Especificación de Funcionalidad: UC05 - Confirmar asistencia (QR)
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-10-18 (sesión con token JWT sin cookies; ver SPEC 001)
+**Última revisión**: 2026-11-24 (selección de reservas propias y check-in hasta fin + 1 hora inclusive)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### Historia de Usuario 1 - Registrar el check-in escaneando el QR del espacio (Prioridad: P1)
 
-Como Usuario con una reserva, quiero escanear con mi celular el código QR del espacio al ingresar, de manera que el sistema confirme mi asistencia sin intervención de vigilantes ni del administrador y la reserva pase a "En uso".
+Como Usuario con una reserva, quiero abrir el QR o enlace del espacio, consultar mis reservas elegibles y confirmar la asistencia de la que elija, sin intervención de vigilantes ni del administrador. Si no tuve internet en la cancha puedo registrarla hasta una hora después del fin, inclusive.
 
 **Por qué esta prioridad**: El check-in evita que la reserva se marque como inasistencia (RN-37) y es el único mecanismo de confirmación de asistencia definido.
 
-**Prueba Independiente**: Escanear el QR de un espacio con distintas combinaciones de sesión, reserva y momento (dentro y fuera de la ventana), y validar que solo el caso válido pasa la reserva a "En uso" y que los demás muestran su motivo.
+**Prueba Independiente**: Abrir el QR de un espacio con distintas combinaciones de sesión, reserva y momento. Validar que solo se muestran reservas propias elegibles y que confirmar pasa a "En uso" antes del fin o a "Completada" desde el fin; los casos inválidos muestran su motivo.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Check-in exitoso.
    - **Dado** que el Usuario está autenticado (token vigente), tiene una reserva activa en ese espacio y el momento está dentro de la ventana de check-in.
-   - **Cuando** escanea el QR del espacio.
-   - **Entonces** el sistema registra el check-in y la reserva pasa a "En uso".
+   - **Cuando** abre el QR o enlace y confirma una de sus reservas elegibles.
+   - **Entonces** el sistema registra el check-in; antes del fin pasa a "En uso" y desde el fin queda "Completada".
 
 2. **Escenario**: Escaneo sin sesión vigente.
    - **Dado** que el Usuario no tiene sesión vigente (no hay token o ya expiró).
@@ -42,8 +42,11 @@ Como Usuario con una reserva, quiero escanear con mi celular el código QR del e
 
 **Regla de la ventana de check-in** (RN-36, RN-30):
 
-- Toda reserva: desde la apertura configurada antes del inicio (10 minutos por defecto) hasta el fin de la reserva, sin incluir ese instante. Se selecciona la próxima reserva aplicable por hora de inicio; una en curso precede a una futura.
-- La ventana limita el primer registro. Si otro usuario tiene una reserva en curso en el espacio se rechaza también dentro de la ventana anticipada propia. Si la seleccionada sigue `IN_USE`, repetir devuelve su check-in original, incluso después del fin antes del cierre por el job, sin otra auditoría.
+- Toda reserva: desde la apertura configurada antes del inicio (10 minutos por defecto) hasta una hora después del fin, incluido ese instante, con la hora del servidor.
+- La consulta devuelve reservas propias `CONFIRMED` sin check-in dentro de esa ventana, ordenadas por inicio. Si tiene dos reservas consecutivas elegibles, el usuario puede confirmar cualquiera o ambas individualmente.
+- La ocupación actual por otro usuario sigue impidiendo el check-in anticipado, pero no una confirmación tardía de una reserva ya terminada.
+- La ventana limita el primer registro. Repetir por identificador sobre `IN_USE` o `COMPLETED` con asistencia conserva `checkedInAt` y no duplica auditoría, incluso después del plazo.
+- Una reserva de 14:00 a 16:00 puede confirmarse a las 16:30 aunque otro usuario esté usando la cancha; cada usuario solo ve sus propias reservas. A las 17:00 aún se acepta; después se rechaza.
 
 ---
 
@@ -85,17 +88,17 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
   La reserva pasa a "Inasistencia" y sus horas cuentan contra la cuota (RN-37; ver SPEC 010).
 
 - **¿Qué ocurre con una reserva con check-in registrado?**
-  No se puede cancelar (RN-24). Al terminar la franja con asistencia, pasa de "En uso" a "Completada" (sección 6 del contexto).
+  No se puede cancelar (RN-24). Si el check-in se registra antes del fin, pasa a "En uso" y el job la completa al terminar la franja. Si se registra desde el fin hasta una hora después, inclusive, pasa directamente de "Confirmada" a "Completada" en la misma operación (sección 6 del contexto).
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
 - **RF-001**: El sistema DEBE permitir al Usuario confirmar su asistencia escaneando el QR del espacio al ingresar, sin intervención de vigilantes ni del administrador (RF-08, RN-31).
-- **RF-002**: El sistema DEBE comprobar, al escanear, que el Usuario esté autenticado, que tenga una reserva activa en ese espacio y que el momento esté dentro de la ventana de check-in; si todo coincide, la reserva pasa a "En uso" (RN-33).
+- **RF-002**: El sistema DEBE consultar las reservas propias elegibles por espacio y confirmar la seleccionada por identificador, revalidando usuario, espacio, estado y hora. Antes del fin pasa a "En uso"; desde el fin queda "Completada" (RN-33).
 - **RF-003**: El sistema DEBE pedir el inicio de sesión cuando no haya una sesión vigente (sin token o con el token expirado) y continuar con el check-in en el mismo espacio una vez autenticado el Usuario; si el enlace se abre en un navegador distinto al de la sesión, DEBE pedir iniciar sesión de nuevo (RN-34).
 - **RF-004**: El sistema DEBE mostrar el motivo cuando el check-in falle: no tiene reserva en este espacio, es demasiado temprano, la ventana ya cerró o la reserva fue cancelada (RN-35).
-- **RF-005**: El sistema DEBE aplicar la ventana al primer check-in, también para reservas creadas dentro de la tolerancia, y rechazarlo si otro usuario ocupa la franja en curso. La repetición sobre una reserva todavía `IN_USE` DEBE devolver el registro original sin modificarlo (RN-30, RN-36).
+- **RF-005**: El sistema DEBE aplicar la ventana ampliada al primer check-in, también para reservas en tolerancia; permitir el tardío aunque otro usuario ocupe el espacio; y conservar fecha y auditoría al repetir sobre `IN_USE` o `COMPLETED` con asistencia (RN-30, RN-36).
 - **RF-006**: El sistema DEBE permitir al Administrador generar el QR de cada espacio (RF-16).
 - **RF-007**: El sistema DEBE generar el QR como un código estático que contiene un enlace fijo al espacio, sin identificar al Usuario (RN-31, RN-32).
 - **RF-008**: El sistema DEBE permitir imprimir el QR (RF-16).
@@ -109,14 +112,14 @@ Como Administrador, quiero generar e imprimir el código QR de cada espacio, de 
 
 ### Entidades Clave
 
-- **Reserva**: Entidad definida en la SPEC 003. El check-in la pasa a estado "En uso".
+- **Reserva**: Entidad definida en la SPEC 003. El check-in la pasa a "En uso" antes del fin y a "Completada" desde el fin.
 - **Espacio**: Entidad definida en la SPEC 007. Cada espacio tiene un QR estático que se deriva de su identificador (enlace fijo `/checkin/{id_espacio}`); el QR no se modela como entidad independiente.
 
 ## Criterios de Éxito *(obligatorio)*
 
 ### Resultados Medibles
 
-- **CE-001**: Cumplimiento de Reglas, "100% de los primeros check-in fuera de la ventana, sin reserva en el espacio o con la reserva cancelada son rechazados con su motivo; las repeticiones sobre `IN_USE` conservan el registro original".
+- **CE-001**: Cumplimiento de Reglas, "100% de los primeros check-in fuera de la ventana, sin reserva propia en el espacio o con la reserva cancelada son rechazados con su motivo; las repeticiones por identificador sobre `IN_USE` o `COMPLETED` con asistencia conservan la fecha original".
 - **CE-002**: Autonomía, "0 check-in que requieran intervención de un vigilante o del administrador".
 - **CE-003**: Correspondencia, "100% de los QR generados dirigen al enlace de check-in del espacio correcto".
 - **CE-004**: Privacidad, "0 QR que contengan datos de un Usuario".

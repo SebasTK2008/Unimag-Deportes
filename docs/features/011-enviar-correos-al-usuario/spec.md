@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC11 - Enviar correos al usuario
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (OQ-04 y OQ-20: fallos de correo e implementos en el comprobante)
+**Última revisión**: 2026-11-24 (plantilla definitiva, correos HTML y consecuencias de cancelación)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -11,14 +11,14 @@ Como el sistema, al ser invocado internamente por "Reservar espacio deportivo" u
 
 **Por qué esta prioridad**: El comprobante forma parte de la confirmación de toda reserva (RN-13); sin él, el Usuario no recibe su constancia de espacio, fecha, hora, implementos solicitados y reglas de cancelación.
 
-**Prueba Independiente**: Confirmar una reserva con y sin implementos y validar que se envía al correo institucional del Usuario un PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados (si los hay) y reglas de cancelación.
+**Prueba Independiente**: Confirmar una reserva con y sin implementos y validar que se envía al correo institucional del Usuario el PDF de la plantilla definitiva rellenado con sus datos, y un correo de «Reserva confirmada» con las reglas de cancelación y la explicación del check-in.
 
 **Escenarios de Aceptación**:
 
 1. **Escenario**: Envío del comprobante tras confirmar una reserva.
    - **Dado** que una reserva fue confirmada.
    - **Cuando** el sistema es invocado desde "Reservar espacio deportivo".
-   - **Entonces** el sistema genera un PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación, y el Servicio de correo lo entrega al correo institucional del Usuario.
+   - **Entonces** el sistema rellena la plantilla definitiva con nombre, correo institucional, espacio, fecha, horario, implementos y cantidades, y contacto. El Servicio de correo entrega el adjunto con las reglas de cancelación y la explicación del check-in en el cuerpo del mensaje.
 
 2. **Escenario**: El correo incluye un canal de contacto.
    - **Dado** que se envía el comprobante.
@@ -52,7 +52,7 @@ Como el sistema, al ocurrir un evento relevante sobre la reserva de un Usuario, 
 2. **Escenario**: Cancelación.
    - **Dado** que se cancela una reserva.
    - **Cuando** la cancelación queda registrada.
-   - **Entonces** el Usuario recibe una notificación de la cancelación.
+   - **Entonces** el Usuario recibe la causa conocida y las consecuencias: si fue a tiempo las horas dejan de contar contra los límites diario y semanal; si fue tardía siguen contando. Se informa de la liberación del espacio y los implementos. Bloqueo y suspensión liberan las horas; la cancelación por suspensión no reactiva la cuenta.
 
 3. **Escenario**: Bloqueo que afecta una reserva.
    - **Dado** que un bloqueo institucional cancela una reserva.
@@ -133,12 +133,12 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 
 ### Requisitos Funcionales
 
-- **RF-001**: El sistema DEBE generar un comprobante en PDF con espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación al confirmarse una reserva (RF-04, RN-45, OQ-20).
+- **RF-001**: El sistema DEBE rellenar la plantilla `COMPROBANTE-DEFINITIVO.pdf` con espacio, fecha, horario, nombre y correo institucional del Usuario, implementos con cantidades y contacto al confirmarse una reserva. DEBE conservar el diseño, textos, logos y firma gráfica; únicamente el cuerpo de implementos se unifica en una lista enumerada. Se permite ajustar el texto añadido, no rediseñar la plantilla (RF-04, RN-45, OQ-20).
 - **RF-002**: El sistema DEBE entregar el comprobante al correo institucional del Usuario mediante el Servicio de correo (RF-04, RN-45).
 - **RF-003**: El sistema DEBE incluir en el correo un canal para contactar al administrador (RN-48).
 - **RF-004**: El sistema DEBE ejecutar la generación y el envío del comprobante al ser invocado por "Reservar espacio deportivo" (`<<include>>`).
 - **RF-005**: El sistema DEBE enviar un recordatorio 2 horas antes del inicio de la reserva, con enlace para cancelar (RN-46).
-- **RF-006**: El sistema DEBE notificar por correo cada cancelación (RN-26, RN-47).
+- **RF-006**: El sistema DEBE notificar cada cancelación, identificando su causa conocida y consecuencias sobre las cuotas diaria/semanal, el espacio y los implementos, conforme al estado resultante (RN-26, RN-47). No se inventan motivos personales.
 - **RF-007**: El sistema DEBE notificar por correo los bloqueos que afecten una reserva, con el motivo (RN-43, RN-47).
 - **RF-008**: El sistema DEBE notificar por correo las inasistencias y las suspensiones; el aviso de suspensión incluye la fecha en que el Usuario podrá reservar de nuevo (RN-39, RN-47).
 - **RF-009**: El sistema DEBE incluir en las notificaciones un canal para contactar al administrador (RN-48).
@@ -148,6 +148,8 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 - **RF-013**: El correo con el código DEBE indicar el código de 6 dígitos, su vigencia y que no debe compartirse con nadie (RN-51, RNF-11 del contexto).
 - **RF-014**: El sistema DEBE enviar un código nuevo cada vez que la persona lo solicite dentro de los límites de la SPEC 001, dejando inválido el anterior (RN-51, RN-53).
 - **RF-015**: El sistema DEBE incluir en el correo del código de acceso un canal para contactar al administrador (RN-48).
+- **RF-016**: El correo de confirmación DEBE mostrar «Reserva confirmada», el resumen de la reserva, las reglas de cancelación con el umbral conservado al crearla, el adjunto y el contacto. La explicación de check-in se envía únicamente en el correo: «La reserva corresponde únicamente a la fecha y el horario indicados. Este comprobante no sustituye el check-in: registra tu llegada desde el QR o enlace del espacio. Si no tienes conexión, puedes confirmar tu asistencia hasta una hora después de finalizar la reserva, incluido ese momento. Ese plazo no amplía el tiempo de uso de la cancha.»
+- **RF-017**: Confirmaciones, avisos y códigos DEBEN incluir alternativas HTML y texto plano equivalentes. En HTML el código es texto seleccionable, centrado y grande, conservando sus seis dígitos y ceros iniciales; no cambia su vigencia ni las validaciones de acceso.
 
 ### Requisitos No Funcionales
 
@@ -158,7 +160,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 
 ### Entidades Clave
 
-- **ComprobanteReserva (DTO)**: Documento PDF generado a partir de la Reserva (ver SPEC 003). Contiene espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay), reglas de cancelación y el canal de contacto con el administrador. No se define su persistencia en el contexto.
+- **ComprobanteReserva (DTO)**: Documento generado sobre la plantilla definitiva, con datos del usuario y reserva, implementos y contacto. Las reglas de cancelación se transportan al correo de confirmación, no al PDF. No se define persistencia del comprobante generado.
 - **NotificacionCorreo (DTO)**: Mensaje enviado al correo institucional del Usuario. Contiene destinatario, tipo (recordatorio, cancelación, bloqueo, inasistencia o suspensión), contenido y canal de contacto con el administrador. No se define su persistencia en el contexto.
 - **CorreoCodigoAcceso (DTO)**: Mensaje enviado al correo institucional que solicitó iniciar sesión (ver SPEC 001). Contiene destinatario, el código de 6 dígitos, su vigencia, la indicación de no compartirlo y el canal de contacto con el administrador. No se persiste: el código solo existe en claro en el correo y el sistema conserva únicamente su hash.
 
@@ -167,7 +169,7 @@ Como el sistema, al ser invocado por "Iniciar sesión" (ver SPEC 001) cuando una
 ### Resultados Medibles
 
 - **CE-001**: Cobertura de Confirmaciones, "100% de las reservas confirmadas generan un comprobante en PDF dirigido al correo institucional del Usuario".
-- **CE-002**: Completitud del Contenido, "100% de los comprobantes incluyen espacio, fecha, hora, nombre del Usuario, implementos solicitados con su cantidad (si los hay), reglas de cancelación y canal de contacto con el administrador".
+- **CE-002**: Completitud del Contenido, "Los comprobantes incluyen espacio, fecha, horario, nombre, correo institucional, todos los implementos y cantidades y contacto; el correo incluye las reglas de cancelación y la explicación de check-in, sin incorporarlas al PDF".
 - **CE-003**: Cobertura de Notificaciones, "100% de los eventos de recordatorio, cancelación, bloqueo, inasistencia y suspensión generan su notificación por correo".
 - **CE-004**: Contacto, "100% de los correos de la plataforma (comprobante, notificaciones y código de acceso) incluyen un canal para contactar al administrador".
 - **CE-005**: Entrega de Códigos, "100% de las solicitudes de código con un correo del dominio institucional que cumplen los límites generan un correo con el código, su vigencia y la advertencia de no compartirlo".

@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import unimagdeportes.dto.checkin.CheckInResponse;
+import unimagdeportes.dto.checkin.EligibleCheckInResponse;
 import unimagdeportes.exception.BusinessException;
 import unimagdeportes.mapper.checkin.CheckInMapper;
 import unimagdeportes.service.reservation.ReservationService.CheckInCandidate;
@@ -43,12 +44,47 @@ public class CheckInService {
     public CheckInResponse checkIn(UUID spaceId, UUID userId) {
         lock.acquire();
         Instant now = clock.instant();
+        List<CheckInCandidate> candidates = reservations.checkInCandidates(spaceId, userId);
+        var eligible = candidates.stream().filter(r -> isEligible(r, now)).toList();
+        if (eligible.size() > 1) {
+            throw new BusinessException(HttpStatus.CONFLICT, "CHECKIN_SELECTION_REQUIRED",
+                    "Seleccione la reserva cuya asistencia desea confirmar.");
+        }
+        if (eligible.size() == 1) return register(eligible.getFirst(), userId, now);
         if (reservations.hasOtherUserInProgress(spaceId, userId, now)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "FORBIDDEN", "La reserva pertenece a otro usuario.");
         }
-        List<CheckInCandidate> candidates = reservations.checkInCandidates(spaceId, userId);
         CheckInCandidate reservation = select(candidates, now);
-        if (reservation.status() == ReservationStatus.IN_USE) return mapper.toResponse(reservation);
+        return register(reservation, userId, now);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EligibleCheckInResponse> eligible(UUID spaceId, UUID userId) {
+        Instant now = clock.instant();
+        return reservations.checkInCandidates(spaceId, userId).stream()
+                .filter(r -> isEligible(r, now))
+                .map(r -> mapper.toEligibleResponse(r, window)).toList();
+    }
+
+    @Transactional
+    public CheckInResponse confirm(UUID spaceId, UUID reservationId, UUID userId) {
+        lock.acquire();
+        Instant now = clock.instant();
+        var reservation = reservations.checkInCandidate(reservationId);
+        if (!reservation.userId().equals(userId) || !reservation.spaceId().equals(spaceId)) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "RESERVATION_NOT_FOUND", "La reserva no existe.");
+        }
+        return register(reservation, userId, now);
+    }
+
+    private boolean isEligible(CheckInCandidate reservation, Instant now) {
+        return reservation.status() == ReservationStatus.CONFIRMED && reservation.checkedInAt() == null
+                && window.isOpen(now, reservation.startAt(), reservation.endAt(), reservation.checkinOpeningMinutes());
+    }
+
+    private CheckInResponse register(CheckInCandidate reservation, UUID userId, Instant now) {
+        if (reservation.checkedInAt() != null && (reservation.status() == ReservationStatus.IN_USE
+                || reservation.status() == ReservationStatus.COMPLETED)) return mapper.toResponse(reservation);
         if (reservation.status() != ReservationStatus.CONFIRMED) {
             if (reservation.status().name().startsWith("CANCELLED_")) {
                 throw new BusinessException(HttpStatus.CONFLICT, "RESERVATION_CANCELLED", "La reserva fue cancelada.");
@@ -64,6 +100,10 @@ public class CheckInService {
         if (!window.isOpen(now, reservation.startAt(), reservation.endAt(),
                 reservation.checkinOpeningMinutes())) {
             throw new BusinessException(HttpStatus.CONFLICT, "CHECKIN_WINDOW_CLOSED", "La ventana de check-in ya cerró.");
+        }
+        if (now.isBefore(reservation.endAt())
+                && reservations.hasOtherUserInProgress(reservation.spaceId(), userId, now)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "FORBIDDEN", "La reserva pertenece a otro usuario.");
         }
         var registered = reservations.registerCheckIn(reservation.id(), now.truncatedTo(ChronoUnit.MICROS));
         audit.record("CHECK_IN", "RESERVATION", reservation.id(), userId);

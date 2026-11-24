@@ -95,7 +95,8 @@ class IndicatorsIntegrationTest extends ReservationTestSupport {
                 .isEqualTo(200);
         fixtureReservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         fixtureReservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        fixtureReservation(userId, space(), "CONFIRMED", START.minus(Duration.ofHours(2)), START.minus(Duration.ofHours(1)));
+        fixtureReservation(userId, space(), "CONFIRMED", START.minus(Duration.ofHours(2)).minusSeconds(1),
+                START.minus(Duration.ofHours(1)).minusSeconds(1));
         job.closeFinishedReservations();
         String admin = completeLogin("admin@unimagdalena.edu.co");
 

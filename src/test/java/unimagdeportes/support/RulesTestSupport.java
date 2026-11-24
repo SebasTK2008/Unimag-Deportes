@@ -30,9 +30,9 @@ public abstract class RulesTestSupport extends AuthTestSupport {
                 {
                   "reservation": {"slotMinutes":60,"maxSlotsPerReservation":2,"maxAdvanceDays":6,
                     "minAdvanceMinutes":0,"bookingToleranceMinutes":10},
-                  "quota": {"weeklyHours":%d,"weekStartsOn":"MONDAY","timeZone":"America/Bogota"},
+                  "quota": {"weeklyHours":%d,"dailyHours":2,"weekStartsOn":"MONDAY","timeZone":"America/Bogota"},
                   "cancellation": {"lateThresholdMinutes":60},
-                  "checkIn": {"opensMinutesBefore":10,"closesAtReservationEnd":true},
+                  "checkIn": {"opensMinutesBefore":10,"closesAtReservationEnd":false,"closesMinutesAfterEnd":60},
                   "reminder": {"hoursBefore":2},
                   "sanctions": {"noShowsForSuspension":%d,"window":"CALENDAR_MONTH","suspensionDays":7},
                   "emailDomain":"@unimagdalena.edu.co"

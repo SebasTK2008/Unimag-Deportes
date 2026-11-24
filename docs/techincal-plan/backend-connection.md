@@ -134,7 +134,8 @@ Una instalación nueva incluye parámetros de uso, pero no espacios ni implement
 | Consultar disponibilidad | [`GET /spaces/{id}/availability`](contracts/availability/GET-spaces-id-availability.md) |
 | Reservar como USER | [`POST /reservations`](contracts/reservations/POST-reservations.md) |
 | Previsualizar/cancelar | [Contratos de reservas](contracts/README.md#reservas-uc03-y-uc04) |
-| Confirmar asistencia | [`POST /checkin/{spaceId}`](contracts/checkin/POST-checkin-spaceId.md) |
+| Consultar reservas para check-in | [`GET /checkin/{spaceId}/reservations`](contracts/checkin/GET-checkin-spaceId-reservations.md) |
+| Confirmar asistencia elegida | [`POST /checkin/{spaceId}/reservations/{reservationId}`](contracts/checkin/POST-checkin-spaceId-reservations-reservationId.md) |
 | Obtener QR como ADMIN | [`GET /admin/spaces/{id}/qr`](contracts/checkin/GET-admin-spaces-id-qr.md): SVG. |
 | Contactar administración | [`POST /contact`](contracts/contact/POST-contact.md) |
 
@@ -148,6 +149,8 @@ Puntos que el cliente debe respetar:
 - Errores JSON `{ code, message, details }`; no confundir errores de red con listas vacías.
 - Las imágenes requieren Bearer; descargarlas mediante HTTP autenticado, no depender de cookies.
 - El QR utiliza el origen configurado y la ruta `/checkin/{spaceId}`.
+- Al abrirlo, consultar las reservas propias elegibles y confirmar por identificador; refrescar la lista después. El check-in admite hasta fin + 1 hora inclusive y desde el fin responde `COMPLETED`, aunque otro usuario esté usando el espacio. El POST anterior por espacio se conserva, pero devuelve `CHECKIN_SELECTION_REQUIRED` si hay varias pendientes elegibles.
+- La creación aplica el máximo fijo de 2 horas diarias entre todos los espacios, además de la cuota semanal. Leer `quota.dailyHours` y `checkIn.closesMinutesAfterEnd` en `/rules` y manejar `DAILY_QUOTA_EXCEEDED`; el calendario no calcula un saldo diario personal.
 - SSE usa Bearer en encabezados: `EventSource` nativo no permite establecer `Authorization`. Usar un cliente compatible, nunca un token en query.
 - El evento `availability-changed` invalida el calendario; consultar de nuevo. Cerrar el stream al abandonar la pantalla o sesión.
 - Al crear o editar espacios, no combinar `FOOTBALL_5` y `FOOTBALL_11`: el formulario
@@ -190,6 +193,23 @@ Ejecutar solo CORS, sin Docker:
 - `docker compose --env-file .env.example --profile app config --quiet`: configuración válida.
 
 Las pruebas usaron bases y buzones aislados de Testcontainers. No se creó un `.env` con secretos, no se modificó ni validó una base local preexistente y no quedó una API de desarrollo ejecutándose en `8080`. El arranque habitual requiere completar las claves y el correo administrador según esta guía. No se modificó ni ejecutó el frontend.
+
+### Resultado verificado el 24 de noviembre de 2026
+
+- La primera ejecución de esta ampliación quedó bloqueada porque Testcontainers no encontraba Docker. La ejecución sin contenedores aprobó 43 pruebas unitarias seleccionadas; no acreditaba las integraciones.
+- Tras iniciar Docker Desktop, `.\mvnw.cmd clean verify` terminó con `BUILD SUCCESS`: **336 pruebas, cero fallos, errores u omisiones**, y generó `target/demo-0.0.1-SNAPSHOT.jar`.
+- Se ejecutaron las 12 pruebas de `CheckInIntegrationTest`, las 8 de `ReservationCreationIntegrationTest` y las 14 de `ReservationLifecycleIntegrationTest`, además de contratos, cuotas, parámetros, cancelación, seguridad y el resto de la suite.
+- La cobertura incluye máximo diario acumulado y concurrencia, selección de reservas propias, asistencia tardía con otro ocupante, cierre inclusivo, reintentos sin duplicar auditoría y coordinación con inasistencias. Los reportes de esta ejecución están en `target/surefire-reports/`.
+- PostgreSQL y Mailpit se ejecutaron en contenedores aislados de Testcontainers; no se modificó la base local ni se desplegó el frontend. Esto no acredita la aceptación con React, QR impreso, Supabase real ni entrega institucional mediante Brevo.
+
+### Ampliación de correos y plantilla definitiva, verificada el 24 de noviembre de 2026
+
+- `.\mvnw.cmd clean verify` aprobó **346 pruebas, sin fallos, errores ni omisiones**, y generó el JAR, con PostgreSQL y Mailpit aislados de Testcontainers. Esta ejecución posterior incluye los cambios de PDF y correos; los resultados de 336 y 345 pruebas anteriores se conservan como históricos. Una ejecución intermedia falló por la caída de contenedores de PostgreSQL, no por aserciones: se reinició Docker y se repitió la suite completa.
+- `LoginSmtpIntegrationTest` solicita y verifica un código recibido por SMTP, completa el perfil, crea una reserva por la API y obtiene el correo de confirmación con alternativas HTML/texto plano y el PDF adjunto desde Mailpit. No se envió a un buzón institucional.
+- `ReceiptPdfGeneratorTest` comprueba el hash de la plantilla original, los datos y horario de Bogotá, la ausencia de reglas/check-in en el PDF, el caso sin implementos y una lista de 35 implementos con continuación. Las reglas y la explicación del check-in se comprobaron en el correo, no en el adjunto.
+- `NotificationEventsTest` valida los efectos de cancelación a tiempo, tardía y por suspensión en ambas alternativas. `SmtpMailSenderTest` verifica MIME alternativo con adjunto, nombre del remitente y reintentos; se prueban escape de HTML y ceros iniciales del código.
+- Los ejemplos reproducibles quedan en `target/test-artifacts/`: `receipt-preview.pdf`, `receipt-many-items.pdf`, `reservation-delivered.pdf`, `reservation-confirmation.html` y `login-code.html`. El código `001234` del último archivo es ficticio, solo para vista previa. Los enlaces `localhost`/`client.example` son de pruebas, no direcciones públicas de despliegue.
+- Se revisaron visualmente el PDF y los HTML renderizados localmente. La aceptación en Gmail/Outlook y en el buzón institucional con el proveedor real sigue pendiente; la vista local y Mailpit no acreditan entrega externa.
 
 ## 7. Cambiar de local a despliegue
 

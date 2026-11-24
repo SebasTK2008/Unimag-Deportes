@@ -23,6 +23,7 @@ Sin parámetros.
   },
   "quota": {
     "weeklyHours": 4,
+    "dailyHours": 2,
     "weekStartsOn": "MONDAY",
     "timeZone": "America/Bogota"
   },
@@ -31,7 +32,8 @@ Sin parámetros.
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtReservationEnd": true
+    "closesAtReservationEnd": false,
+    "closesMinutesAfterEnd": 60
   },
   "reminder": {
     "hoursBefore": 2
@@ -55,6 +57,7 @@ Sin parámetros.
 ## Notas
 
 - Devuelve los parámetros **de negocio** vigentes; los de autenticación no se exponen aquí (OQ-16).
+- `quota.dailyHours` es fijo: 2 horas por fecha en America/Bogota entre todos los espacios, con los mismos estados de consumo de la cuota semanal. `checkIn.closesMinutesAfterEnd` es fijo y el cierre es inclusivo.
 - Cuota y umbral se leen de la versión señalada por `usage_parameters_head`. El historial se conserva en base de datos y no cambia la forma de esta respuesta.
 - Solo cuota y umbral de inasistencias provienen de `usage_parameters` y se editan con `PUT /admin/parameters`; los demás son fijos o de despliegue (RF-12).
 - Las reglas de implementos (solicitud opcional y disponibilidad por stock) están en `POST /reservations`; esta consulta cubre cuota, tolerancia, cancelación, check-in y sanciones (RF-09).

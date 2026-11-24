@@ -45,6 +45,7 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
   },
   "quota": {
     "weeklyHours": 5,
+    "dailyHours": 2,
     "weekStartsOn": "MONDAY",
     "timeZone": "America/Bogota"
   },
@@ -53,7 +54,8 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
   },
   "checkIn": {
     "opensMinutesBefore": 10,
-    "closesAtReservationEnd": true
+    "closesAtReservationEnd": false,
+    "closesMinutesAfterEnd": 60
   },
   "reminder": {
     "hoursBefore": 2
@@ -90,5 +92,6 @@ Devuelve el objeto completo actualizado (misma forma que `GET /admin/parameters`
 
 - Los cambios rigen solo para operaciones nuevas; no modifican reservas existentes (OQ-05).
 - Los parámetros de autenticación no forman parte de este contrato (OQ-16).
+- El límite diario de 2 horas y el margen de check-in de 60 minutos después del fin son fijos, no editables. Los campos añadidos se devuelven también en las dos consultas de reglas.
 - Si el cliente recibe `REAUTH_REQUIRED`, debe pedir un código con `POST /auth/reauth/code` y validarlo con `POST /auth/reauth/verify`.
 - `maxAdvanceDays` es fijo, no editable: `6` expresa el desplazamiento máximo de fecha y permite 7 fechas contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio.

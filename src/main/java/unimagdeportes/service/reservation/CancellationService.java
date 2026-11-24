@@ -83,7 +83,9 @@ public class CancellationService {
         var user = users.findById(userId);
         events.publishEvent(new ReservationNotificationEvent(ReservationNotificationEvent.Type.CANCELLATION,
                 reservation.getId(), user.getEmail(), user.getName(), space.name(),
-                reservation.getStartAt(), null, null));
+                reservation.getStartAt(), "Cancelación solicitada por el titular", null,
+                new ReservationNotificationEvent.CancellationDetails(reservation.getStatus(),
+                        (int) java.time.Duration.between(reservation.getStartAt(), reservation.getEndAt()).toHours())));
         events.publishEvent(new AvailabilityChangedEvent(reservation.getSpaceId()));
         return new ReservationDtos.CancellationResult(reservation.getId(), reservation.getStatus(),
                 now.atZone(BOGOTA).toOffsetDateTime(), hours,

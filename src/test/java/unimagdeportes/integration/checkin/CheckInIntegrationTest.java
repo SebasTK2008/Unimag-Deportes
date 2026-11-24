@@ -11,11 +11,117 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import unimagdeportes.support.AuthTestSupport;
 
 @TestPropertySource(properties = "app.checkin.frontend-origin=https://client.example")
 class CheckInIntegrationTest extends AuthTestSupport {
+    @Autowired unimagdeportes.service.sanction.SanctionService sanctions;
+    @Autowired unimagdeportes.scheduler.ReservationLifecycleJob lifecycle;
+
+    @Test
+    void listsOnlyOwnEligibleReservationsAndConfirmsEitherConsecutiveReservation() throws Exception {
+        String user = completeLogin("consecutive@unimagdalena.edu.co");
+        String other = completeLogin("other-consecutive@unimagdalena.edu.co");
+        UUID userId = UUID.fromString(decoder.decode(user).getSubject());
+        UUID space = space();
+        UUID previous = reservation(space, userId, "2026-11-11T11:00:00Z", "2026-11-11T12:00:00Z");
+        UUID current = reservation(space, userId, "2026-11-11T12:00:00Z", "2026-11-11T13:00:00Z");
+        clock.set(Instant.parse("2026-11-11T12:30:00Z"));
+        var listed = send("GET", "/checkin/" + space + "/reservations", null, user);
+        assertThat(listed.statusCode()).isEqualTo(200);
+        assertThat(body(listed).size()).isEqualTo(2);
+        assertThat(body(listed).get(0).get("reservationId").asString()).isEqualTo(previous.toString());
+        assertThat(body(listed).get(1).get("reservationId").asString()).isEqualTo(current.toString());
+        assertThat(body(listed).get(0).get("closesAt").asString()).isEqualTo("2026-11-11T08:00:00-05:00");
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, other)).size()).isZero();
+        error(send("POST", "/checkin/" + space, null, user), 409, "CHECKIN_SELECTION_REQUIRED");
+        String previousPath = "/checkin/" + space + "/reservations/" + previous;
+        error(send("POST", previousPath, null, other), 404, "RESERVATION_NOT_FOUND");
+        error(send("POST", "/checkin/" + space() + "/reservations/" + previous, null, user),
+                404, "RESERVATION_NOT_FOUND");
+        var first = send("POST", previousPath, null, user);
+        assertThat(first.statusCode()).isEqualTo(200);
+        assertThat(body(first).get("status").asString()).isEqualTo("COMPLETED");
+        assertThat(send("POST", previousPath, null, user).body()).isEqualTo(first.body());
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, user)).size()).isEqualTo(1);
+        assertThat(send("POST", "/checkin/" + space + "/reservations/" + current, null, user).statusCode())
+                .isEqualTo(200);
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, user)).size()).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from audit_log where entity_id=? and action='CHECK_IN'",
+                Integer.class, previous)).isEqualTo(1);
+    }
+
+    @Test
+    void lateAttendanceIsAllowedWhileAnotherUserOccupiesTheSpace() throws Exception {
+        String user = completeLogin("late@unimagdalena.edu.co");
+        String other = completeLogin("current@unimagdalena.edu.co");
+        UUID space = space();
+        UUID previous = reservation(space, UUID.fromString(decoder.decode(user).getSubject()),
+                "2026-11-11T11:00:00Z", "2026-11-11T12:00:00Z");
+        UUID current = reservation(space, UUID.fromString(decoder.decode(other).getSubject()),
+                "2026-11-11T12:00:00Z", "2026-11-11T13:00:00Z");
+        clock.set(Instant.parse("2026-11-11T12:30:00Z"));
+        for (var entry : java.util.Map.of(user, previous, other, current).entrySet()) {
+            var listed = send("GET", "/checkin/" + space + "/reservations", null, entry.getKey());
+            assertThat(body(listed).size()).isEqualTo(1);
+            assertThat(body(listed).get(0).get("reservationId").asString()).isEqualTo(entry.getValue().toString());
+        }
+        var late = send("POST", "/checkin/" + space, null, user);
+        assertThat(late.statusCode()).isEqualTo(200);
+        assertThat(body(late).get("status").asString()).isEqualTo("COMPLETED");
+        assertThat(send("POST", "/checkin/" + space + "/reservations/" + current, null, other).statusCode())
+                .isEqualTo(200);
+    }
+
+    @Test
+    void exactClosingAllowsCheckInEvenWhenTheNoShowJobRaces() throws Exception {
+        String user = completeLogin("boundary@unimagdalena.edu.co");
+        UUID space = space();
+        UUID id = reservation(space, UUID.fromString(decoder.decode(user).getSubject()),
+                "2026-11-11T11:00:00Z", "2026-11-11T12:00:00Z");
+        String path = "/checkin/" + space + "/reservations/" + id;
+        clock.set(Instant.parse("2026-11-11T13:00:00Z"));
+        lifecycle.closeFinishedReservations();
+        assertThat(jdbc.queryForObject("select status from reservation where id=?", String.class, id))
+                .isEqualTo("CONFIRMED");
+        var barrier = new java.util.concurrent.CyclicBarrier(2);
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var confirmation = executor.submit(() -> { barrier.await(); return send("POST", path, null, user); });
+            var noShow = executor.submit(() -> { barrier.await(); sanctions.markNoShow(id); return null; });
+            assertThat(confirmation.get().statusCode()).isEqualTo(200);
+            noShow.get();
+        }
+        clock.advance(java.time.Duration.ofNanos(1));
+        lifecycle.closeFinishedReservations();
+        assertThat(jdbc.queryForObject("select status from reservation where id=?", String.class, id))
+                .isEqualTo("COMPLETED");
+        assertThat(jdbc.queryForObject("select count(*) from audit_log where entity_id=? and action='NO_SHOW_REGISTERED'",
+                Integer.class, id)).isZero();
+    }
+
+    @Test
+    void listExcludesClosedCancelledCheckedInAndFutureAndConfirmationRevalidatesTime() throws Exception {
+        String user = completeLogin("filter@unimagdalena.edu.co");
+        UUID userId = UUID.fromString(decoder.decode(user).getSubject());
+        UUID space = space();
+        UUID id = reservation(space, userId, "2026-11-11T11:00:00Z", "2026-11-11T12:00:00Z");
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, user)).size()).isEqualTo(1);
+        clock.set(Instant.parse("2026-11-11T13:00:00.000000001Z"));
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, user)).size()).isZero();
+        error(send("POST", "/checkin/" + space + "/reservations/" + id, null, user),
+                409, "CHECKIN_WINDOW_CLOSED");
+        UUID cancelled = reservation(space, userId, "2026-11-11T13:00:00Z", "2026-11-11T14:00:00Z");
+        jdbc.update("update reservation set status='CANCELLED_ON_TIME' where id=?", cancelled);
+        reservation(space, userId, "2026-11-11T15:00:00Z", "2026-11-11T16:00:00Z");
+        assertThat(body(send("GET", "/checkin/" + space + "/reservations", null, user)).size()).isZero();
+        assertThat(send("GET", "/checkin/" + space + "/reservations", null, null).statusCode()).isEqualTo(401);
+        lifecycle.closeFinishedReservations();
+        assertThat(jdbc.queryForObject("select status from reservation where id=?", String.class, id))
+                .isEqualTo("NO_SHOW");
+    }
+
     @Test
     void recordsCheckInAndRepeatsWithoutChangingTimeOrAudit() throws Exception {
         String user = completeLogin("usuario@unimagdalena.edu.co");
@@ -88,7 +194,7 @@ class CheckInIntegrationTest extends AuthTestSupport {
         assertThat(send("POST", "/checkin/" + space, null, null).statusCode()).isEqualTo(401);
         UUID id = reservation(space, userId, "2026-11-11T12:20:00Z", "2026-11-11T13:20:00Z");
         error(send("POST", "/checkin/" + space, null, user), 409, "CHECKIN_TOO_EARLY");
-        clock.set(Instant.parse("2026-11-11T13:20:00Z"));
+        clock.set(Instant.parse("2026-11-11T14:20:00.000000001Z"));
         error(send("POST", "/checkin/" + space, null, user), 409, "CHECKIN_WINDOW_CLOSED");
         jdbc.update("update reservation set status = 'CANCELLED_ON_TIME' where id = ?", id);
         error(send("POST", "/checkin/" + space, null, user), 409, "RESERVATION_CANCELLED");

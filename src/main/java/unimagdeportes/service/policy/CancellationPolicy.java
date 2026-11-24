@@ -19,8 +19,9 @@ public final class CancellationPolicy {
     }
 
     /**
-     * Una franja terminada ya no se puede cancelar: su desenlace es la inasistencia
-     * (plan general §8), y cancelarla permitiría evitar la sanción.
+     * Una franja terminada ya no se puede cancelar. Aún puede registrar asistencia
+     * dentro de su ventana; sin ella, tras el cierre procede la inasistencia.
+     * Cancelarla permitiría evitar esa sanción (plan general §8).
      */
     public boolean hasEnded(Instant now, Instant endAt) {
         return !now.isBefore(endAt);

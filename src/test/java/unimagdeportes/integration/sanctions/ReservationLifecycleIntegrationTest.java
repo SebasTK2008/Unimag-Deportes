@@ -22,6 +22,7 @@ import unimagdeportes.support.ReservationTestSupport;
 @RecordApplicationEvents
 class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
     private static final Instant WEEK_START = Instant.parse("2026-11-09T05:00:00Z");
+    private static final Instant CLOSED_END = START.minusSeconds(3601);
     @Autowired ReservationLifecycleJob job;
     @Autowired SanctionService sanctions;
     @Autowired QuotaService quota;
@@ -32,7 +33,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID space = space();
         UUID absent = user("absent");
         UUID pending = user("pending");
-        UUID closed = reservation(absent, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        UUID closed = reservation(absent, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         UUID open = reservation(pending, space(), "CONFIRMED", START.minus(Duration.ofHours(1)).plusSeconds(1),
                 START.plusSeconds(1));
 
@@ -42,7 +43,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         assertThat(statusOf(open)).isEqualTo("CONFIRMED");
         assertThat(audits("NO_SHOW_REGISTERED")).isEqualTo(1);
         assertThat(mail.bodies.get("absent@unimagdalena.edu.co"))
-                .contains("inasistencia", "11/11/2026 06:00", "https://client.example/contact");
+                .contains("inasistencia", "11/11/2026 04:59", "https://client.example/contact");
         assertThat(quota.usedInWeek(absent, WEEK_START, WEEK_START.plus(Duration.ofDays(7))).toHours()).isEqualTo(1);
 
         job.closeFinishedReservations();
@@ -54,8 +55,8 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
     void completesReservationsInUseAndAppliesTheSameWindowToToleranceBookings() {
         UUID inUse = reservation(user("in-use"), space(), "IN_USE", START.minus(Duration.ofHours(1)), START,
                 START.minus(Duration.ofHours(1)), START.minus(Duration.ofMinutes(50)));
-        Instant toleranceStart = START.minus(Duration.ofHours(1));
-        UUID tolerance = reservation(user("tolerance"), space(), "CONFIRMED", toleranceStart, START,
+        Instant toleranceStart = CLOSED_END.minus(Duration.ofHours(1));
+        UUID tolerance = reservation(user("tolerance"), space(), "CONFIRMED", toleranceStart, CLOSED_END,
                 toleranceStart.plus(Duration.ofMinutes(5)), null);
 
         job.closeFinishedReservations();
@@ -72,7 +73,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID space = space();
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         Instant until = START.plus(Duration.ofDays(7));
         UUID contained = reservation(userId, space, "CONFIRMED", START.plus(Duration.ofDays(1)),
                 START.plus(Duration.ofDays(1)).plus(Duration.ofHours(1)));
@@ -109,7 +110,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID space = space();
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
 
         job.closeFinishedReservations();
 
@@ -121,7 +122,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID userId = user("early-suspension");
         reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(2)), START.minus(Duration.ofDays(2)).plusSeconds(3600));
         reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(1)), START.minus(Duration.ofDays(1)).plusSeconds(3600));
-        reservation(userId, space(), "CONFIRMED", START.minusSeconds(7200), START.minusSeconds(3600));
+        reservation(userId, space(), "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         UUID started = reservation(userId, space(), "IN_USE", START.minusSeconds(60), START.plusSeconds(60), START, START);
         UUID early = reservation(userId, space(), "IN_USE", START.plusSeconds(300), START.plusSeconds(3900), START, START);
         UUID item = equipment("Implemento anticipado", 1).id();
@@ -148,7 +149,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
             Instant start = Instant.parse("2026-11-0%dT13:00:00Z".formatted(day));
             reservation(userId, space, "NO_SHOW", start, start.plus(Duration.ofHours(1)));
         }
-        UUID fourth = reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        UUID fourth = reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
 
         job.closeFinishedReservations();
 
@@ -167,7 +168,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         // Termina el 31 de octubre a las 23:00 en Bogotá: cuenta para octubre aunque en UTC ya sea noviembre.
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-01T03:00:00Z"), Instant.parse("2026-11-01T04:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
-        reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
 
         job.closeFinishedReservations();
 
@@ -184,7 +185,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
                 + "created_by) values (?, 2, 4, 1, ?, ?)", parameters, Timestamp.from(START), admin);
         jdbc.update("update usage_parameters_head set current_version_id = ? where id = 1", parameters);
         UUID userId = user("threshold");
-        reservation(userId, space(), "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space(), "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
 
         job.closeFinishedReservations();
 
@@ -197,7 +198,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID space = space();
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        UUID closed = reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        UUID closed = reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         var barrier = new CyclicBarrier(2);
         // Se llama al servicio directamente: el job es synchronized y no ejercitaría el bloqueo asesor.
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -236,7 +237,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         var item = equipment("Balón de baloncesto", 1);
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         Instant futureStart = Instant.parse("2026-11-12T12:00:00Z");
         UUID future = reservation(userId, space, "CONFIRMED", futureStart, futureStart.plus(Duration.ofHours(1)));
         jdbc.update("insert into reservation_equipment (reservation_id, equipment_id, quantity) values (?, ?, 1)",
@@ -267,7 +268,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
                 Timestamp.from(Instant.parse("2026-10-27T12:00:00Z")), userId);
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-02T13:00:00Z"), Instant.parse("2026-11-02T14:00:00Z"));
         reservation(userId, space, "NO_SHOW", Instant.parse("2026-11-03T13:00:00Z"), Instant.parse("2026-11-03T14:00:00Z"));
-        reservation(userId, space, "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        reservation(userId, space, "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         Instant until = START.plus(Duration.ofDays(7));
         UUID startsNow = reservation(userId, space, "CONFIRMED", START, START.plus(Duration.ofHours(1)));
         UUID endsAtUntil = reservation(userId, space, "CONFIRMED", until.minus(Duration.ofHours(1)), until);
@@ -281,7 +282,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
 
     @Test
     void mailFailureDoesNotRollbackTheNoShow() {
-        UUID closed = reservation(user("mail-failure"), space(), "CONFIRMED", START.minus(Duration.ofHours(1)), START);
+        UUID closed = reservation(user("mail-failure"), space(), "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         mail.failing = true;
 
         job.closeFinishedReservations();
@@ -294,7 +295,7 @@ class ReservationLifecycleIntegrationTest extends ReservationTestSupport {
         UUID userId = user("rollback-suspension");
         reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(2)), START.minus(Duration.ofDays(2)).plusSeconds(3600));
         reservation(userId, space(), "NO_SHOW", START.minus(Duration.ofDays(1)), START.minus(Duration.ofDays(1)).plusSeconds(3600));
-        UUID closed = reservation(userId, space(), "CONFIRMED", START.minusSeconds(7200), START.minusSeconds(3600));
+        UUID closed = reservation(userId, space(), "CONFIRMED", CLOSED_END.minusSeconds(3600), CLOSED_END);
         UUID future = reservation(userId, space(), "CONFIRMED", START.plusSeconds(3600), START.plusSeconds(7200));
         jdbc.execute("create function reject_suspension_cancellation() returns trigger language plpgsql as $$ "
                 + "begin if NEW.action='RESERVATION_CANCELLED_BY_SUSPENSION' then "

@@ -25,7 +25,7 @@ UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Lo
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL para entidades y referencias (`space`, `space_discipline`, `space_image`, `storage_object_cleanup` e `institutional_block`); Supabase Storage privado para los archivos de imagen.
 **Messaging**: evento de aviso a afectados después del commit [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.

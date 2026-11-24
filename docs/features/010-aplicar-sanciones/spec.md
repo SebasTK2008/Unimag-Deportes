@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC10 - Aplicar sanciones
 
 **Creado**: 2026-10-13  
-**Última revisión**: mes calendario y cancelación de reservas durante la suspensión.
+**Última revisión**: 2026-11-24 (inasistencia solo después de fin + 1 hora; cierre inclusivo para check-in).
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -56,7 +56,7 @@ Como el sistema, al registrar una inasistencia que alcance el umbral vigente en 
   No. La sanción es perder las horas y, de repetirse, una suspensión temporal (sección 5.8 del contexto).
 
 - **¿Cuándo cierra la ventana de check-in en una reserva hecha dentro de la tolerancia?**
-  La ventana termina al finalizar la reserva, sin incluir ese instante (RN-30); si no hay check-in, la reserva pasa a "Inasistencia".
+   La ventana termina una hora después del fin de la reserva, incluyendo ese instante (RN-30). Solo después, si sigue sin check-in, puede pasar a "Inasistencia". En el límite exacto no se marca ni notifica inasistencia. El mes de la falta sigue determinado por el fin programado de la reserva.
 
 - **¿Qué ocurre con el conteo de inasistencias después de aplicada una suspensión?**
   Se cuentan por mes calendario en America/Bogota y el día 1 comienza un nuevo conteo. El umbral se toma al registrar cada inasistencia, no de la reserva.

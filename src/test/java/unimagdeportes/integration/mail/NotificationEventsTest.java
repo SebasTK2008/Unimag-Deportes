@@ -14,10 +14,30 @@ import unimagdeportes.event.ReservationCreatedEvent;
 import unimagdeportes.event.ReservationNotificationEvent;
 import unimagdeportes.event.ReservationNotificationEvent.Type;
 import unimagdeportes.support.AuthTestSupport;
+import unimagdeportes.model.reservation.ReservationStatus;
 
 class NotificationEventsTest extends AuthTestSupport {
     @Autowired ApplicationEventPublisher events;
     @Autowired TransactionTemplate transactions;
+
+    @Test
+    void cancellationMailExplainsActualQuotaConsequencesInTextAndHtml() {
+        for (var state : List.of(ReservationStatus.CANCELLED_ON_TIME, ReservationStatus.CANCELLED_LATE,
+                ReservationStatus.CANCELLED_BY_SUSPENSION)) {
+            var event = new ReservationNotificationEvent(Type.CANCELLATION, UUID.randomUUID(),
+                    "cancellation-detail@unimagdalena.edu.co", "Persona", "Cancha", START,
+                    state == ReservationStatus.CANCELLED_BY_SUSPENSION ? "suspensión" : "Cancelación solicitada por el titular",
+                    null, new ReservationNotificationEvent.CancellationDetails(state, 2));
+            transactions.executeWithoutResult(status -> events.publishEvent(event));
+            String body = mail.bodies.get(event.recipient());
+            String html = mail.htmlBodies.get(event.recipient());
+            assertThat(body).contains("2 h", "límites diario y semanal", "Se liberan el espacio y los implementos");
+            assertThat(html).contains("Reserva cancelada", "2 h", "límites diario y semanal");
+            if (state == ReservationStatus.CANCELLED_LATE) assertThat(body).contains("siguen contando", "tardía");
+            else assertThat(body).contains("dejan de contar");
+            if (state == ReservationStatus.CANCELLED_BY_SUSPENSION) assertThat(body).contains("no levanta la suspensión");
+        }
+    }
 
     @Test
     void sendsReceiptOnlyAfterCommitAndIncludesContact() {

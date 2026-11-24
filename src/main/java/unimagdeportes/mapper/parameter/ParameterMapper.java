@@ -13,10 +13,12 @@ import unimagdeportes.dto.parameter.ParameterDtos.Sanctions;
 import unimagdeportes.mapper.MappingConfig;
 import unimagdeportes.service.parameter.ParameterService.CurrentParameters;
 import unimagdeportes.service.policy.BookingWindowPolicy;
+import unimagdeportes.service.policy.CheckInWindowPolicy;
 
 @Mapper(config = MappingConfig.class)
 public interface ParameterMapper {
     @Mapping(target = "weeklyHours", source = "weeklyQuotaHours")
+    @Mapping(target = "dailyHours", expression = "java(unimagdeportes.service.quota.QuotaService.DAILY_LIMIT_HOURS)")
     @Mapping(target = "weekStartsOn", constant = "MONDAY")
     @Mapping(target = "timeZone", constant = "America/Bogota")
     Quota quota(CurrentParameters parameters);
@@ -30,7 +32,8 @@ public interface ParameterMapper {
         return new Rules(new ReservationRules(60, 2, BookingWindowPolicy.MAXIMUM_ADVANCE_DAYS,
                         settings.minAdvanceMinutes(), settings.bookingToleranceMinutes()),
                 quota(parameters), new Cancellation(settings.lateCancellationMinutes()),
-                new CheckIn(settings.checkinOpeningMinutes(), true), new Reminder(2),
+                new CheckIn(settings.checkinOpeningMinutes(), false, CheckInWindowPolicy.CLOSING_MINUTES_AFTER_END),
+                new Reminder(2),
                 sanctions(parameters, settings), "@unimagdalena.edu.co");
     }
 }

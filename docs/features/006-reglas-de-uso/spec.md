@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC06 - Reglas de uso
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-10 (cierre de OQ-05, OQ-11 y OQ-16)
+**Última revisión**: 2026-11-24 (límite diario fijo y margen de check-in después del fin)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -100,10 +100,11 @@ Como Administrador, quiero editar la cuota semanal y el umbral de inasistencias,
   - Duración de una franja: 60 minutos.
   - Duración máxima de una reserva: 2 franjas consecutivas (2 horas).
   - Cuota semanal por usuario: 4 horas por semana.
+  - Límite diario por usuario: 2 horas acumuladas entre todos los espacios, por fecha en America/Bogota y con los mismos estados de consumo que la cuota semanal. Es fijo, no editable (RN-67).
   - Inicio de la semana de conteo: lunes 00:00, zona horaria America/Bogota.
   - Anticipación mínima para reservar: 0 minutos (se permite hasta el fin de la tolerancia).
   - Anticipación máxima para reservar: 7 fechas calendario contando hoy, hasta hoy + 6 inclusive en America/Bogota.
-  - Ventana de check-in: desde la apertura configurada (10 minutos antes por defecto) hasta el fin de la reserva, sin incluir ese instante.
+  - Ventana de check-in: desde la apertura configurada (10 minutos antes por defecto) hasta una hora después del fin, inclusive. La API publica `closesAtReservationEnd: false` y `closesMinutesAfterEnd: 60`.
   - Recordatorio previo a la reserva: 2 horas antes del inicio.
   - Suspensión por inasistencias: 3 inasistencias en el mes calendario suspenden 7 días por defecto.
   - Dominio de correo permitido: `@unimagdalena.edu.co` (OQ-11).

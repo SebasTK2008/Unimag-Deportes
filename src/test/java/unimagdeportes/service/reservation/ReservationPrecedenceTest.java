@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -44,9 +47,11 @@ class ReservationPrecedenceTest {
     private final AvailabilityService availability = mock(AvailabilityService.class);
     private final UserService users = mock(UserService.class);
     private final SpaceService spaces = mock(SpaceService.class);
+    private final QuotaService quota = mock(QuotaService.class);
+    private final ParameterService parameters = mock(ParameterService.class);
     private final ReservationCreationService service = new ReservationCreationService(reservations,
             mock(ReservationLock.class), users, spaces, availability, mock(EquipmentService.class),
-            mock(ParameterService.class), mock(QuotaService.class), mock(AuditService.class),
+            parameters, quota, mock(AuditService.class),
             mock(ApplicationEventPublisher.class), new UsageRuleSettings(10, 60, 0, 10, 7),
             Clock.fixed(Instant.parse("2026-11-11T12:00:00Z"), ZoneId.of("America/Bogota")), "");
 
@@ -86,6 +91,26 @@ class ReservationPrecedenceTest {
                 eq(userId), any(), eq(end), eq(start))).thenReturn(List.of(mock(Reservation.class)));
 
         assertRejection("OVERLAPPING_RESERVATION");
+    }
+
+    @Test
+    void dailyLimitRejectsAThirdHourBeforeCheckingWeeklyQuota() {
+        when(availability.overlapping(spaceId, start, end)).thenReturn(new Occupancy(List.of(), List.of()));
+        when(quota.usedOnDate(userId, start.atZone(ZoneId.of("America/Bogota")).toLocalDate()))
+                .thenReturn(Duration.ofHours(2));
+        assertRejection("DAILY_QUOTA_EXCEEDED");
+        verify(parameters, never()).current();
+        verify(reservations, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void exactlyTwoDailyHoursAreAcceptedButWeeklyQuotaIsStillEnforced() {
+        when(availability.overlapping(spaceId, start, end)).thenReturn(new Occupancy(List.of(), List.of()));
+        when(quota.usedOnDate(userId, start.atZone(ZoneId.of("America/Bogota")).toLocalDate()))
+                .thenReturn(Duration.ofHours(1));
+        when(parameters.current()).thenReturn(new ParameterService.CurrentParameters(1, 3));
+        when(quota.usedInWeek(eq(userId), any(), any())).thenReturn(Duration.ofHours(1));
+        assertRejection("QUOTA_EXCEEDED");
     }
 
     private void assertRejection(String code) {
