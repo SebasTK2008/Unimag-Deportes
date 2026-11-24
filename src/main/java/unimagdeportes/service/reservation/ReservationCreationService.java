@@ -145,8 +145,12 @@ public class ReservationCreationService {
         events.publishEvent(new AvailabilityChangedEvent(spaceId));
         events.publishEvent(new ReservationCreatedEvent(new Receipt(user.getEmail(), user.getName(), space.name(),
                 start, end, reserved.stream().map(item -> new Receipt.EquipmentItem(item.name(), item.quantity())).toList(),
-                "Cancelación tardía con menos de " + settings.lateCancellationMinutes()
-                + " minutos de anticipación.", contactUrl)));
+                "Con " + reservation.getCancellationThresholdMinutes() + " minutos o más de anticipación, "
+                + "la cancelación es a tiempo: las horas dejan de contar contra tus límites diario y semanal. "
+                + "Con menos anticipación, o si la franja ya comenzó, la cancelación es tardía: "
+                + "las horas siguen contando contra ambos límites. En ambos casos se liberan el espacio "
+                + "y los implementos asociados. No puedes cancelar después del check-in ni desde la finalización "
+                + "de la reserva.", contactUrl)));
         return new Created(reservation.getId(), spaceId, space.name(), start, end, reservation.getStatus(), now, reserved);
     }
 

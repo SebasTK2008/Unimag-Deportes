@@ -7,7 +7,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.pdf.PdfReader;
-import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import unimagdeportes.support.RulesTestSupport;
 
 class EquipmentIntegrationTest extends RulesTestSupport {
@@ -168,20 +167,20 @@ class EquipmentIntegrationTest extends RulesTestSupport {
         String admin = administrator();
         String email = "equipment-receipt@unimagdalena.edu.co";
         String user = completeLogin(email);
-        UUID first = createItem(admin, 2);
-        UUID second = createItem(admin, 3);
+        UUID first = createItem(admin, 23);
+        UUID second = createItem(admin, 47);
         String firstName = jdbc.queryForObject("select name from equipment where id = ?", String.class, first);
         String secondName = jdbc.queryForObject("select name from equipment where id = ?", String.class, second);
         String request = """
                 {"spaceId":"%s","startAt":"2026-11-11T08:00:00-05:00","slots":1,
-                 "equipment":[{"equipmentId":"%s","quantity":2},{"equipmentId":"%s","quantity":3}]}
+                 "equipment":[{"equipmentId":"%s","quantity":23},{"equipmentId":"%s","quantity":47}]}
                 """.formatted(space(), first, second);
         assertThat(send("POST", "/reservations", request, user).statusCode()).isEqualTo(201);
         assertThat(mail.pdfs).containsKey(email);
         var pdf = new PdfReader(mail.pdfs.get(email));
         try {
-            assertThat(new PdfTextExtractor(pdf).getTextFromPage(1))
-                    .contains(firstName + " - cantidad: 2", secondName + " - cantidad: 3");
+            unimagdeportes.support.PdfEquipmentAssertions.assertItemQuantity(pdf, firstName, 23);
+            unimagdeportes.support.PdfEquipmentAssertions.assertItemQuantity(pdf, secondName, 47);
         } finally {
             pdf.close();
         }

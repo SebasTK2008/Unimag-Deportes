@@ -8,6 +8,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import unimagdeportes.event.ReservationCreatedEvent;
 import unimagdeportes.mail.MailSender;
 import unimagdeportes.mail.ReceiptPdfGenerator;
+import unimagdeportes.mail.ReceiptMessage;
 
 @Service
 public class ReceiptService {
@@ -27,8 +28,7 @@ public class ReceiptService {
             if (receipt.contactUrl() == null || receipt.contactUrl().isBlank()) {
                 throw new IllegalStateException("Canal de contacto no configurado");
             }
-            mail.sendWithPdf(receipt.recipient(), "Comprobante de reserva",
-                    "Tu reserva ha sido confirmada.\n\nContacta al administrador: " + receipt.contactUrl(),
+            mail.sendWithPdf(receipt.recipient(), "Reserva confirmada — Unimag Deportes", ReceiptMessage.render(receipt),
                     "comprobante.pdf", pdf.generate(receipt));
         } catch (RuntimeException ex) {
             LOG.error("No fue posible enviar el comprobante: {}", ex.getClass().getSimpleName());
