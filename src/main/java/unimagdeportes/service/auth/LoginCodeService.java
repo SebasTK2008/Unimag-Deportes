@@ -89,7 +89,7 @@ public class LoginCodeService {
         jdbc.update("insert into login_code_request_ip (id, ip_address, created_at) values (?, ?, ?)",
                 UUID.randomUUID(), ip, java.sql.Timestamp.from(now));
         try {
-            mail.send(normalized, "Código de acceso", message.render(code, validity));
+            mail.send(normalized, "Código de acceso", message.compose(code, validity));
         } catch (MailException ex) {
             loginCode.markUsed(now);
             throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE, "MAIL_DELIVERY_FAILED",

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.Part;
 import java.io.ByteArrayOutputStream;
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.Document;
@@ -24,6 +25,43 @@ import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.SimpleMailMessage;
 
 class SmtpMailSenderTest {
+    @Test
+    void sendsEquivalentTextAndHtmlWithPdfAndPreservesDisplayName() throws Exception {
+        var sender = mock(JavaMailSender.class);
+        var message = new JavaMailSenderImpl().createMimeMessage();
+        when(sender.createMimeMessage()).thenReturn(message);
+        var body = new MailBody("Reserva confirmada", "<h1>Reserva confirmada</h1>");
+        new SmtpMailSender(sender, "deportes@example.org", "Área de Deportes")
+                .sendWithPdf("test@example.org", "Reserva confirmada", body, "comprobante.pdf", new byte[] {1, 2});
+        message.saveChanges();
+        assertThat(findPart(message, "text/plain").getContent().toString()).isEqualTo(body.text());
+        assertThat(findPart(message, "text/html").getContent().toString()).isEqualTo(body.html());
+        assertThat(findPart(message, "application/pdf").getInputStream().readAllBytes()).containsExactly(1, 2);
+        assertThat(((InternetAddress) message.getFrom()[0]).getPersonal()).isEqualTo("Área de Deportes");
+        verify(sender).send(message);
+    }
+
+    @Test
+    void retriesRichMailOnTheSameTermsAsPlainMail() throws Exception {
+        var sender = mock(JavaMailSender.class);
+        var message = new JavaMailSenderImpl().createMimeMessage();
+        when(sender.createMimeMessage()).thenReturn(message);
+        doThrow(new MailSendException("temporary")).doNothing().when(sender).send(any(MimeMessage.class));
+        new SmtpMailSender(sender).send("test@example.org", "Código", new MailBody("001234", "<p>001234</p>"));
+        verify(sender, times(2)).send(message);
+    }
+
+    private Part findPart(Part part, String type) throws Exception {
+        if (part.isMimeType(type)) return part;
+        if (part.getContent() instanceof MimeMultipart multipart) {
+            for (int i = 0; i < multipart.getCount(); i++) {
+                Part found = findPart(multipart.getBodyPart(i), type);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
     @Test
     void configuresAndValidatesSenderAddress() {
         var sender = mock(JavaMailSender.class);

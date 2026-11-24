@@ -18,7 +18,7 @@ Como Usuario o Administrador, quiero iniciar sesión con mi correo institucional
 1. **Escenario**: Solicitud de código con correo institucional.
    - **Dado** que la persona tiene un correo del dominio institucional.
    - **Cuando** solicita su código de acceso.
-   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 15 minutos de vigencia por defecto, configurable por despliegue. Si ya había un código vigente, el nuevo lo invalida.
+   - **Entonces** el sistema envía a ese correo un código de 6 dígitos, de un solo uso y con 15 minutos de vigencia por defecto, configurable por despliegue. Si ya había un código vigente, el nuevo lo invalida. El correo incluye HTML y texto plano; en HTML el código se presenta centrado, grande y seleccionable, sin perder ceros iniciales, con su vigencia, advertencia de no compartirlo y contacto.
 
 2. **Escenario**: Correo de otro dominio.
    - **Dado** que la persona intenta solicitar el código con un correo que no pertenece al dominio institucional.

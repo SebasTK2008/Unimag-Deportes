@@ -82,6 +82,7 @@ public abstract class AuthTestSupport {
         resetUsageParameters();
         clock.set(START);
         mail.bodies.clear();
+        mail.htmlBodies.clear();
         mail.subjects.clear();
         mail.pdfs.clear();
         mail.sentCount.set(0);
@@ -126,6 +127,7 @@ public abstract class AuthTestSupport {
 
     public static class TestMail implements MailSender {
         public final Map<String, String> bodies = new ConcurrentHashMap<>();
+        public final Map<String, String> htmlBodies = new ConcurrentHashMap<>();
         public final Map<String, String> subjects = new ConcurrentHashMap<>();
         public final Map<String, byte[]> pdfs = new ConcurrentHashMap<>();
         public volatile boolean failing;
@@ -139,6 +141,15 @@ public abstract class AuthTestSupport {
         @Override public void sendWithPdf(String recipient, String subject, String body, String filename, byte[] pdf) {
             send(recipient, subject, body);
             pdfs.put(recipient, pdf.clone());
+        }
+        @Override public void send(String recipient, String subject, unimagdeportes.mail.MailBody body) {
+            send(recipient, subject, body.text());
+            htmlBodies.put(recipient, body.html());
+        }
+        @Override public void sendWithPdf(String recipient, String subject, unimagdeportes.mail.MailBody body,
+                String filename, byte[] pdf) {
+            sendWithPdf(recipient, subject, body.text(), filename, pdf);
+            htmlBodies.put(recipient, body.html());
         }
     }
 
