@@ -12,9 +12,9 @@ public final class ParameterDtos {
 
     public record ReservationRules(int slotMinutes, int maxSlotsPerReservation, int maxAdvanceDays,
             int minAdvanceMinutes, int bookingToleranceMinutes) { }
-    public record Quota(int weeklyHours, String weekStartsOn, String timeZone) { }
+    public record Quota(int weeklyHours, int dailyHours, String weekStartsOn, String timeZone) { }
     public record Cancellation(int lateThresholdMinutes) { }
-    public record CheckIn(int opensMinutesBefore, boolean closesAtReservationEnd) { }
+    public record CheckIn(int opensMinutesBefore, boolean closesAtReservationEnd, int closesMinutesAfterEnd) { }
     public record Reminder(int hoursBefore) { }
     public record Sanctions(int noShowsForSuspension, String window, int suspensionDays) { }
 

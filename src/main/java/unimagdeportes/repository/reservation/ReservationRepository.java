@@ -26,9 +26,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findByUserIdOrderByStartAtDesc(UUID userId);
 
-    /** Reservas cuya ventana de check-in cerró sin asistencia; la ventana termina en {@code end_at} (RN-30). */
+    /** Recibe el instante actual menos el margen de check-in; el límite exacto aún admite asistencia. */
     @Query(value = "select id from reservation where status = 'CONFIRMED' and checked_in_at is null "
-            + "and end_at <= :now order by end_at", nativeQuery = true)
+            + "and end_at < :now order by end_at", nativeQuery = true)
     List<UUID> findClosedWithoutCheckIn(@Param("now") Instant now);
 
     @Query(value = "select id from reservation where status = 'IN_USE' and end_at <= :now order by end_at",
