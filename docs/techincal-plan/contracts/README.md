@@ -110,6 +110,7 @@ Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usa
 | `OUTSIDE_BOOKING_WINDOW` | 409 | Fuera de la anticipación máxima o pasada la tolerancia. | RN-14, RN-27 |
 | `OVERLAPPING_RESERVATION` | 409 | El usuario ya tiene una reserva que se solapa. | RN-11 |
 | `QUOTA_EXCEEDED` | 409 | La reserva supera la cuota semanal disponible. | RN-18 |
+| `DAILY_QUOTA_EXCEEDED` | 409 | La reserva supera las 2 horas acumuladas del día en America/Bogota. | RN-67 |
 | `EQUIPMENT_UNAVAILABLE` | 409 | Implemento inactivo o sin stock suficiente en la franja. | RN-62, RN-65 |
 | `EQUIPMENT_NAME_ALREADY_EXISTS` | 409 | Ya existe otro implemento con el mismo nombre. | RN-62 |
 | `STOCK_BELOW_COMMITTED` | 409 | Stock propuesto inferior al máximo compromiso simultáneo futuro. | RN-65 |
@@ -117,6 +118,7 @@ Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usa
 | `NO_ACTIVE_RESERVATION` | 404 | No hay reserva del usuario en ese espacio para el check-in. | RN-33 |
 | `CHECKIN_TOO_EARLY` | 409 | Aún no abrió la ventana aplicable a la reserva. | RN-36 |
 | `CHECKIN_WINDOW_CLOSED` | 409 | La ventana de check-in ya cerró. | RN-36 |
+| `CHECKIN_SELECTION_REQUIRED` | 409 | Hay varias reservas propias elegibles; el cliente debe elegir por identificador. | RN-33 |
 | `RESERVATION_CANCELLED` | 409 | La reserva fue cancelada. | RN-35 |
 | `QR_NOT_CONFIGURED` | 503 | El origen del frontend para generar el QR falta o es inválido. | — |
 
@@ -156,6 +158,8 @@ Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usa
 | Método | Ruta | Archivo |
 |---|---|---|
 | POST | `/checkin/{spaceId}` | [`checkin/POST-checkin-spaceId.md`](./checkin/POST-checkin-spaceId.md) |
+| GET | `/checkin/{spaceId}/reservations` | [`checkin/GET-checkin-spaceId-reservations.md`](./checkin/GET-checkin-spaceId-reservations.md) |
+| POST | `/checkin/{spaceId}/reservations/{reservationId}` | [`checkin/POST-checkin-spaceId-reservations-reservationId.md`](./checkin/POST-checkin-spaceId-reservations-reservationId.md) |
 | GET | `/admin/spaces/{id}/qr` | [`checkin/GET-admin-spaces-id-qr.md`](./checkin/GET-admin-spaces-id-qr.md) |
 
 ### Reglas y parámetros (UC06)

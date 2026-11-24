@@ -62,6 +62,7 @@ src/test/java/unimagdeportes/{contract/rules,integration/rules,unit}/
 
 1. **Fuente** [sección 4 del contexto]: cuota y umbral de inasistencias salen de `usage_parameters`; los demás valores son fijos o de despliegue.
 2. **Consulta** [RF-09]: cuota, tolerancia, cancelación, check-in y sanciones en lenguaje claro.
+   La respuesta incluye `quota.dailyHours: 2`, `checkIn.closesAtReservationEnd: false` y `checkIn.closesMinutesAfterEnd: 60`. El máximo diario y el margen de cierre son fijos, no editables ni almacenados en las versiones de parámetros.
 3. **Edición** [RF-12]: solo Administrador con reautenticación reciente.
 4. **Autenticación** [OQ-16, D-20]: los parámetros de acceso viven en `application.properties` y no se editan aquí.
 5. **Efecto** [OQ-05]: los cambios rigen para operaciones nuevas; no modifican reservas existentes.

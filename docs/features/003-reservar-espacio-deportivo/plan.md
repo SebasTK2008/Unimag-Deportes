@@ -82,6 +82,7 @@ src/test/java/unimagdeportes/{contract/reservation,integration/reservation,unit/
 6. **Cuota** [RN-16..RN-18]: 4 h por semana de la fecha de la franja; rechaza e informa las horas restantes.
 7. **Espacio compartido** [RN-07]: la reserva bloquea el espacio completo.
 8. **Implementos** [RN-63, RN-65]: opcionales; la validación de stock se integra en UC13.
+9. **Límite diario** [RN-67]: 2 horas acumuladas por usuario y fecha en America/Bogota, entre todos los espacios y con los mismos estados de consumo de la cuota semanal. `checkDailyQuota` se ejecuta antes de la cuota semanal, dentro del bloqueo y transacción existentes; devuelve `DAILY_QUOTA_EXCEEDED`. Se permiten reservas consecutivas separadas dentro del máximo.
 
 ## Contrato REST
 

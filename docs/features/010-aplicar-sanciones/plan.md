@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC10 marca la inasistencia al finalizar la reserva sin check-in y evalúa el umbral vigente sobre el mes calendario. La suspensión cancela las reservas futuras durante su período, libera cuota e implementos y notifica. No hay endpoint: se ejecuta por scheduler.
+UC10 marca la inasistencia solo después de una hora desde el fin de la reserva sin check-in y evalúa el umbral vigente sobre el mes calendario del fin programado. En el límite exacto aún se permite asistencia. La suspensión cancela las reservas futuras durante su período, libera cuota e implementos y notifica. No hay endpoint: se ejecuta por scheduler.
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -107,7 +107,7 @@ No aplica: UC10 es interno (scheduler), sin endpoints.
 
 - [x] **T004** Implementar `SanctionService.markNoShow()`.
 - [x] **T005** Publicar los avisos con `ReservationNotificationEvent` (`NO_SHOW`).
-- [x] **T006** Implementar `ReservationLifecycleJob` idempotente: adquirir el bloqueo asesor global de §4.1 del plan general, releer estado y hora, marcar `NO_SHOW` o pasar `IN_USE` a `COMPLETED` al finalizar.
+- [x] **T006** Implementar `ReservationLifecycleJob` idempotente: adquirir el bloqueo asesor global de §4.1 del plan general, releer estado y hora, marcar `NO_SHOW` solo después de fin + 1 hora o pasar `IN_USE` a `COMPLETED` al finalizar la franja.
 - [x] **T007** Registrar auditoría de la inasistencia.
 
 ### Phase 3: User Stories

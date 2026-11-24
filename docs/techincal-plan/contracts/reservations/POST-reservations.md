@@ -135,6 +135,7 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 | `OUTSIDE_BOOKING_WINDOW` | 409 | Posterior a hoy + 6 en America/Bogota o pasada la tolerancia de la franja. | RN-14, RN-27 |
 | `OVERLAPPING_RESERVATION` | 409 | El usuario ya tiene una reserva solapada. | RN-11 |
 | `QUOTA_EXCEEDED` | 409 | Supera la cuota semanal. | RN-18 |
+| `DAILY_QUOTA_EXCEEDED` | 409 | Supera las 2 horas acumuladas del día entre todos los espacios. | RN-67 |
 | `EQUIPMENT_UNAVAILABLE` | 409 | Implemento inactivo o sin stock en la franja. | RN-62, RN-65 |
 
 ## Notas
@@ -143,6 +144,7 @@ La reserva se confirma al instante; el comprobante se envía por correo después
 - Entre los conflictos de disponibilidad y solape se aplica esta precedencia: `BLOCKED_SLOT` primero, `SLOT_TAKEN` después y `OVERLAPPING_RESERVATION` por último. Por tanto, una reserva propia en el mismo espacio devuelve `SLOT_TAKEN`; si el espacio solicitado está libre pero el usuario tiene una reserva solapada en otro espacio, devuelve `OVERLAPPING_RESERVATION`. Estas comprobaciones se alcanzan después de las validaciones previas, incluida la ventana y el estado del espacio.
 - La verificación y el bloqueo de la franja ocurren en una sola transacción; si dos usuarios compiten, gana el primero (RN-10).
 - La cuota se mide en horas reservadas y se calcula sobre la semana de la fecha de la franja (RN-16, RN-17).
+- Tras disponibilidad y solape, se valida primero el máximo diario fijo de 2 horas y después la cuota semanal. El día es la fecha de la reserva en America/Bogota; cuentan los mismos estados que en la cuota semanal. Se permiten reservas consecutivas independientes dentro del máximo y no se modifican las históricas. `DAILY_QUOTA_EXCEEDED` incluye `details.date` (fecha ISO), `dailyLimitHours`, `usedHours`, `requestedHours` y `availableHours`.
 - Los implementos son opcionales. Su disponibilidad es `stock` menos el máximo de unidades comprometidas simultáneamente por reservas activas durante el intervalo (RN-65); reservas consecutivas no se suman entre sí.
 - `quantity` debe ser un entero JSON de 32 bits; decimales, cadenas numéricas y valores fuera de rango se rechazan con `VALIDATION_ERROR`.
 - La identidad del usuario sale del token, nunca del cuerpo (RN-03).

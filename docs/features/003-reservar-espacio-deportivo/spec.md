@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC03 - Reservar espacio deportivo
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-16 (ventana de 7 fechas calendario contando hoy, hasta hoy + 6 inclusive)
+**Última revisión**: 2026-11-24 (máximo diario de 2 horas y plazo de check-in ampliado)
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -48,7 +48,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 7. **Escenario**: Reserva dentro de la tolerancia.
    - **Dado** que una franja libre ya comenzó y no han pasado más de 10 minutos desde su inicio.
    - **Cuando** el Usuario la reserva.
-   - **Entonces** la reserva queda confirmada para la franja completa, cuenta la franja completa contra la cuota y el Usuario puede hacer check-in hasta el fin de la reserva.
+   - **Entonces** la reserva queda confirmada para la franja completa, cuenta la franja completa contra la cuota y el Usuario puede hacer check-in hasta una hora después del fin de la reserva, inclusive.
 
 8. **Escenario**: Reserva con implementos extras opcionales.
    - **Dado** que el Usuario está reservando una franja libre y existe al menos un implemento disponible con stock suficiente en la franja.
@@ -61,6 +61,8 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 - La semana de una reserva es la de la fecha de la franja, no la de creación.
 - Antes de confirmar, el sistema suma las horas que ya cuentan en esa semana más las de la nueva reserva; si superan la cuota, rechaza e informa cuántas horas le quedan al Usuario.
 - Cuentan contra la cuota: confirmada, en uso, completada, cancelada tardía e inasistencia. No cuentan: cancelada a tiempo, por el administrador o por suspensión.
+
+**Límite diario** (RN-67): máximo fijo de 2 horas acumuladas por usuario y fecha en America/Bogota, entre todos los espacios y con los mismos estados de consumo de la cuota semanal. Dos reservas consecutivas de una hora están permitidas; una tercera hora se rechaza aunque quede cuota semanal. El cómputo se hace dentro de la transacción de creación, también ante solicitudes simultáneas. No modifica reservas históricas.
 
 ### Casos Extremos (Edge Cases)
 
@@ -95,10 +97,11 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
 - **RF-007**: El sistema DEBE permitir que una reserva abarque hasta 2 franjas consecutivas del mismo espacio (RN-15).
 - **RF-008**: El sistema DEBE permitir reservar en las 7 fechas calendario desde hoy hasta hoy + 6 inclusive en America/Bogota y hasta el fin de la tolerancia de la franja (RN-14, RN-27, RN-28).
 - **RF-009**: El sistema DEBE aplicar la regla de cuota semanal descrita en esta SPEC, sumando las horas de la semana de la fecha de la franja, y rechazar la reserva informando las horas restantes cuando se supere la cuota (RN-16 a RN-18).
-- **RF-010**: El sistema DEBE, para una reserva hecha dentro de la tolerancia, ocupar y contar la franja completa y permitir el check-in hasta el fin de la reserva (RN-29, RN-30).
+- **RF-010**: El sistema DEBE, para una reserva hecha dentro de la tolerancia, ocupar y contar la franja completa y permitir el check-in hasta una hora después del fin, inclusive (RN-29, RN-30).
 - **RF-011**: El sistema DEBE confirmar la reserva al instante en pantalla, sin aprobación manual, cuando todas las validaciones pasen (RN-13).
 - **RF-012**: El sistema DEBE invocar "Enviar comprobante al correo (PDF)" al confirmar la reserva (ver SPEC 011) (RN-13, RN-45, `<<include>>`).
 - **RF-013**: El sistema DEBE permitir, de forma opcional, asociar uno o varios implementos del catálogo con su cantidad al confirmar la reserva, validando su stock disponible en la franja (RF-23, RN-63, RN-65; ver SPEC 013).
+- **RF-014**: El sistema DEBE rechazar con `DAILY_QUOTA_EXCEEDED` una creación que supere las 2 horas acumuladas del día, además de validar la cuota semanal (RN-67).
 
 ### Requisitos No Funcionales
 

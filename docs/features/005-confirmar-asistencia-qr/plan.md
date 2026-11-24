@@ -30,7 +30,7 @@ UC05 implementa el check-in escaneando el QR estático del espacio y la generaci
 **Target Platform**: contenedores Docker.
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: check-in en pocos segundos desde el celular.
-**Constraints**: apertura configurada antes del inicio hasta el fin de la reserva, sin incluirlo (RN-30, RN-36); identidad del token (RN-32); QR estático (RN-31); motivos visibles (RN-35); America/Bogota (RNF-07).
+**Constraints**: apertura configurada antes del inicio hasta una hora después del fin, inclusive (RN-30, RN-36); identidad del token (RN-32); QR estático (RN-31); motivos visibles (RN-35); America/Bogota (RNF-07).
 **Scale/Scope**: 2 endpoints, sin migraciones, 8 RF + 4 RNF + 4 CE + 2 HU.
 
 ## Project Structure
@@ -41,7 +41,7 @@ UC05 implementa el check-in escaneando el QR estático del espacio y la generaci
 docs/features/005-confirmar-asistencia-qr/
 ├── plan.md
 └── spec.md
-docs/techincal-plan/contracts/checkin/   # 2 contratos
+docs/techincal-plan/contracts/checkin/   # 4 contratos
 ```
 
 ### Source Code
@@ -62,18 +62,23 @@ src/test/java/unimagdeportes/{integration/checkin,service/checkin,service/policy
 
 ## Reglas de negocio
 
-1. **Ventana** [RN-36]: desde la apertura configurada antes del inicio hasta el fin de la reserva, sin incluirlo.
+1. **Ventana** [RN-36]: desde la apertura configurada antes del inicio hasta una hora después del fin, incluido el instante exacto, según el reloj del servidor.
 2. **Reserva en tolerancia** [RN-30]: sigue la misma ventana; no hay plazo especial.
 3. **Identidad** [RN-31, RN-32]: QR estático por espacio; identidad del token.
 4. **Dueño** [RN-33]: solo el usuario de la reserva puede hacer check-in.
 5. **Sesión** [RN-34]: sin token o en otro navegador, se inicia sesión y se vuelve al check-in.
 6. **Rechazos** [RN-35]: sin reserva, demasiado temprano, ventana cerrada o reserva cancelada.
-7. **Efecto** [RN-24, RN-37]: `IN_USE`; sin check-in al cerrar, pasa a inasistencia (UC10).
+7. **Efecto** [RN-24, RN-37]: `IN_USE` antes del fin; desde el fin se registra asistencia y queda `COMPLETED`. La ocupación actual por otro usuario no impide confirmar una reserva propia ya terminada. Sin check-in, solo después del cierre puede pasar a inasistencia (UC10).
 8. **QR** [RF-16]: enlace fijo `/checkin/{id_espacio}`, sin datos del usuario.
 
 ## Contrato REST
 
-Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 archivos). Convenciones: [`contracts/README.md`](../../techincal-plan/contracts/README.md).
+Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (4 archivos). Convenciones: [`contracts/README.md`](../../techincal-plan/contracts/README.md).
+
+- `GET /checkin/{spaceId}/reservations`: lista ordenada de reservas propias pendientes dentro de su ventana.
+- `POST /checkin/{spaceId}/reservations/{reservationId}`: confirma la elegida, revalida bajo bloqueo y conserva idempotencia para `IN_USE`/`COMPLETED` con asistencia.
+- Se conserva `POST /checkin/{spaceId}`; con varias pendientes elegibles devuelve `CHECKIN_SELECTION_REQUIRED`. El QR y su enlace no cambian.
+- El cliente externo debe implementar la selección; el backend no acredita ese flujo visual.
 
 ## Estrategia de testing
 
@@ -115,7 +120,7 @@ Fuente: [`contracts/checkin/`](../../techincal-plan/contracts/README.md) (2 arch
 - [ ] **T018** Revisar el flujo de login al abrir el QR en otro navegador.
 - [ ] **T019** Revisar legibilidad del QR impreso y ejecutar `./mvnw clean verify`.
 
-**Estado de verificación:** las tareas de implementación marcadas están presentes en el código; esto no acredita la aceptación integral. La prueba unitaria de T012, las pruebas de configuración del origen QR y `CheckInIntegrationTest` pasaron en la ejecución de `clean verify` con PostgreSQL. T013 tiene la dependencia, la generación SVG y una prueba automatizada de decodificación; queda pendiente comprobar la legibilidad impresa. UC03 dispone de creación ordinaria; sigue pendiente comprobar el recorrido integrado desde una reserva real, incluida la creada dentro de tolerancia. T018 y la revisión de experiencia móvil, WCAG e impresión requieren el cliente externo y las comprobaciones correspondientes.
+**Estado de verificación:** las tareas de implementación marcadas están presentes en el código; esto no acredita la aceptación integral. La aprobación anterior de T012, la configuración del origen QR y `CheckInIntegrationTest` con PostgreSQL corresponde a una ejecución histórica, no a la validación de la ampliación del plazo. Existe una prueba de check-in desde una reserva real creada dentro de tolerancia y se añadieron casos de selección, propiedad, asistencia tardía, cierre exacto y concurrencia con inasistencias. La primera ejecución de `clean verify` de esta ampliación quedó bloqueada por Docker no accesible; una ejecución posterior sin contenedores aprobó 43 pruebas unitarias seleccionadas, sin acreditar las integraciones. El resultado vigente de la verificación completa se registra en la [guía de conexión](../../techincal-plan/backend-connection.md#6-verificación-automatizada). T013 tiene la dependencia, la generación SVG y una prueba automatizada de decodificación; la legibilidad impresa, T018, la experiencia móvil y WCAG requieren el cliente externo y comprobaciones manuales.
 
 ## Dependencies & Execution Order
 

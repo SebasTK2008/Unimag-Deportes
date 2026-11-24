@@ -99,7 +99,11 @@ La [guía de conexión del backend](docs/techincal-plan/backend-connection.md) c
 
 El calendario y la creación usan la misma política temporal, incluida la anticipación mínima. ADMIN conserva consultas, cuota, contacto y operaciones sobre reservas propias; solo USER crea reservas. Los contratos están en `docs/techincal-plan/contracts/`.
 
-El primer check-in respeta la ventana y rechaza una reserva de otro usuario en curso. Repetir sobre una reserva aún `IN_USE` devuelve su registro original, incluso después del fin antes de que el job la complete. Una suspensión cancela también reservas futuras con check-in anticipado completamente contenidas; no cancela las ya iniciadas.
+Cada usuario puede reservar como máximo 2 horas acumuladas por día en America/Bogota, entre todos los espacios, además de su cuota semanal. Ambas cuotas cuentan los mismos estados. Se permiten dos reservas consecutivas de una hora, sin fusionarlas ni modificar datos históricos.
+
+El primer check-in admite hasta una hora después del fin de la reserva, inclusive; solo después puede declararse inasistencia. `GET /checkin/{spaceId}/reservations` lista las reservas propias pendientes dentro de su ventana y `POST /checkin/{spaceId}/reservations/{reservationId}` confirma la elegida. La asistencia tardía deja la reserva `COMPLETED` y se permite aunque otro usuario ocupe el espacio; no extiende su uso. Repetir por identificador sobre `IN_USE` o `COMPLETED` con asistencia conserva la fecha y no duplica auditoría. El POST anterior se conserva, pero exige selección si hay varias elegibles. Véanse los [contratos de check-in](docs/techincal-plan/contracts/README.md#check-in-y-qr-uc05).
+
+Una suspensión cancela también reservas futuras con check-in anticipado completamente contenidas; no cancela las ya iniciadas.
 
 Los indicadores de suspendidos se basan en auditorías `USER_SUSPENDED` y su fecha de fin conservada en `detail`. Para auditorías anteriores sin esa fecha se usa la última marca mensual creada no después del evento, si existe. No hace falta cambiar el esquema ni reparar Flyway para estos cambios.
 

@@ -181,12 +181,12 @@ Unimag-Deportes/
 | UC02 | `AvailabilityController` | `AvailabilityService` | lectura de `space`, `reservation`, `institutional_block` | Franja libre, ocupada o bloqueada; el espacio compartido se ocupa completo (RN-07); mantenimiento no reservable (RN-09); franja iniciada reservable hasta fin de tolerancia (RN-27, RN-28); motivo visible en bloqueos (RN-44); cambios por SSE (el cliente usa `fetch`, no `EventSource`, ver §5.3); consulta sin sesión: no (OQ-14); horizonte del calendario: siete fechas desde hoy hasta hoy + 6 inclusive en America/Bogota, una fecha por petición (OQ-09) |
 | UC03 | `ReservationController` | `ReservationService`, `QuotaService` | `reservation` | Una transacción: bloquear espacio → validar → insertar; 1 o 2 franjas consecutivas; 7 fechas contando hoy, hasta finalizar hoy + 6 en America/Bogota, sujeto al horario del espacio (OQ-09, OQ-12); sin solape propio (RN-11); cuota (4 h por defecto, configurable); no suspendido; comprobante después del commit (UC11-H1) |
 | UC04 | `ReservationController` | H1 `ReservationQueryService` · H2 `CancellationService`, `CancellationPolicy` | `reservation` | H1: solo las reservas del Usuario del token, todos los estados, acción de cancelar. H2: vista previa con efecto en la cuota (RN-25); 60 min o más = a tiempo, menos = tardía (umbral configurable); no se cancela con check-in (RN-24) ni con la franja terminada; notifica (RN-26); no hay cancelación manual del Administrador |
-| UC05 | `CheckInController` · `SpaceController` (QR, admin) | H1 `CheckInService`, `CheckInWindowPolicy` · H2 `QrService` | `reservation` | Ventana desde apertura configurada hasta el fin de la reserva, exclusivo; se selecciona la próxima reserva aplicable del usuario por inicio. QR estático; login y retorno al espacio si no hay sesión. |
+| UC05 | `CheckInController` · `SpaceController` (QR, admin) | H1 `CheckInService`, `CheckInWindowPolicy` · H2 `QrService` | `reservation` | Ventana desde apertura configurada hasta fin + 1 hora, inclusive. Consulta de reservas propias elegibles y confirmación por identificador; asistencia tardía permitida aunque otro usuario ocupe el espacio. QR estático; login y retorno al espacio si no hay sesión. |
 | UC06 | `ParameterController` | `ParameterService` | `usage_parameters` | Consulta de reglas; Administrador reautenticado edita únicamente cuota y umbral de inasistencias. Las reservas conservan las reglas existentes al crearse. |
 | UC07 | `SpaceController` · `BlockController` | `SpaceService` · `BlockService` | `space`, `space_discipline`, `institutional_block`, `reservation` | Franjas fijas de 60 min; bloqueos puntuales y recurrentes en una fila por franja. Rechazo atómico si afecta una reserva en curso; las reservas futuras afectadas se cancelan sin cuota y se avisa. |
 | UC08 | `QuotaController` | `QuotaService`, `WeekCalculator` | lectura de `reservation` | H1: horas usadas = reservas que cuentan en la semana (lunes 00:00 America/Bogota); disponibles = cuota − usadas; fecha de reinicio = próximo lunes. H2: sin job; la cuota se calcula sobre la semana de la fecha de la franja (RN-17) |
 | UC09 | `ReportController` (admin) | H1 `OccupancyService` · H2 `IndicatorService` | consultas sobre `reservation`, `institutional_block`, `space`, `audit_log` | Solo lectura; H1 con filtros por fecha, disciplina y espacio; H2: reservas, cancelaciones tardías, inasistencias y suspendidos registrados en la auditoría, con períodos fijos semanal y mensual seleccionables en el frontend (OQ-08) |
-| UC10 | `ReservationLifecycleJob` | `SanctionService`, `SanctionPolicy` | `reservation`, `app_user`, `monthly_suspension` | Sin check-in al finalizar → `NO_SHOW`; conteo por mes calendario, umbral vigente al registrar y cancelación de reservas futuras durante la suspensión con liberación y aviso. |
+| UC10 | `ReservationLifecycleJob` | `SanctionService`, `SanctionPolicy` | `reservation`, `app_user`, `monthly_suspension` | Sin check-in después de fin + 1 hora → `NO_SHOW`; conteo por mes calendario del fin programado, umbral vigente al registrar y cancelación de reservas futuras durante la suspensión con liberación y aviso. |
 | UC11 | llamadas internas · `ReminderJob` | H1 `ReceiptService` · H2 `NotificationService` + `MailSender` | `reservation.reminder_sent_at` | H1: PDF con espacio, fecha, hora, nombre, implementos solicitados, reglas de cancelación y canal de contacto (RN-45, RN-48, OQ-20), al correo del Usuario. H2: recordatorio 2 h antes con enlace para cancelar (RN-46); cancelación, bloqueo, inasistencia y suspensión (RN-47); todos con canal de contacto (RN-48); falla de entrega: se registra y no revierte la operación (OQ-04) |
 | UC12 | `ContactController` | `ContactService` + `MailSender` | — | Envía el mensaje al correo del área de deportes; sin persistir; es el canal de contacto de RN-48 (OQ-10) |
 | UC13 | `EquipmentController` (consultas y administración) · `ReservationController` (solicitud) | `EquipmentService` · `ReservationCreationService` | `equipment`, `reservation_equipment` | Catálogo con nombre, disciplina sugerida, existencias y estado; solo los implementos disponibles con stock suficiente se pueden solicitar; la solicitud es opcional, con cantidades, y se valida contra las reservas solapadas en la misma transacción (RN-62 a RN-66) |
@@ -205,9 +205,9 @@ Convenciones: UUID como identificadores, `timestamptz` para instantes (se interp
 
 **Actualización del prototipo:** la clasificación vigente de parámetros y reglas está en §4 y RN-30, RN-36, RN-37, RN-43 y RN-65 del contexto. Solo cuota y umbral de inasistencias son editables por Administrador. Las reservas conservan las reglas vigentes al crearse; las referencias anteriores a diez minutos de vigencia del código, cierre de check-in al fin de tolerancia o edición administrativa de todos los parámetros deben sustituirse por esas reglas.
 
-Cada reserva conserva los valores necesarios para evaluarla posteriormente: umbral de cancelación y apertura de check-in; el fin de check-in es `end_at`. Al crear se valida la cuota vigente para cada semana y una reserva que cruza semana reparte su duración. Si se reduce el límite no se cancelan reservas confirmadas y el saldo mostrado es `max(0, límite vigente − horas contadas)`. El umbral de sanción es una excepción: se usa el vigente al registrar la inasistencia, no una instantánea de la reserva.
+Cada reserva conserva los valores necesarios para evaluarla posteriormente: umbral de cancelación y apertura de check-in; el cierre de check-in se deriva de `end_at + 60 minutos`, inclusive, sin persistir otro campo. Al crear se valida la cuota vigente para cada semana y una reserva que cruza semana reparte su duración. Si se reduce el límite no se cancelan reservas confirmadas y el saldo mostrado es `max(0, límite vigente − horas contadas)`. El umbral de sanción es una excepción: se usa el vigente al registrar la inasistencia, no una instantánea de la reserva.
 
-La ventana limita el primer check-in. Se mantiene el rechazo si otro usuario tiene una reserva en curso, también durante los diez minutos anticipados propios. Si la seleccionada sigue `IN_USE`, repetir devuelve el registro existente sin modificarlo ni añadir auditoría, incluso después del fin antes de su cierre por el job. Calendario y creación comparten `BookingWindowPolicy`, incluida la anticipación mínima.
+La ventana limita el primer check-in hasta fin + 1 hora inclusive. Se mantiene el rechazo de ocupación para una reserva propia aún no terminada, también durante sus minutos anticipados; no impide la confirmación tardía de una reserva ya terminada. La confirmación por identificador sobre `IN_USE` o `COMPLETED` con asistencia conserva la fecha sin añadir auditoría. Calendario y creación comparten `BookingWindowPolicy`, incluida la anticipación mínima.
 
 Para evitar carreras, adquirir primero el bloqueo asesor global descrito abajo y después bloquear filas en orden global (usuario, espacio, implementos por id), antes de calcular compromisos e insertar. La edición de stock usa el mismo protocolo y rechaza valores inferiores al máximo compromiso simultáneo futuro. La suspensión y la cancelación de reservas afectadas se registran atómicamente; las notificaciones se envían después del commit.
 
@@ -358,7 +358,7 @@ El sistema **no usa colas de mensajería**: los correos se envían después del 
 
 | Job | Origen | Regla |
 |---|---|---|
-| `ReservationLifecycleJob` (cada minuto; cron configurable con `APP_JOBS_RESERVATION_LIFECYCLE_CRON`) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in cuya ventana cerró pasan a `NO_SHOW`, se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
+| `ReservationLifecycleJob` (cada minuto; cron configurable con `APP_JOBS_RESERVATION_LIFECYCLE_CRON`) | UC10 y sección 6 del contexto | (a) Reservas `CONFIRMED` sin check-in pasan a `NO_SHOW` solo cuando ahora > fin + 1 hora; se evalúa la suspensión y se notifica. (b) Reservas `IN_USE` cuya franja terminó pasan a `COMPLETED`. |
 | `ReminderJob` (cada minuto por defecto) | UC11-H2 | Envía una vez a reservas elegibles creadas al menos 2 horas antes del inicio; omite las creadas con menor anticipación. Cron configurable mediante `app.jobs.reminder-cron` (`APP_JOBS_REMINDER_CRON`); `-` desactiva la ejecución automática. Las pruebas de integración lo invocan explícitamente para no competir con la limpieza de BD. |
 | `AuthCleanupJob` (cada hora; `APP_JOBS_AUTH_CLEANUP_CRON`, `-` lo desactiva) | UC01 | Borra códigos vencidos o usados tras conservarlos al menos una hora o el intervalo de reenvío si es mayor; conserva códigos activos. Borra solicitudes IP fuera de la ventana rodante de una hora. |
 | `StorageCleanupJob` (cada cinco minutos; `APP_JOBS_STORAGE_CLEANUP_CRON`, `-` lo desactiva) | UC07 | Invoca el servicio de compensación `StorageObjectCleanup`: hasta 20 objetos por ejecución; bloqueo de fila y comprobación de referencias antes de borrar. Fallos reintentados a los cinco minutos. Las compensaciones de subida tienen una hora de margen, renovada al terminar la transferencia, incluso si falla. |
@@ -448,6 +448,8 @@ Este índice solo fija las rutas y los roles. El contrato detallado de cada endp
 | `GET /reservations/{id}/cancellation-preview` | UC04-H2 | Usuario, Administrador (propias) |
 | `POST /reservations/{id}/cancellation` | UC04-H2 | Usuario, Administrador (propias) |
 | `POST /checkin/{spaceId}` | UC05-H1 | Usuario, Administrador (propias) |
+| `GET /checkin/{spaceId}/reservations` | UC05-H1: reservas propias elegibles | Usuario, Administrador (propias) |
+| `POST /checkin/{spaceId}/reservations/{reservationId}` | UC05-H1: confirmar la elegida | Usuario, Administrador (propias) |
 | `GET /admin/spaces/{id}/qr` | UC05-H2 | Administrador |
 | `GET /rules` | UC06-H1 | Usuario, Administrador |
 | `GET /admin/parameters`, `PUT /admin/parameters` | UC06-H2 | Administrador (el `PUT` exige reautenticación reciente) |
@@ -642,7 +644,8 @@ stateDiagram-v2
   [*] --> CONFIRMED
   CONFIRMED --> CANCELLED_ON_TIME: cancela con 60 min o mas
   CONFIRMED --> CANCELLED_LATE: cancela con menos de 60 min
-  CONFIRMED --> IN_USE: check-in
+  CONFIRMED --> IN_USE: check-in antes del fin
+  CONFIRMED --> COMPLETED: check-in desde el fin hasta fin + 1 hora inclusive
   CONFIRMED --> NO_SHOW: ventana cerrada sin check-in
   CONFIRMED --> CANCELLED_BY_ADMIN: bloqueo institucional
   CONFIRMED --> CANCELLED_BY_SUSPENSION: suspensión
@@ -661,7 +664,9 @@ stateDiagram-v2
 | `CANCELLED_BY_ADMIN` | No | Sí |
 | `CANCELLED_BY_SUSPENSION` | No | Sí |
 
-Los cambios de estado los hacen solo los services: `CancellationService` (cancelaciones), `CheckInService` (`IN_USE`), `BlockService` (`CANCELLED_BY_ADMIN`) y, desde `ReservationLifecycleJob`, `SanctionService` (`NO_SHOW`, `CANCELLED_BY_SUSPENSION`) y `ReservationService` (`COMPLETED`).
+Los cambios de estado los hacen solo los services: `CancellationService` (cancelaciones), `CheckInService` mediante `ReservationService.registerCheckIn` (`IN_USE` o `COMPLETED` según la hora), `BlockService` (`CANCELLED_BY_ADMIN`) y, desde `ReservationLifecycleJob`, `SanctionService` (`NO_SHOW`, `CANCELLED_BY_SUSPENSION`) y `ReservationService` (`COMPLETED`).
+
+La creación también valida RN-67: máximo fijo de 2 horas por fecha en America/Bogota entre todos los espacios, calculado con los mismos estados de consumo que la cuota semanal. Se comprueba antes de la cuota semanal bajo el bloqueo transaccional existente; no hay saldo diario persistido, migración de esquema ni modificación de reservas históricas. La consulta de reglas publica `quota.dailyHours: 2` y el margen fijo `checkIn.closesMinutesAfterEnd: 60`.
 
 ---
 
