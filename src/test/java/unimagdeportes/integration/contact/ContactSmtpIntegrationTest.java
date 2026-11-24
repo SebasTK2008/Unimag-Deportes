@@ -53,6 +53,7 @@ class ContactSmtpIntegrationTest {
         registry.add("spring.mail.password", () -> "");
         registry.add("spring.mail.properties.mail.smtp.auth", () -> false);
         registry.add("spring.mail.properties.mail.smtp.starttls.enable", () -> false);
+        registry.add("spring.mail.properties.mail.smtp.starttls.required", () -> false);
     }
 
     @LocalServerPort private int port;

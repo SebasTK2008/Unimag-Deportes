@@ -18,6 +18,7 @@ spring:
       "[mail.smtp.writetimeout]": 10000
       "[mail.smtp.auth]": ${MAIL_SMTP_AUTH:false}
       "[mail.smtp.starttls.enable]": ${MAIL_SMTP_STARTTLS:false}
+      "[mail.smtp.starttls.required]": ${MAIL_SMTP_STARTTLS_REQUIRED:false}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -71,6 +72,7 @@ app:
     frontend-origin: ${APP_CHECKIN_FRONTEND_ORIGIN:}
   mail:
     from: ${APP_MAIL_FROM:}
+    from-name: ${APP_MAIL_FROM_NAME:}
     contact-url: ${APP_MAIL_CONTACT_URL:}
     contact-recipient: ${APP_MAIL_CONTACT_RECIPIENT:}
     cancellation-url: ${APP_MAIL_CANCELLATION_URL:}

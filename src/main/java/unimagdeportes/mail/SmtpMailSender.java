@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.AddressException;
+import java.io.UnsupportedEncodingException;
 
 @Component
 public class SmtpMailSender implements MailSender {
@@ -22,21 +23,37 @@ public class SmtpMailSender implements MailSender {
         this(sender, "");
     }
 
+    public SmtpMailSender(JavaMailSender sender, String from) {
+        this(sender, from, "");
+    }
+
     @Autowired
-    public SmtpMailSender(JavaMailSender sender, @Value("${app.mail.from:}") String from) {
+    public SmtpMailSender(JavaMailSender sender, @Value("${app.mail.from:}") String from,
+            @Value("${app.mail.from-name:}") String fromName) {
         this.sender = sender;
-        this.from = from.trim();
-        if (!this.from.isEmpty()) {
+        if (from.contains("\r") || from.contains("\n") || fromName.contains("\r") || fromName.contains("\n")) {
+            throw new IllegalArgumentException("El remitente SMTP no debe contener saltos de línea");
+        }
+        String addressOnly = from.trim();
+        String formattedFrom = addressOnly;
+        if (!addressOnly.isEmpty()) {
             try {
-                var address = new InternetAddress(this.from, true);
+                var address = new InternetAddress(addressOnly, true);
                 address.validate();
-                if (!address.getAddress().equals(this.from) || this.from.contains("\r") || this.from.contains("\n")) {
+                if (!address.getAddress().equals(addressOnly)) {
                     throw new IllegalArgumentException("El remitente SMTP debe ser una dirección de correo");
+                }
+                if (!fromName.isBlank()) {
+                    address.setPersonal(fromName.trim(), "UTF-8");
+                    formattedFrom = address.toString();
                 }
             } catch (AddressException ex) {
                 throw new IllegalArgumentException("Remitente SMTP inválido", ex);
+            } catch (UnsupportedEncodingException ex) {
+                throw new IllegalArgumentException("No fue posible codificar el nombre del remitente SMTP", ex);
             }
         }
+        this.from = formattedFrom;
     }
 
     @Override
