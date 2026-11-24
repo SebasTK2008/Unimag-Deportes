@@ -21,7 +21,7 @@ UC09 implementa el panel del Administrador: ocupación por espacio y franja con 
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; consultas sobre `reservation`, `institutional_block`, `space` y `audit_log` (índice `audit_log_action_created_idx`).
 **Messaging**: sin eventos.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.

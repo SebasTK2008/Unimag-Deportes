@@ -71,6 +71,8 @@ La CSP configurada en la API restringe sus propias respuestas. La aplicación Re
 
 ### Correo transaccional con Brevo
 
+El comprobante usa la plantilla definitiva incluida en `src/main/resources/pdf/comprobante-definitivo.pdf`, con logos, firma gráfica y diseño conservados. Solo se rellenan los datos y se unifica el área de implementos en una lista sin tres filas fijas; los artículos que no caben continúan en otra copia de la misma plantilla. Las reglas de cancelación y la orientación de check-in se envían en el cuerpo del correo, no en el PDF. Confirmaciones, avisos y códigos incluyen HTML y texto plano: el código aparece centrado y grande; las cancelaciones explican la causa conocida y sus efectos sobre horas, espacio e implementos.
+
 El adaptador SMTP existente admite Brevo sin SDK ni cambios en los endpoints. Configure el remitente en Brevo con nombre `Unimag Deportes` y dirección `unimagdeportes@gmail.com`, y complete su verificación. No se puede autenticar `gmail.com` mediante DNS propios; Brevo puede adaptar la dirección remitente y la recepción institucional debe comprobarse con envíos reales. Verificar el buzón no garantiza entrega ni ausencia de spam.
 
 Inyecte los siguientes valores en el entorno del backend o en un `.env` privado importado explícitamente:

@@ -202,6 +202,15 @@ Las pruebas usaron bases y buzones aislados de Testcontainers. No se creó un `.
 - La cobertura incluye máximo diario acumulado y concurrencia, selección de reservas propias, asistencia tardía con otro ocupante, cierre inclusivo, reintentos sin duplicar auditoría y coordinación con inasistencias. Los reportes de esta ejecución están en `target/surefire-reports/`.
 - PostgreSQL y Mailpit se ejecutaron en contenedores aislados de Testcontainers; no se modificó la base local ni se desplegó el frontend. Esto no acredita la aceptación con React, QR impreso, Supabase real ni entrega institucional mediante Brevo.
 
+### Ampliación de correos y plantilla definitiva, verificada el 24 de noviembre de 2026
+
+- `.\mvnw.cmd clean verify` aprobó **346 pruebas, sin fallos, errores ni omisiones**, y generó el JAR, con PostgreSQL y Mailpit aislados de Testcontainers. Esta ejecución posterior incluye los cambios de PDF y correos; los resultados de 336 y 345 pruebas anteriores se conservan como históricos. Una ejecución intermedia falló por la caída de contenedores de PostgreSQL, no por aserciones: se reinició Docker y se repitió la suite completa.
+- `LoginSmtpIntegrationTest` solicita y verifica un código recibido por SMTP, completa el perfil, crea una reserva por la API y obtiene el correo de confirmación con alternativas HTML/texto plano y el PDF adjunto desde Mailpit. No se envió a un buzón institucional.
+- `ReceiptPdfGeneratorTest` comprueba el hash de la plantilla original, los datos y horario de Bogotá, la ausencia de reglas/check-in en el PDF, el caso sin implementos y una lista de 35 implementos con continuación. Las reglas y la explicación del check-in se comprobaron en el correo, no en el adjunto.
+- `NotificationEventsTest` valida los efectos de cancelación a tiempo, tardía y por suspensión en ambas alternativas. `SmtpMailSenderTest` verifica MIME alternativo con adjunto, nombre del remitente y reintentos; se prueban escape de HTML y ceros iniciales del código.
+- Los ejemplos reproducibles quedan en `target/test-artifacts/`: `receipt-preview.pdf`, `receipt-many-items.pdf`, `reservation-delivered.pdf`, `reservation-confirmation.html` y `login-code.html`. El código `001234` del último archivo es ficticio, solo para vista previa. Los enlaces `localhost`/`client.example` son de pruebas, no direcciones públicas de despliegue.
+- Se revisaron visualmente el PDF y los HTML renderizados localmente. La aceptación en Gmail/Outlook y en el buzón institucional con el proveedor real sigue pendiente; la vista local y Mailpit no acreditan entrega externa.
+
 ## 7. Cambiar de local a despliegue
 
 - Inyecte secretos, PostgreSQL y SMTP externos mediante el entorno o gestor de secretos.

@@ -24,7 +24,7 @@ UC10 marca la inasistencia solo después de una hora desde el fin de la reserva 
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Data JPA, Scheduling, Mail; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Data JPA, Scheduling, Mail; MapStruct [D-24].
 **Storage**: PostgreSQL; actualización de `reservation.status` y `app_user.suspended_until`.
 **Messaging**: `ReservationNotificationEvent` (`NO_SHOW`, `SUSPENSION`, `CANCELLATION`) y `AvailabilityChangedEvent` después del commit [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers; `Clock` inyectado para simular tiempo.

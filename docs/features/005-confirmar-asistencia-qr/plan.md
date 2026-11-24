@@ -23,7 +23,7 @@ UC05 implementa el check-in escaneando el QR estático del espacio y la generaci
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security. QR: `com.google.zxing:core:3.5.4` para generar la matriz y serialización SVG; decodificación y legibilidad pendientes de verificación integral.
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security. QR: `com.google.zxing:core:3.5.4` para generar la matriz y serialización SVG; decodificación y legibilidad pendientes de verificación integral.
 **Storage**: PostgreSQL; `reservation.checked_in_at` y lectura de `space`.
 **Messaging**: sin eventos propios; el check-in habilita el paso a `COMPLETED` en UC10.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.

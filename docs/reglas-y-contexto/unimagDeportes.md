@@ -198,9 +198,9 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 
 | ID | Regla |
 |---|---|
-| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía por correo un comprobante en PDF con espacio, fecha, hora, nombre del usuario, implementos solicitados con su cantidad (si los hay) y reglas de cancelación (OQ-20). |
+| RN-45 | **Comprobante:** al confirmar una reserva, el sistema envía el PDF basado en `COMPROBANTE-DEFINITIVO.pdf`, con nombre y correo institucional del usuario, espacio, fecha, horario, implementos y cantidades, y enlace de contacto. Se conservan diseño, logos, firma gráfica y textos de la plantilla; solo el cuerpo de implementos se unifica como lista enumerada sin tres filas fijas. Las reglas de cancelación y la explicación del check-in se incluyen en el correo, no en el PDF (OQ-20). |
 | RN-46 | **Recordatorio:** se envía 2 horas antes del inicio, con enlace para cancelar; se omite si la reserva se crea con menos de 2 horas de anticipación. |
-| RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. |
+| RN-47 | Se notifica por correo cancelaciones, bloqueos que afecten una reserva, inasistencias y suspensiones. Las cancelaciones informan su causa conocida y sus efectos reales: a tiempo libera horas de los límites diario y semanal; tardía las mantiene; bloqueo o suspensión las libera. En todos esos casos se liberan espacio e implementos; cancelar por suspensión no levanta la suspensión. |
 | RN-48 | Los correos incluyen un canal para contactar al administrador. |
 
 ### 5.11 Autenticación y sesión

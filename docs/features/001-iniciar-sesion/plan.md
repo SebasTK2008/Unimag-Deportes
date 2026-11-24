@@ -30,7 +30,7 @@ Este plan crea además la infraestructura compartida (estructura, Flyway, correo
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security sin estado, Mail, Scheduling, Actuator, Flyway; Lombok; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security sin estado, Mail, Scheduling, Actuator, Flyway; Lombok; MapStruct [D-24].
 **Storage**: PostgreSQL; `app_user`, `login_code`, `audit_log`, `usage_parameters` [PLAN §4.1].
 **Messaging**: el correo del código se envía dentro de la solicitud (excepción al envío post-commit) [PLAN §5.1].
 **Testing**: JUnit Jupiter, AssertJ, Mockito y Testcontainers; SMTP real contra Mailpit en pruebas y en local.

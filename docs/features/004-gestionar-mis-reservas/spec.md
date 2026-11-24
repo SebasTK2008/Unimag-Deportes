@@ -65,7 +65,7 @@ Como Usuario, quiero cancelar mi reserva desde "Mis reservas" en cualquier momen
 5. **Escenario**: Notificación de la cancelación.
    - **Dado** que se cancela una reserva.
    - **Cuando** la cancelación queda registrada.
-   - **Entonces** el sistema envía una notificación por correo (ver SPEC 011).
+   - **Entonces** el sistema envía una notificación por correo con la causa conocida, si fue a tiempo o tardía, cuántas horas dejan de contar o se mantienen en los límites diario/semanal y la liberación del espacio e implementos (ver SPEC 011).
 
 **Regla de cancelación** (RN-21, RN-22):
 

@@ -27,7 +27,7 @@ Enfoque técnico: `ReservationQueryService` para la lectura y `CancellationServi
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; `reservation` y `reservation_equipment` (detalle).
 **Messaging**: evento de cancelación después del commit [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.

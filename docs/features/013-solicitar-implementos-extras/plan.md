@@ -23,7 +23,7 @@ UC13 implementa el catálogo de implementos con existencias y la solicitud opcio
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; `equipment` y `reservation_equipment`; lectura de `reservation`.
 **Messaging**: sin eventos propios; el comprobante se extiende en UC11.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers (solapes de tiempo).

@@ -22,7 +22,7 @@ UC06 implementa la consulta de las reglas y la edición de cuota semanal y umbra
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; versiones inmutables en `usage_parameters` y referencia singleton en `usage_parameters_head` [D-26].
 **Messaging**: sin eventos.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.

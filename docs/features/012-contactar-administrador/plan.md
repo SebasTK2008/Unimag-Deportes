@@ -21,7 +21,7 @@ UC12 implementa el formulario que envía un mensaje al correo del área de depor
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Validation, Security, Mail.
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Validation, Security, Mail.
 **Storage**: N/A; el mensaje no se persiste.
 **Messaging**: correo saliente por `MailSender` [D-10].
 **Testing**: JUnit 5, AssertJ, Mockito, Mailpit/Testcontainers.

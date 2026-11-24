@@ -23,7 +23,7 @@ UC08 implementa la consulta de horas usadas, disponibles y fecha de reinicio de 
 ## Technical Context
 
 **Language/Version**: Java 25 [PLAN OQ-01].
-**Primary Dependencies**: Spring Boot 4.1.1: Web MVC, Data JPA, Security; MapStruct [D-24].
+**Primary Dependencies**: Spring Boot 4.2.0: Web MVC, Data JPA, Security; MapStruct [D-24].
 **Storage**: PostgreSQL; lectura de `reservation` y `usage_parameters`.
 **Messaging**: sin eventos.
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers.
