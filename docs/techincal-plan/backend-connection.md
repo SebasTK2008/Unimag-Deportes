@@ -203,3 +203,21 @@ Las pruebas usaron bases y buzones aislados de Testcontainers. No se creó un `.
 - La publicación del frontend debe resolver rutas SPA como `/checkin/...` y `/reservations/.../cancel`. Esto corresponde a la futura sesión del cliente.
 
 No hace falta modificar las rutas Java al cambiar de dominios. La conexión del frontend y la aceptación en navegador siguen siendo una validación separada.
+
+## 8. Validar correo con Brevo
+
+1. En Brevo, cree y verifique el remitente `unimagdeportes@gmail.com` con nombre `Unimag Deportes`. Gmail es un dominio de terceros: no se pueden configurar sus DNS y Brevo puede adaptar la dirección remitente. Compruebe las advertencias del panel y la recepción final; un buzón verificado no garantiza entrega institucional.
+2. Genere una clave SMTP y guárdela exclusivamente en el entorno privado del backend. No use una API key ni la contraseña de la cuenta, y reemplace cualquier clave compartida públicamente.
+3. Configure las variables SMTP descritas en el README: host `smtp-relay.brevo.com`, puerto `587`, usuario SMTP, clave SMTP, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true` y `MAIL_SMTP_STARTTLS_REQUIRED=true`. Establezca `APP_MAIL_FROM=unimagdeportes@gmail.com` y `APP_MAIL_FROM_NAME=Unimag Deportes`. La dirección sigue siendo simple, sin incluir el nombre entre comillas o corchetes angulares.
+4. Para Maven/JAR, desactive la integración automática mediante `SPRING_DOCKER_COMPOSE_ENABLED=false`. Inicie PostgreSQL por separado y configure sus tres variables `SPRING_DATASOURCE_*`; si es el PostgreSQL de Compose publicado en el host, utilice el puerto real `POSTGRES_HOST_PORT`. Si usa `.env`, conserve la importación explícita `SPRING_CONFIG_IMPORT=file:.env[.properties]`. En el servicio `app` de Compose, las variables SMTP ya se transmiten al contenedor y la conexión de base de datos sigue apuntando a `postgres`.
+5. Mantenga las URLs de contacto y cancelación accesibles desde el cliente. Reinicie el backend después de cambiar la configuración.
+6. Compruebe conectividad al puerto 587 desde el servidor de despliegue, no solo desde el equipo local.
+7. Solicite un código mediante `POST /auth/code` y complete el acceso con el código recibido; no use `/dev/login` para validar entrega. Compruebe el encabezado From, la vigencia y el enlace de contacto.
+8. Cree una reserva y compruebe su PDF. Ejercite notificaciones y contacto con cuentas autorizadas, revisando enlaces, destinatarios y registros transaccionales de Brevo. La aceptación SMTP no demuestra recepción: revise el buzón institucional y spam, además del nombre y la dirección que muestra el cliente.
+9. En un entorno de prueba, simule un fallo SMTP y confirme que acceso y contacto conservan `503 MAIL_DELIVERY_FAILED`, mientras el fallo de comprobantes o notificaciones no revierte la operación de negocio.
+
+El envío sigue siendo de mejor esfuerzo, sin cola persistente ni garantía de ausencia de duplicados. No active logs de credenciales ni códigos de acceso. No se ha acreditado la recepción real con Brevo mediante las pruebas locales.
+
+Para volver a Mailpit, elimine las credenciales y desactive autenticación y ambas opciones STARTTLS. Fuera de Compose use `localhost` y el puerto publicado de Mailpit; dentro de `app` omita `MAIL_HOST` o use `mailpit`, con puerto `1025`.
+
+Antes de `.\mvnw.cmd clean verify`, use una consola sin importación de `.env` ni variables SMTP reales. Las pruebas usan PostgreSQL y Mailpit de Testcontainers y requieren Docker disponible; nunca deben utilizar la clave de Brevo.

@@ -47,7 +47,9 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
+| `MAIL_SMTP_STARTTLS_REQUIRED` | `false` en local; `true` con Brevo para rechazar conexiones sin STARTTLS. |
 | `APP_MAIL_FROM` | Remitente autorizado por el proveedor SMTP; dirección simple validada al arrancar. Opcional para Mailpit. |
+| `APP_MAIL_FROM_NAME` | Nombre visible del remitente, separado de la dirección; vacío por defecto. La plantilla usa `Unimag Deportes`. No admite saltos de línea. Sin dirección no se establece el encabezado From. |
 | `APP_MAIL_CONTACT_URL` | URL del formulario de contacto del frontend; pendiente de definir para despliegue. Si está vacía, el código de acceso no se envía y la solicitud responde `503 MAIL_DELIVERY_FAILED`; tampoco se envían comprobantes ni avisos. |
 | `APP_MAIL_CONTACT_RECIPIENT` | Destinatario de UC12: configurar `salcendra@unimagdalena.edu.co` mediante el entorno. Sin valor predeterminado en la aplicación; si está vacío, `POST /contact` responde `503 CONTACT_NOT_CONFIGURED`. No asigna roles de administrador. |
 | `APP_MAIL_CANCELLATION_URL` | URL del flujo de cancelación del frontend con `{id}` como identificador de la reserva; pendiente de definir para despliegue. Sin ella no se envía el recordatorio. |
@@ -66,6 +68,30 @@ Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las 
 UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `localhost:5173` de la plantilla son solo locales. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
 
 La CSP configurada en la API restringe sus propias respuestas. La aplicación React se distribuye desde otro origen y su servidor debe proporcionar una CSP apropiada por separado.
+
+### Correo transaccional con Brevo
+
+El adaptador SMTP existente admite Brevo sin SDK ni cambios en los endpoints. Configure el remitente en Brevo con nombre `Unimag Deportes` y dirección `unimagdeportes@gmail.com`, y complete su verificación. No se puede autenticar `gmail.com` mediante DNS propios; Brevo puede adaptar la dirección remitente y la recepción institucional debe comprobarse con envíos reales. Verificar el buzón no garantiza entrega ni ausencia de spam.
+
+Inyecte los siguientes valores en el entorno del backend o en un `.env` privado importado explícitamente:
+
+```properties
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USERNAME=<usuario SMTP de Brevo>
+MAIL_PASSWORD=<clave SMTP de Brevo>
+MAIL_SMTP_AUTH=true
+MAIL_SMTP_STARTTLS=true
+MAIL_SMTP_STARTTLS_REQUIRED=true
+APP_MAIL_FROM=unimagdeportes@gmail.com
+APP_MAIL_FROM_NAME=Unimag Deportes
+```
+
+Use una clave SMTP, no una API key ni la contraseña de la cuenta. No guarde credenciales reales en archivos versionados ni active logs SMTP de depuración. Mantenga configuradas las URLs de contacto y cancelación indicadas en la tabla.
+
+Con Maven/JAR y Brevo, establezca `SPRING_DOCKER_COMPOSE_ENABLED=false` para evitar que la conexión automática de Mailpit sustituya al SMTP externo. Inicie PostgreSQL por separado y configure `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`. Al usar el servicio `app` de Compose, las variables SMTP se transmiten al contenedor; sin `MAIL_HOST`, este usa `mailpit`, mientras Spring fuera del contenedor usa `localhost`. Una configuración local anterior con `MAIL_HOST=localhost` debe omitir esa variable al usar Mailpit desde `app`.
+
+Las pruebas automáticas continúan usando Mailpit y credenciales ficticias. La aceptación real requiere comprobar código de acceso, comprobante PDF, notificaciones, contacto, enlaces y nombre visible en el buzón institucional y en los registros transaccionales de Brevo. Los detalles están en la [guía de conexión](docs/techincal-plan/backend-connection.md#8-validar-correo-con-brevo).
 
 ### Preparación funcional para el cliente
 
