@@ -1,0 +1,180 @@
+package unimagdeportes.service.space;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
+import unimagdeportes.dto.space.ImageDownload;
+import unimagdeportes.dto.space.SpaceDtos.SpaceInfo;
+import unimagdeportes.dto.space.SpaceDtos.SpaceInput;
+import unimagdeportes.exception.BusinessException;
+import unimagdeportes.event.AvailabilityChangedEvent;
+import unimagdeportes.mapper.space.SpaceMapper;
+import unimagdeportes.model.space.Space;
+import unimagdeportes.model.space.Discipline;
+import unimagdeportes.model.space.SpaceStatus;
+import unimagdeportes.model.space.SpaceImage;
+import unimagdeportes.repository.space.SpaceRepository;
+import unimagdeportes.service.audit.AuditService;
+import unimagdeportes.service.reservation.ReservationLock;
+import unimagdeportes.storage.ImageStorage;
+import unimagdeportes.storage.StorageObjectCleanup;
+
+@Service
+public class SpaceService {
+    private final SpaceRepository spaces;
+    private final ReservationLock lock;
+    private final AuditService audit;
+    private final SpaceImageValidator images;
+    private final SpaceMapper mapper;
+    private final ApplicationEventPublisher events;
+    private final ImageStorage storage;
+    private final StorageObjectCleanup cleanup;
+    private final TransactionTemplate transactions;
+
+    public SpaceService(SpaceRepository spaces, ReservationLock lock, AuditService audit,
+            SpaceImageValidator images, SpaceMapper mapper, ApplicationEventPublisher events,
+            ImageStorage storage, StorageObjectCleanup cleanup, PlatformTransactionManager transactionManager) {
+        this.spaces = spaces;
+        this.lock = lock;
+        this.audit = audit;
+        this.images = images;
+        this.mapper = mapper;
+        this.events = events;
+        this.storage = storage;
+        this.cleanup = cleanup;
+        this.transactions = new TransactionTemplate(transactionManager);
+    }
+
+    @Transactional(readOnly = true)
+    public SpaceInfo get(UUID id) {
+        return mapper.toInfo(find(id));
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public SpaceInfo getForUpdate(UUID id) {
+        return mapper.toInfo(spaces.findForUpdate(id).orElseThrow(() ->
+                new BusinessException(HttpStatus.NOT_FOUND, "SPACE_NOT_FOUND", "El espacio no existe.")));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SpaceInfo> list() {
+        return spaces.findAll().stream().map(mapper::toInfo).toList();
+    }
+
+    @Transactional(propagation = Propagation.NEVER)
+    public SpaceInfo create(SpaceInput input, MultipartFile preview, MultipartFile panorama, UUID administratorId) {
+        validate(input);
+        String previewType = images.validate(preview);
+        String panoramaType = images.validate(panorama);
+        UUID id = UUID.randomUUID();
+        var previewImage = upload(id, ImageKind.PREVIEW, preview, previewType);
+        var panoramaImage = upload(id, ImageKind.PANORAMA, panorama, panoramaType);
+        return transactions.execute(status -> {
+            lock.acquire();
+            cleanup.retain(previewImage.getStorageKey());
+            cleanup.retain(panoramaImage.getStorageKey());
+            var space = new Space(id, input.name(), input.capacity(), input.requirements(),
+                    input.openingTime(), input.closingTime(),
+                    input.status() == null ? SpaceStatus.ACTIVE : input.status(), input.disciplines(),
+                    previewImage, panoramaImage);
+            spaces.save(space);
+            audit.record("SPACE_CREATED", "SPACE", space.getId(), administratorId);
+            return mapper.toInfo(space);
+        });
+    }
+
+    @Transactional(propagation = Propagation.NEVER)
+    public ImageDownload image(UUID id, ImageKind kind) {
+        var reference = transactions.execute(status -> mapper.toImageReference(image(find(id), kind)));
+        return new ImageDownload(reference.contentType(), reference.sizeBytes(), storage.open(reference.storageKey()));
+    }
+
+    @Transactional(propagation = Propagation.NEVER)
+    public void replaceImage(UUID id, ImageKind kind, MultipartFile file, UUID administratorId) {
+        transactions.executeWithoutResult(status -> find(id));
+        String contentType = images.validate(file);
+        SpaceImage replacement = upload(id, kind, file, contentType);
+        transactions.executeWithoutResult(status -> {
+            lock.acquire();
+            SpaceImage target = image(find(id), kind);
+            cleanup.retain(replacement.getStorageKey());
+            cleanup.scheduleDeletion(target.getStorageKey());
+            target.replace(replacement.getContentType(), replacement.getStorageKey(), replacement.getSizeBytes());
+            audit.record("SPACE_IMAGE_UPDATED", "SPACE", id, administratorId);
+        });
+    }
+
+    private SpaceImage upload(UUID spaceId, ImageKind kind, MultipartFile file, String contentType) {
+        String key = "spaces/" + spaceId + "/" + kind.name().toLowerCase(java.util.Locale.ROOT) + "/" + UUID.randomUUID();
+        cleanup.trackUpload(key);
+        try {
+            storage.upload(key, file, contentType);
+        } finally {
+            cleanup.finishUpload(key);
+        }
+        return new SpaceImage(contentType, key, file.getSize());
+    }
+
+    private SpaceImage image(Space space, ImageKind kind) {
+        return kind == ImageKind.PREVIEW ? space.getPreviewImage() : space.getPanoramaImage();
+    }
+
+    public enum ImageKind { PREVIEW, PANORAMA }
+
+    @Transactional
+    public SpaceInfo update(UUID id, SpaceInput input, UUID administratorId) {
+        lock.acquire();
+        var space = find(id);
+        var merged = new SpaceInput(input.name() == null ? space.getName() : input.name(),
+                input.capacity() == null ? space.getCapacity() : input.capacity(),
+                input.requirements() == null ? space.getRequirements() : input.requirements(),
+                input.openingTime() == null ? space.getOpeningTime() : input.openingTime(),
+                input.closingTime() == null ? space.getClosingTime() : input.closingTime(),
+                input.status() == null ? space.getStatus() : input.status(),
+                input.disciplines() == null ? space.getDisciplines() : input.disciplines());
+        validate(merged);
+        space.update(merged.name(), merged.capacity(), merged.requirements(), merged.openingTime(),
+                merged.closingTime(), merged.status(), merged.disciplines());
+        audit.record("SPACE_UPDATED", "SPACE", id, administratorId);
+        events.publishEvent(new AvailabilityChangedEvent(id));
+        return mapper.toInfo(space);
+    }
+
+    private Space find(UUID id) {
+        return spaces.findById(id).orElseThrow(() ->
+                new BusinessException(HttpStatus.NOT_FOUND, "SPACE_NOT_FOUND", "El espacio no existe."));
+    }
+
+    private void validate(SpaceInput input) {
+        String field = null;
+        String message = null;
+        if (input.name() == null || input.name().isBlank() || input.name().length() > 200) {
+            field = "name"; message = "debe contener entre 1 y 200 caracteres";
+        } else if (input.capacity() == null || input.capacity() <= 0) {
+            field = "capacity"; message = "debe ser mayor que cero";
+        } else if (input.openingTime() == null) {
+            field = "openingTime"; message = "es obligatorio";
+        } else if (input.closingTime() == null || !input.closingTime().isAfter(input.openingTime())) {
+            field = "closingTime"; message = "debe ser mayor que openingTime";
+        } else if (input.disciplines() == null || input.disciplines().isEmpty()
+                || input.disciplines().stream().anyMatch(java.util.Objects::isNull)) {
+            field = "disciplines"; message = "debe contener al menos una disciplina válida";
+        } else if (input.disciplines().contains(Discipline.FOOTBALL_5)
+                && input.disciplines().contains(Discipline.FOOTBALL_11)) {
+            field = "disciplines"; message = "Fútbol 5 y Fútbol 11 no pueden pertenecer al mismo espacio.";
+        }
+        if (field != null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+                    "La solicitud contiene campos inválidos.", Map.of("fields", Map.of(field, message)));
+        }
+    }
+
+}
