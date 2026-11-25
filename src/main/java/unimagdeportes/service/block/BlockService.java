@@ -11,6 +11,7 @@ import unimagdeportes.dto.block.BlockDtos.CreatedBlock;
 import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockType;
+import unimagdeportes.model.block.BlockStatus;
 import unimagdeportes.model.block.InstitutionalBlock;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
 import unimagdeportes.service.space.SpaceService;
@@ -61,7 +62,8 @@ public class BlockService {
 
     @Transactional(readOnly = true)
     public List<BlockInfo> overlapping(UUID spaceId, Instant start, Instant end) {
-        return blocks.findBySpaceIdAndStartAtLessThanAndEndAtGreaterThan(spaceId, end, start).stream()
+        return blocks.findBySpaceIdAndStatusAndStartAtLessThanAndEndAtGreaterThan(
+                        spaceId, BlockStatus.ACTIVE, end, start).stream()
                 .map(mapper::toInfo).toList();
     }
 

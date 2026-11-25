@@ -190,9 +190,9 @@ No hay multas. La sanción es **perder las horas** y, de repetirse, una **suspen
 | ID | Regla |
 |---|---|
 | RN-41 | El administrador puede bloquear franjas por **clases y grupos formativos** (bloqueos fijos y recurrentes), **eventos o torneos** (bloqueos puntuales) y **mantenimiento**. |
-| RN-42 | Los bloqueos institucionales tienen prioridad sobre las reservas libres. |
+| RN-42 | Los bloqueos institucionales no cancelados tienen prioridad sobre las reservas libres. |
 | RN-43 | Si un bloqueo afecta una reserva en curso se rechaza toda la operación, incluso si no tiene check-in. Las reservas futuras afectadas se cancelan automáticamente, se avisa al usuario y sus horas no cuentan contra la cuota. Los bloqueos puntuales y recurrentes se materializan en una fila por franja. |
-| RN-44 | Las franjas bloqueadas aparecen en el calendario como no disponibles, con el motivo visible. |
+| RN-44 | Las franjas con bloqueo no cancelado aparecen como no disponibles, con el motivo visible. Cualquier ADMIN reautenticado puede cancelar lógicamente una fila futura o en curso, con motivo separado, conservando datos originales, fecha, actor y auditoría. No se permite borrado físico, edición original ni cancelación masiva de recurrencia. Repetir con cuerpo válido conserva la primera cancelación sin otra transición. La cancelación no reactiva reservas ni revierte cuota/implementos; la disponibilidad depende también de los demás impedimentos. No envía correo de levantamiento (D-27). |
 
 ### 5.10 Notificaciones
 
@@ -263,6 +263,8 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | Cancelada por administrador | Cancelada por un bloqueo institucional. | Sí | No |
 | Cancelada por suspensión | Reserva futura cancelada por ocurrir durante la suspensión. | Sí | No |
 
+Cancelar un bloqueo no introduce una transición inversa: las reservas `CANCELLED_BY_ADMIN` conservan su estado y efectos sobre cuota e implementos. Para usar una franja liberada debe crearse una reserva nueva bajo las reglas ordinarias.
+
 ---
 
 ## 7. Funcionalidades
@@ -289,7 +291,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 |---|---|---|
 | RF-11 | Gestionar espacios y franjas | Crear, editar y desactivar espacios; definir disciplina, aforo, requisitos, horario de operación y estado. |
 | RF-12 | Configurar reglas y cuotas | Editar la cuota semanal y el umbral de inasistencias de la sección 4. |
-| RF-13 | Bloquear franjas institucionales | Crear bloqueos puntuales o recurrentes con motivo; cancela las reservas afectadas. |
+| RF-13 | Gestionar bloqueos institucionales | Crear bloqueos puntuales o recurrentes con motivo y cancelar reservas futuras afectadas; consultar historial y cancelar lógicamente una franja sin reactivar reservas. |
 | RF-14 | Consultar panel de ocupación | Ocupación por espacio y franja, con filtros por fecha, disciplina y espacio. |
 | RF-15 | Consultar indicadores de uso | Reservas, cancelaciones tardías, inasistencias y usuarios suspendidos. |
 | RF-16 | Generar códigos QR | Generar e imprimir el QR de cada espacio. |
@@ -319,7 +321,7 @@ El acceso no usa contraseñas. El usuario demuestra que controla su correo insti
 | RNF-05 | Accesibilidad según **WCAG**. |
 | RNF-06 | Identidad visual institucional (azul, dorado y rojo). |
 | RNF-07 | Todas las fechas y horas en zona horaria America/Bogota. |
-| RNF-08 | Registro de auditoría de reservas, cancelaciones, check-ins, sanciones e inicios y cierres de sesión (exitosos y fallidos). |
+| RNF-08 | Registro de auditoría de reservas, cancelaciones, creación/cancelación de bloqueos institucionales, check-ins, sanciones e inicios y cierres de sesión (exitosos y fallidos). La cancelación de un bloqueo se distingue de la cancelación de reservas. |
 | RNF-09 | Solo se guardan los datos necesarios del usuario (nombre y correo institucional). No se guardan contraseñas ni códigos de acceso en claro. |
 | RNF-10 | **Seguridad de la sesión:** toda comunicación va por HTTPS; el token se firma con una llave secreta fuera del código fuente y el servidor fija el algoritmo de firma sin aceptarlo del cliente; como el token vive en el navegador, la aplicación aplica medidas contra XSS (política de seguridad de contenido y escape de datos mostrados). **[Propuesto]** |
 | RNF-11 | **Entrega del código:** el correo con el código de acceso debe llegar en menos de 1 minuto en condiciones normales. El texto indica su vigencia y que no debe compartirse. **[Propuesto]** |
@@ -353,6 +355,8 @@ Pedro reserva 6:00 a 7:00 p. m. y no escanea el QR. Puede registrar su asistenci
 **Escenario E: bloqueo por evento**
 
 El administrador bloquea el fútbol 11 el sábado para un torneo. Las 4 reservas existentes ese día se cancelan automáticamente, los usuarios reciben un aviso con el motivo, y sus horas no cuentan.
+
+Si se cancela el torneo, el ADMIN puede cancelar cada fila futura o en curso del bloqueo con motivo e historial. Las cuatro reservas siguen canceladas. Cada franja solo será reservable si no quedan otros impedimentos; una reserva nueva requiere el flujo ordinario.
 
 **Escenario F: inicio de sesión con código y sesión expirada**
 

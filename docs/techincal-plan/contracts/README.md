@@ -33,6 +33,7 @@ Contratos de la API que consumen los clientes del backend (en particular el clie
 | `SlotStatus` | `FREE`, `OCCUPIED`, `BLOCKED` |
 | `EquipmentStatus` | `AVAILABLE`, `INACTIVE` |
 | `BlockType` | `CLASS`, `EVENT`, `MAINTENANCE` |
+| `BlockStatus` | `ACTIVE` (no cancelado, aunque haya terminado), `CANCELLED` |
 | `Period` | `WEEKLY`, `MONTHLY` |
 
 ### Forma de error
@@ -105,7 +106,9 @@ Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usa
 | `RESERVATION_NOT_FOUND` | 404 | La reserva no existe. | RN-03 |
 | `EQUIPMENT_NOT_FOUND` | 404 | El implemento no existe. | RN-62 |
 | `SLOT_TAKEN` | 409 | La franja ya tiene una reserva activa. | RN-10 |
-| `BLOCKED_SLOT` | 409 | La franja tiene un bloqueo institucional. | RN-42 |
+| `BLOCKED_SLOT` | 409 | La franja tiene un bloqueo institucional no cancelado. | RN-42 |
+| `BLOCK_NOT_FOUND` | 404 | No existe la fila de bloqueo. | D-27 |
+| `BLOCK_NOT_CANCELLABLE` | 409 | Primera cancelación de un bloqueo ya finalizado. | D-27 |
 | `SPACE_IN_MAINTENANCE` | 409 | El espacio está en mantenimiento. | RN-09 |
 | `OUTSIDE_BOOKING_WINDOW` | 409 | Fuera de la anticipación máxima o pasada la tolerancia. | RN-14, RN-27 |
 | `OVERLAPPING_RESERVATION` | 409 | El usuario ya tiene una reserva que se solapa. | RN-11 |
@@ -180,6 +183,8 @@ Los errores de negocio usan el mismo cuerpo (las sondas de salud de Actuator usa
 | PUT | `/admin/spaces/{id}/images/{kind}` | [`spaces/PUT-admin-spaces-id-images-kind.md`](./spaces/PUT-admin-spaces-id-images-kind.md) |
 | GET | `/spaces/{id}/images/{kind}` | [`spaces/GET-spaces-id-images-kind.md`](./spaces/GET-spaces-id-images-kind.md) |
 | POST | `/admin/blocks` | [`blocks/POST-admin-blocks.md`](./blocks/POST-admin-blocks.md) |
+| GET | `/admin/blocks` | [`blocks/GET-admin-blocks.md`](./blocks/GET-admin-blocks.md) |
+| POST | `/admin/blocks/{id}/cancellation` | [`blocks/POST-admin-blocks-id-cancellation.md`](./blocks/POST-admin-blocks-id-cancellation.md) |
 
 ### Cuota (UC08)
 

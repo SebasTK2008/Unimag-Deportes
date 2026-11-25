@@ -14,8 +14,8 @@ Orden recomendado según las dependencias de `docs/techincal-plan/plan-general.m
 | 7 | **UC08 — Consultar cuota semanal** | Completar el cálculo y consulta de cuota a partir de las reservas. |
 | 8 | **UC04 — Gestionar mis reservas** | Implementar primero listado y después cancelación. Integrar eventos de disponibilidad y el correo de cancelación de UC11. |
 | 9 | **UC05-H1 — Confirmar asistencia** | Completar el check-in usando reservas y QR del espacio. |
-| 10 | **UC07-H2 — Bloqueos institucionales** | Completar bloqueos, recurrencias y cancelaciones asociadas. Integrar avisos por correo y eventos de disponibilidad. |
-| 11 | **UC02 — Cierre integral** | Verificar todos los productores SSE: reserva, cancelación, bloqueo y cambio de espacio. Completar aceptación, contratos, integración y rendimiento; cerrar T001–T015 con evidencia. |
+| 10 | **UC07-H2/H3 — Bloqueos institucionales** | Crear bloqueos y recurrencias con cancelación de reservas y aviso; consultar historial y cancelar lógicamente una fila sin reactivación ni correo de levantamiento (D-27). Integrar eventos de disponibilidad. |
+| 11 | **UC02 — Cierre integral** | Verificar todos los productores SSE: reserva, cancelación de reserva, creación/cancelación de bloqueo y cambio de espacio. Completar aceptación, contratos, integración y rendimiento; cerrar T001–T015 con evidencia. |
 | 12 | **UC10 — Aplicar sanciones** | Completar procesamiento de inasistencias y sanciones, con sus notificaciones. |
 | 13 | **UC11 — Cierre de correos** | Completar recordatorios y verificar todos los envíos integrados en los pasos anteriores. |
 | 14 | **UC12 — Contactar administrador** | Completar el flujo de contacto. |

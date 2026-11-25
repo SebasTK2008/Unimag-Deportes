@@ -31,7 +31,7 @@ UC13 implementa el catálogo de implementos con existencias y la solicitud opcio
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: validación de stock dentro de la transacción de reserva.
 **Constraints**: solo disponibles (RN-62); cantidades (RN-63); disponibilidad derivada (RN-65); sin saldo y canceladas liberan (RN-66); comprobante (OQ-20); disciplina sugerida (OQ-21); America/Bogota.
-**Scale/Scope**: 4 endpoints, 2 entidades, esquema en la migración única compartida, 6 RF + 2 RNF + 6 CE + 2 HU.
+**Scale/Scope**: 4 endpoints, 2 entidades, esquema en la migración base V1 compartida, 6 RF + 2 RNF + 6 CE + 2 HU.
 
 ## Project Structure
 
@@ -93,7 +93,7 @@ Fuente: [`contracts/equipment/`](../../techincal-plan/contracts/README.md) (4 ar
 ### Phase 2: Foundational
 
 - [x] **T002** Crear `Equipment`, `EquipmentStatus` y `ReservationEquipment`.
-- [x] **T003** Verificar las tablas de implementos en la migración única.
+- [x] **T003** Verificar las tablas de implementos en la migración base V1.
 - [x] **T004** Crear `EquipmentRepository` y `ReservationEquipmentRepository`.
 - [x] **T005** Implementar `EquipmentService` y su consulta de disponibilidad.
 - [x] **T006** Agregar la consulta de cantidades comprometidas por ventana.
