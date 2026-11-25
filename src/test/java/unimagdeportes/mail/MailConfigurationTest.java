@@ -12,6 +12,10 @@ class MailConfigurationTest {
     @Test
     void defaultsToBrevoWithAuthenticationAndRequiredTls() throws IOException {
         var environment = mailEnvironment();
+        assertThat(environment.getProperty("app.mail.provider")).isEqualTo("smtp");
+        assertThat(environment.getProperty("app.mail.brevo.api-key")).isEmpty();
+        assertThat(environment.getProperty("app.mail.brevo.connect-timeout")).isEqualTo("PT5S");
+        assertThat(environment.getProperty("app.mail.brevo.request-timeout")).isEqualTo("PT10S");
         assertThat(environment.getProperty("spring.mail.host")).isEqualTo("smtp-relay.brevo.com");
         assertThat(environment.getProperty("spring.mail.port")).isEqualTo("587");
         assertThat(environment.getProperty("spring.mail.username")).isEmpty();

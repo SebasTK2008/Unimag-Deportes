@@ -22,7 +22,7 @@ $env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
 
 En macOS/Linux, use `cp .env.example .env` y `SPRING_CONFIG_IMPORT='file:.env[.properties]' ./mvnw spring-boot:run`. Las variables del entorno tienen prioridad sobre el archivo importado. No incluya el prefijo `export` ni comillas de shell en `.env`: se interpreta como un archivo de propiedades de Spring. El perfil `dev` permite HTTP para el frontend local y habilita el login sin OTP; elimínelo de los perfiles activos al preparar un despliegue.
 
-Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. Por defecto, `compose.yaml` inicia solo PostgreSQL; el perfil `app` incluye el backend con Brevo y el perfil `mailpit` permite iniciar el capturador local. Este Compose conserva credenciales y servicios de desarrollo: no es una configuración de producción.
+Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y correo externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. En Render seleccione `APP_MAIL_PROVIDER=brevo` para enviar por HTTPS, como se explica en la sección de correo. Por defecto, `compose.yaml` inicia solo PostgreSQL; el perfil `app` incluye el backend con Brevo por SMTP y el perfil `mailpit` permite iniciar el capturador local. Este Compose conserva credenciales y servicios de desarrollo: no es una configuración de producción.
 
 | Variable | Uso / valor predeterminado |
 |---|---|
@@ -44,11 +44,14 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `PORT` | Puerto HTTP; `8080`. `SERVER_PORT` también puede sobrescribirlo mediante la configuración nativa de Spring. |
 | `APP_JOBS_STORAGE_CLEANUP_CRON` | Cada cinco minutos (`0 */5 * * * *`); `-` desactiva la limpieza de objetos pendientes. |
 | `APP_CHECKIN_FRONTEND_ORIGIN` | Origen público del frontend para los QR de UC05; vacío por defecto. Requiere HTTPS, salvo HTTP en perfiles `dev` o `test`; sin un origen válido, el endpoint QR responde `503 QR_NOT_CONFIGURED`. |
+| `APP_MAIL_PROVIDER` | `smtp` por compatibilidad local; `brevo` selecciona la API HTTPS. Un valor distinto impide el arranque; no hay fallback entre transportes. |
+| `APP_MAIL_BREVO_API_KEY` | API key de Brevo, obligatoria al seleccionar `brevo`. No es la clave SMTP; nunca exponer al frontend. |
+| `APP_MAIL_BREVO_CONNECT_TIMEOUT`, `APP_MAIL_BREVO_REQUEST_TIMEOUT` | Duraciones ISO-8601; `PT5S` y `PT10S`. Cada una debe estar entre 1 ms y un minuto. Solo se validan en modo `brevo`. |
 | `MAIL_HOST`, `MAIL_PORT` | SMTP; `smtp-relay.brevo.com`, `587`, tanto en Spring como en Compose. |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Vacías por defecto; configure las credenciales SMTP de Brevo. Para Mailpit deben quedar vacías. |
 | `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `true` por defecto para Brevo; `false` con Mailpit local. |
 | `MAIL_SMTP_STARTTLS_REQUIRED` | `true` por defecto: rechaza conexiones sin STARTTLS. Use `false` con Mailpit local. |
-| `APP_MAIL_FROM` | Remitente autorizado por el proveedor SMTP; dirección simple validada al arrancar. Opcional para Mailpit. |
+| `APP_MAIL_FROM` | Remitente autorizado por Brevo; dirección simple validada al arrancar. Obligatoria en modo HTTPS, opcional para SMTP/Mailpit. |
 | `APP_MAIL_FROM_NAME` | Nombre visible del remitente, separado de la dirección; vacío por defecto. La plantilla usa `Unimag Deportes`. No admite saltos de línea. Sin dirección no se establece el encabezado From. |
 | `APP_MAIL_CONTACT_URL` | URL del formulario de contacto del frontend; pendiente de definir para despliegue. Si está vacía, el código de acceso no se envía y la solicitud responde `503 MAIL_DELIVERY_FAILED`; tampoco se envían comprobantes ni avisos. |
 | `APP_MAIL_CONTACT_RECIPIENT` | Destinatario de UC12: configurar `salcendra@unimagdalena.edu.co` mediante el entorno. Sin valor predeterminado en la aplicación; si está vacío, `POST /contact` responde `503 CONTACT_NOT_CONFIGURED`. No asigna roles de administrador. |
@@ -87,6 +90,7 @@ Para usar Mailpit con Maven/JAR en el host, levante los servicios locales y sobr
 
 ```powershell
 docker compose --profile mailpit up -d
+$env:APP_MAIL_PROVIDER = 'smtp'
 $env:MAIL_HOST = 'localhost'
 $env:MAIL_PORT = '1025' # Use MAILPIT_SMTP_PORT si cambió el puerto publicado.
 $env:MAIL_USERNAME = ''
@@ -118,11 +122,39 @@ La CSP configurada en la API restringe sus propias respuestas. La aplicación Re
 
 El comprobante usa la plantilla definitiva incluida en `src/main/resources/pdf/comprobante-definitivo.pdf`, con logos, firma gráfica y diseño conservados. Solo se rellenan los datos y se unifica el área de implementos en una lista sin tres filas fijas; los artículos que no caben continúan en otra copia de la misma plantilla. Las reglas de cancelación y la orientación de check-in se envían en el cuerpo del correo, no en el PDF. Confirmaciones, avisos y códigos incluyen HTML y texto plano: el código aparece centrado y grande; las cancelaciones explican la causa conocida y sus efectos sobre horas, espacio e implementos.
 
+#### HTTPS para Render
+
+Seleccione explícitamente el proveedor y configure una **API key**, distinta de las credenciales SMTP:
+
+```properties
+APP_MAIL_PROVIDER=brevo
+APP_MAIL_BREVO_API_KEY=<API key de Brevo>
+APP_MAIL_BREVO_CONNECT_TIMEOUT=PT5S
+APP_MAIL_BREVO_REQUEST_TIMEOUT=PT10S
+APP_MAIL_FROM=unimagdeportes@gmail.com
+APP_MAIL_FROM_NAME=Unimag Deportes
+```
+
+`BrevoHttpMailSender` envía JSON a `https://api.brevo.com/v3/smtp/email` por HTTPS/443 con el encabezado `api-key`. El nombre de la ruta no implica una conexión SMTP. Envía las versiones HTML/texto y el PDF original codificado en Base64; los mensajes de texto tienen también una alternativa HTML escapada. No requiere `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME` ni `MAIL_PASSWORD`. Mantenga configuradas las URLs reales de contacto y cancelación y el destinatario de contacto.
+
+El modo HTTPS exige clave y remitente válidos al arrancar; SMTP no es un fallback. Solo HTTP 201 indica aceptación del envío inmediato por Brevo, no recepción en el buzón. No se siguen redirecciones ni se reintenta automáticamente, incluidos 429, 5xx y timeouts: el proveedor podría haber aceptado un envío antes de un fallo de conexión y repetirlo podría duplicarlo. Los errores conservan `503 MAIL_DELIVERY_FAILED` en acceso/contacto; el fallo de comprobantes o notificaciones no deshace una operación de negocio confirmada. No hay cola persistente ni recuperación garantizada.
+
+Para Render, inyecte las variables en Environment, use el `Dockerfile` existente y no active `dev`. El proveedor SMTP sigue siendo el predeterminado para no romper entornos existentes. Para Mailpit con Maven seleccione `APP_MAIL_PROVIDER=smtp`; el override `compose.mailpit.yaml` lo impone explícitamente. Cambiar el transporte no evita la suspensión de Render Free: mientras el backend duerme no se ejecutan los jobs. Las sondas de salud no consultan Brevo.
+
+Las pruebas HTTPS usan un servidor HTTP local y credenciales ficticias; la recepción real desde Render, el remitente autorizado y los límites de la cuenta Brevo deben comprobarse por separado.
+
+La imagen se construyó y arrancó con PostgreSQL aislado, `APP_MAIL_PROVIDER=brevo`, clave API ficticia y sin variables SMTP ni perfil `dev`. Alcanzó readiness saludable con UID `10001`; no se enviaron correos a Brevo. Esta comprobación acredita arranque y configuración, no entrega externa.
+
+La verificación posterior al adaptador HTTPS, del 24 de noviembre de 2026, terminó con `.\mvnw.cmd clean verify`: **376 pruebas, cero fallos, errores u omisiones**. Incluye contrato HTTP simulado, selección de transporte, timeout, login, invalidación de códigos ante fallos, comprobante PDF, contacto y cancelación; también conserva la regresión SMTP/Mailpit. Se generó `target/demo-0.0.1-SNAPSHOT.jar`.
+
+#### SMTP y Mailpit local
+
 El adaptador SMTP existente admite Brevo sin SDK ni cambios en los endpoints. Configure el remitente en Brevo con nombre `Unimag Deportes` y dirección `unimagdeportes@gmail.com`, y complete su verificación. No se puede autenticar `gmail.com` mediante DNS propios; Brevo puede adaptar la dirección remitente y la recepción institucional debe comprobarse con envíos reales. Verificar el buzón no garantiza entrega ni ausencia de spam.
 
 Inyecte los siguientes valores en el entorno del backend o en un `.env` privado importado explícitamente:
 
 ```properties
+APP_MAIL_PROVIDER=smtp
 MAIL_HOST=smtp-relay.brevo.com
 MAIL_PORT=587
 MAIL_USERNAME=<usuario SMTP de Brevo>
@@ -154,7 +186,7 @@ Una suspensión cancela también reservas futuras con check-in anticipado comple
 
 Los indicadores de suspendidos se basan en auditorías `USER_SUSPENDED` y su fecha de fin conservada en `detail`. Para auditorías anteriores sin esa fecha se usa la última marca mensual creada no después del evento, si existe. No hace falta cambiar el esquema ni reparar Flyway para estos cambios.
 
-Los envíos SMTP reintentan hasta dos veces los fallos de envío, con esperas de 100 y 200 ms; preparación y autenticación no se reintentan. Siguen siendo de mejor esfuerzo: no se garantizan recuperación tras caída ni ausencia de duplicados. La limpieza de autenticación conserva como mínimo una hora de solicitudes y, para códigos, el intervalo de reenvío si es mayor; no borra códigos activos ni reinicia los límites.
+Los envíos SMTP reintentan hasta dos veces los fallos de envío, con esperas de 100 y 200 ms; preparación y autenticación no se reintentan. El adaptador HTTPS de Brevo no reintenta. Ambos siguen siendo de mejor esfuerzo: no se garantizan recuperación tras caída ni ausencia de duplicados. La limpieza de autenticación conserva como mínimo una hora de solicitudes y, para códigos, el intervalo de reenvío si es mayor; no borra códigos activos ni reinicia los límites.
 
 Para una prueba local con el cliente en `http://localhost:5173`, configure explícitamente `SPRING_PROFILES_ACTIVE=dev`, el origen QR y CORS con ese origen, contacto en `http://localhost:5173/app/contacto` y cancelación en `http://localhost:5173/reservations/{id}/cancel`. Sustituya el puerto si el cliente usa otro. Esto solo prepara configuración: no realiza la integración ni prueba navegación, dispositivos o accesibilidad del frontend.
 
@@ -199,7 +231,7 @@ Antes de aceptar un despliegue:
 - Empezar con una sola réplica. SSE mantiene las suscripciones y eventos en el proceso; varias réplicas requieren difusión entre instancias y coordinación adicional de jobs. Los bloqueos transaccionales de PostgreSQL no convierten el envío de recordatorios en una entrega única distribuida.
 - Configurar PostgreSQL de destino (JDBC, TLS, permisos de Flyway y `btree_gist`) y comprobar una instalación limpia. Si se usa un pooler externo, verificar su compatibilidad; contratar Storage no configura la base de datos del backend.
 - Configurar Supabase privado y probar subida, lectura, reemplazo y limpieza con la clave de servidor real. Verificar límites de archivo, MIME, capacidad y transferencia.
-- Configurar SMTP, remitente y enlaces reales; comprobar recepción en los destinatarios previstos. Mailpit solo prueba entrega local. Revisar restricciones de puertos del hosting.
+- Configurar correo, remitente y enlaces reales; comprobar recepción en los destinatarios previstos. Para Render usar Brevo HTTPS con API key. Mailpit solo prueba entrega local. Revisar restricciones de puertos si se selecciona SMTP.
 - Fijar CORS, orígenes QR, URLs de contacto y cancelación, HTTPS/HSTS y confianza del proxy. Probar puerto, límites multipart y tiempos de espera. No activar `dev` en producción.
 - Para SSE, desactivar buffering del proxy, configurar su timeout y reconexión del cliente. Actualmente se envía un comentario inicial, no un heartbeat periódico; aceptar ese límite o acordar su implementación antes de exigir conexiones inactivas persistentes.
 - Si el hosting se duerme, aceptar el retraso de los jobs funcionales y de limpieza; no equivale a operación continua.

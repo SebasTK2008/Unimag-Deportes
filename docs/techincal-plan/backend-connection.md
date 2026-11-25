@@ -213,11 +213,11 @@ Las pruebas usaron bases y buzones aislados de Testcontainers. No se creó un `.
 
 ## 7. Cambiar de local a despliegue
 
-- Inyecte secretos, PostgreSQL y SMTP externos mediante el entorno o gestor de secretos.
+- Inyecte secretos, PostgreSQL y correo externos mediante el entorno o gestor de secretos.
 - Desactive `dev`; no copie la plantilla local como configuración de producción.
 - Configure `APP_CORS_ALLOWED_ORIGINS` con los orígenes públicos exactos.
 - Cambie `APP_CHECKIN_FRONTEND_ORIGIN`, `APP_MAIL_CONTACT_URL` y `APP_MAIL_CANCELLATION_URL` a URLs públicas HTTPS conservando las rutas acordadas.
-- Configure remitente autorizado, autenticación y TLS SMTP según el proveedor.
+- Configure remitente autorizado y transporte: en Render use Brevo HTTPS; si elige SMTP, configure autenticación y TLS según el proveedor.
 - Termine HTTPS/HSTS en el punto de entrada. Configure confianza en proxies explícitamente, sin confiar indiscriminadamente en `X-Forwarded-For`.
 - Si existe proxy, permita streaming SSE sin buffering ni timeouts incompatibles y cargas multipart de los tamaños admitidos.
 - La publicación del frontend debe resolver rutas SPA como `/checkin/...` y `/reservations/.../cancel`. Esto corresponde a la futura sesión del cliente.
@@ -225,6 +225,20 @@ Las pruebas usaron bases y buzones aislados de Testcontainers. No se creó un `.
 No hace falta modificar las rutas Java al cambiar de dominios. La conexión del frontend y la aceptación en navegador siguen siendo una validación separada.
 
 ## 8. Validar correo con Brevo
+
+### HTTPS en Render
+
+1. Verifique el remitente en Brevo y genere una **API key**, no una clave SMTP. Guárdela exclusivamente en el entorno del backend.
+2. Configure `APP_MAIL_PROVIDER=brevo`, `APP_MAIL_BREVO_API_KEY`, `APP_MAIL_FROM` y `APP_MAIL_FROM_NAME`. Los timeouts opcionales `APP_MAIL_BREVO_CONNECT_TIMEOUT=PT5S` y `APP_MAIL_BREVO_REQUEST_TIMEOUT=PT10S` deben estar entre 1 ms y un minuto.
+3. Configure PostgreSQL externo y `SPRING_DOCKER_COMPOSE_ENABLED=false`, las URLs HTTPS reales de contacto/cancelación y el destinatario de contacto. No active el perfil `dev` en Render. No necesita credenciales ni puertos SMTP.
+4. Solicite y verifique un código institucional; cree una reserva y abra el PDF recibido. Pruebe contacto, cancelación y recordatorio. Compruebe HTML/texto, enlaces, nombre del remitente, registros de Brevo y buzón/spam institucional.
+5. En pruebas aisladas, compruebe errores remotos: acceso/contacto deben conservar `503 MAIL_DELIVERY_FAILED` y un fallo del comprobante no debe revertir la reserva confirmada.
+
+La API usada es `POST https://api.brevo.com/v3/smtp/email` por HTTPS/443 con `api-key`. Se acepta HTTP 201, sin reintentos automáticos ni redirecciones. Un timeout no prueba que Brevo haya rechazado el correo. Las pruebas automáticas simulan el proveedor localmente, sin usar claves reales ni acreditar recepción institucional. Render Free puede suspender el proceso y aplazar los jobs; HTTPS no elimina esa limitación.
+
+### SMTP alternativo y Mailpit
+
+Seleccione `APP_MAIL_PROVIDER=smtp` para los pasos siguientes. Es el modo predeterminado por compatibilidad; no es necesario para Render con HTTPS.
 
 1. En Brevo, cree y verifique el remitente `unimagdeportes@gmail.com` con nombre `Unimag Deportes`. Gmail es un dominio de terceros: no se pueden configurar sus DNS y Brevo puede adaptar la dirección remitente. Compruebe las advertencias del panel y la recepción final; un buzón verificado no garantiza entrega institucional.
 2. Genere una clave SMTP y guárdela exclusivamente en el entorno privado del backend. No use una API key ni la contraseña de la cuenta, y reemplace cualquier clave compartida públicamente.
@@ -238,6 +252,6 @@ No hace falta modificar las rutas Java al cambiar de dominios. La conexión del 
 
 El envío sigue siendo de mejor esfuerzo, sin cola persistente ni garantía de ausencia de duplicados. No active logs de credenciales ni códigos de acceso. No se ha acreditado la recepción real con Brevo mediante las pruebas locales.
 
-Para volver a Mailpit, elimine las credenciales y desactive autenticación y ambas opciones STARTTLS. Fuera de Compose use `localhost` y el puerto publicado de Mailpit; dentro de `app` omita `MAIL_HOST` o use `mailpit`, con puerto `1025`.
+Para volver a Mailpit, seleccione `APP_MAIL_PROVIDER=smtp`, elimine las credenciales y desactive autenticación y ambas opciones STARTTLS. Fuera de Compose use `localhost` y el puerto publicado de Mailpit; dentro de `app` use el override `compose.mailpit.yaml`, que selecciona SMTP y `mailpit:1025`.
 
 Antes de `.\mvnw.cmd clean verify`, use una consola sin importación de `.env` ni variables SMTP reales. Las pruebas usan PostgreSQL y Mailpit de Testcontainers y requieren Docker disponible; nunca deben utilizar la clave de Brevo.
