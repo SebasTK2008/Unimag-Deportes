@@ -71,6 +71,11 @@ app:
   checkin:
     frontend-origin: ${APP_CHECKIN_FRONTEND_ORIGIN:}
   mail:
+    provider: ${APP_MAIL_PROVIDER:smtp}
+    brevo:
+      api-key: ${APP_MAIL_BREVO_API_KEY:}
+      connect-timeout: ${APP_MAIL_BREVO_CONNECT_TIMEOUT:PT5S}
+      request-timeout: ${APP_MAIL_BREVO_REQUEST_TIMEOUT:PT10S}
     from: ${APP_MAIL_FROM:}
     from-name: ${APP_MAIL_FROM_NAME:}
     contact-url: ${APP_MAIL_CONTACT_URL:}

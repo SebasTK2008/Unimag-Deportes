@@ -10,11 +10,13 @@ import jakarta.mail.MessagingException;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.AddressException;
 import java.io.UnsupportedEncodingException;
 
 @Component
+@ConditionalOnProperty(name = "app.mail.provider", havingValue = "smtp", matchIfMissing = true)
 public class SmtpMailSender implements MailSender {
     private final JavaMailSender sender;
     private final String from;
