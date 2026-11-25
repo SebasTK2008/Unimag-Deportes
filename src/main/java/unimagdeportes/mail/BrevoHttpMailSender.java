@@ -13,6 +13,8 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 @ConditionalOnProperty(name = "app.mail.provider", havingValue = "brevo")
 public class BrevoHttpMailSender implements MailSender, AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(BrevoHttpMailSender.class);
     private static final URI ENDPOINT = URI.create("https://api.brevo.com/v3/smtp/email");
     private final HttpClient client;
     private final JsonMapper json;
@@ -123,6 +126,7 @@ public class BrevoHttpMailSender implements MailSender, AutoCloseable {
         try {
             encoded = json.writeValueAsString(payload);
         } catch (tools.jackson.core.JacksonException ex) {
+            LOG.warn("MAIL_BREVO_PREPARATION_FAILED: no fue posible serializar el correo");
             throw new MailPreparationException("No fue posible preparar el correo de Brevo", ex);
         }
         var request = HttpRequest.newBuilder(endpoint).timeout(requestTimeout)
@@ -132,12 +136,18 @@ public class BrevoHttpMailSender implements MailSender, AutoCloseable {
             // No retries: an ambiguous failure may occur after the provider accepted the message.
             var response = client.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() != 201) {
+                LOG.warn("MAIL_BREVO_REJECTED: http_status={}", response.statusCode());
                 throw new MailSendException("Brevo rechazó el envío (HTTP " + response.statusCode() + ")");
             }
         } catch (IOException ex) {
+            // Exception messages and provider bodies can contain sensitive data; log only types.
+            LOG.warn("MAIL_BREVO_IO_ERROR: exception_type={}, cause_type={}",
+                    ex.getClass().getSimpleName(),
+                    ex.getCause() == null ? "none" : ex.getCause().getClass().getSimpleName());
             throw new MailSendException("No fue posible completar el envío HTTPS a Brevo", ex);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            LOG.warn("MAIL_BREVO_INTERRUPTED: envío HTTPS interrumpido");
             throw new MailSendException("Envío HTTPS a Brevo interrumpido", ex);
         }
     }

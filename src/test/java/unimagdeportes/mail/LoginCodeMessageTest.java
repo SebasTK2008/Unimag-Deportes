@@ -5,13 +5,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mail.MailPreparationException;
 
+@ExtendWith(OutputCaptureExtension.class)
 class LoginCodeMessageTest {
     @Test
-    void refusesToRenderWithoutContact() {
+    void refusesToRenderWithoutContact(CapturedOutput output) {
         assertThatThrownBy(() -> new LoginCodeMessage(" ").render("123456", Duration.ofMinutes(15)))
                 .isInstanceOf(MailPreparationException.class);
+        assertThat(output.getAll()).contains("MAIL_CONTACT_NOT_CONFIGURED", "APP_MAIL_CONTACT_URL")
+                .doesNotContain("123456");
     }
 
     @Test
