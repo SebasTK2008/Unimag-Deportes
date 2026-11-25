@@ -4,6 +4,7 @@ services:
     profiles: !reset []
   app:
     environment:
+      APP_MAIL_PROVIDER: smtp
       MAIL_HOST: mailpit
       MAIL_PORT: "1025"
       MAIL_USERNAME: ""
