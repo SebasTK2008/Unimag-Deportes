@@ -1,5 +1,7 @@
 # GET /admin/occupancy
 
+**D-27:** los bloqueos cancelados no imponen `BLOCKED`; el historial administrativo se consulta por UC07. Esta ocupación derivada no reconstruye estados anteriores a cada cancelación ni incorpora indicadores nuevos.
+
 - **UC / SPEC**: UC09 — [Consultar panel de administración](../../../features/009-consultar-panel-administracion/spec.md)
 - **Rol**: Administrador
 - **Autenticación**: `Authorization: Bearer <token>`

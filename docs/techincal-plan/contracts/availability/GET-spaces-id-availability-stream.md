@@ -1,5 +1,7 @@
 # GET /spaces/{id}/availability/stream
 
+**D-27:** una cancelación efectiva de bloqueo institucional también invalida disponibilidad después del commit, sin cambiar el formato SSE. Un reintento sin cambios o un rollback no emiten otra transición.
+
 - **UC / SPEC**: UC02 — [Consultar disponibilidad](../../../features/002-consultar-disponibilidad/spec.md)
 - **Rol**: Usuario, Administrador
 - **Autenticación**: `Authorization: Bearer <token>`

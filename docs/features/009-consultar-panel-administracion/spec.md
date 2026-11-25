@@ -80,7 +80,9 @@ Como Administrador, quiero consultar los indicadores de uso (reservas, cancelaci
 
 ### Resultados Medibles
 
-- **CE-001**: Exactitud, "100% de la ocupación mostrada coincide con las reservas y los bloqueos registrados".
+- **CE-001**: Exactitud, "100% de la ocupación mostrada coincide con las reservas que ocupan y los bloqueos no cancelados".
 - **CE-002**: Filtrado, "100% de los resultados filtrados cumplen los filtros de fecha, disciplina y espacio aplicados".
 - **CE-003**: Exactitud de Indicadores, "100% de los indicadores mostrados coinciden con los registros de reservas, cancelaciones tardías, inasistencias y suspensiones".
 - **CE-004**: Períodos, "100% de los indicadores se calculan en el período semanal o mensual seleccionado".
+
+**D-27:** el historial de cancelados se consulta en UC07, no como ocupación efectiva. El panel no reconstruye cómo se veía la ocupación antes de cada cancelación ni añade indicadores de cancelación de bloqueos.

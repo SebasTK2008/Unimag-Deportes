@@ -32,7 +32,7 @@ UC10 marca la inasistencia solo después de una hora desde el fin de la reserva 
 **Project Type**: backend monolítico; job interno [D-07].
 **Performance Goals**: job idempotente cada minuto sobre volumen bajo.
 **Constraints**: sin check-in → `NO_SHOW` con horas contadas; mes calendario y umbral vigente; reservas futuras durante la suspensión se cancelan y liberan recursos; aviso; America/Bogota.
-**Scale/Scope**: sin endpoints; marca mensual en la migración única compartida; 6 RF + 2 RNF + 3 CE + 2 HU.
+**Scale/Scope**: sin endpoints; marca mensual en la migración base V1 compartida; 6 RF + 2 RNF + 3 CE + 2 HU.
 
 ## Project Structure
 
@@ -59,7 +59,7 @@ src/main/java/unimagdeportes/
 src/test/java/unimagdeportes/{integration/sanctions,service/policy,scheduler}/
 ```
 
-**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración única compartida incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, suspended_until timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (suspended_until > created_at), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado. `created_at` y `suspended_until` delimitan la suspensión.
+**Structure Decision**: el job solo orquesta; la lógica vive en `SanctionService`. La migración base V1 incluye `monthly_suspension(user_id UUID NOT NULL REFERENCES app_user(id), absence_month DATE NOT NULL, created_at timestamptz NOT NULL, suspended_until timestamptz NOT NULL, PRIMARY KEY (user_id, absence_month), CHECK (suspended_until > created_at), CHECK (EXTRACT(DAY FROM absence_month) = 1))`; el mes corresponde al primer día del mes local del fin programado. `created_at` y `suspended_until` delimitan la suspensión.
 
 ## Reglas de negocio
 
@@ -101,7 +101,7 @@ No aplica: UC10 es interno (scheduler), sin endpoints.
 - [x] **T002** Agregar la consulta de reservas `CONFIRMED` con ventana cerrada.
 - [x] **T003** Agregar la consulta de inasistencias del mes calendario.
 
-**Base disponible:** la migración única crea `monthly_suspension` con clave por usuario y mes; `MonthlySuspensionRepository` la escribe con `on conflict do nothing`.
+**Base disponible:** V1 crea `monthly_suspension` con clave por usuario y mes; `MonthlySuspensionRepository` la escribe con `on conflict do nothing`.
 
 ### Phase 2: Foundational
 

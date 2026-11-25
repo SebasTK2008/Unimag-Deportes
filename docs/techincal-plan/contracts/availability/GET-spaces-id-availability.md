@@ -1,5 +1,7 @@
 # GET /spaces/{id}/availability
 
+**D-27:** solo los bloqueos no cancelados generan `BLOCKED` y motivo. Cancelar uno obliga a recalcular; no garantiza `FREE` ni `bookable` si quedan otros impedimentos. No se exponen IDs de bloqueos administrativos.
+
 - **UC / SPEC**: UC02 — [Consultar disponibilidad](../../../features/002-consultar-disponibilidad/spec.md)
 - **Rol**: Usuario, Administrador
 - **Autenticación**: `Authorization: Bearer <token>`

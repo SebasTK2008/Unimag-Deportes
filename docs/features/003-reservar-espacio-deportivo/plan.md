@@ -39,7 +39,7 @@ Enfoque técnico: `ReservationService` transaccional que bloquea la fila del esp
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: confirmación inmediata y cero cruces con solicitudes simultáneas (RN-10).
 **Constraints**: 1–2 franjas (RN-15); 7 fechas contando hoy, hasta hoy + 6 inclusive (OQ-09, OQ-12); cuota 4 h (RN-18); sin solape propio (RN-11); sin suspensión (RN-40); America/Bogota (RNF-07).
-**Scale/Scope**: 1 endpoint, 1 entidad, esquema en la migración única compartida, 13 RF + 5 RNF + 3 CE + 1 HU.
+**Scale/Scope**: 1 endpoint, 1 entidad, esquema de reservas en la migración base V1 compartida, 13 RF + 5 RNF + 3 CE + 1 HU.
 
 ## Project Structure
 
@@ -66,7 +66,7 @@ src/main/java/unimagdeportes/
 ├── dto/reservation/ · mapper/reservation/ReservationMapper.java
 └── event/ReservationCreatedEvent.java
 
-src/main/resources/db/migration/ (migración única compartida)
+src/main/resources/db/migration/ (V1 base; D-27 añade V2 para bloqueos)
 src/test/java/unimagdeportes/{contract/reservation,integration/reservation,unit/policy}/
 ```
 
@@ -104,7 +104,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 ### Phase 2: Foundational
 
 - [x] **T002** Crear `Reservation` y `ReservationStatus`.
-- [x] **T003** Verificar las dos restricciones de exclusión de reservas en la migración única.
+- [x] **T003** Verificar las dos restricciones de exclusión de reservas en V1 base.
 - [ ] **T004** Crear `ReservationRepository` (solape y horas por semana).
 - [ ] **T005** Implementar `BookingWindowPolicy`.
 - [ ] **T006** Implementar `QuotaPolicy`.
@@ -113,7 +113,7 @@ Fuente: [`contracts/reservations/POST-reservations.md`](../../techincal-plan/con
 ### Phase 3: User Stories
 
 - [ ] **T008** [US1/P1] Implementar `ReservationService`: adquirir primero el bloqueo asesor global de §4.1 del plan general, bloquear usuario y espacio, validar cuota por semana, conservar reglas y luego insertar; integrar implementos en UC13.
-- [ ] **T009** [US1/P1] Validar suspensión, mantenimiento, bloqueos, solape y cuota.
+- [ ] **T009** [US1/P1] Validar suspensión, mantenimiento, bloqueos no cancelados, solape y cuota. D-27 requiere probar reserva nueva tras cancelar un bloqueo sin modificar la reserva anterior ni el stock/cuota ya liberados.
 - [ ] **T010** [US1/P1] Crear DTO y `ReservationMapper`.
 - [ ] **T011** [US1/P1] Implementar `POST /reservations` en `ReservationController`.
 - [ ] **T012** [US1/P1] Publicar `ReservationCreatedEvent` después del commit.

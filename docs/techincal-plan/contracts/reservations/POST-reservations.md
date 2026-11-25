@@ -1,5 +1,7 @@
 # POST /reservations
 
+**D-27:** un bloqueo cancelado no produce `BLOCKED_SLOT`. Se mantienen los demás impedimentos y precedencias. Reservar tras cancelar un bloqueo crea una reserva nueva; nunca reactiva las canceladas anteriormente.
+
 - **UC / SPEC**: UC03 — [Reservar espacio deportivo](../../../features/003-reservar-espacio-deportivo/spec.md); UC13 — [Solicitar implementos extras](../../../features/013-solicitar-implementos-extras/spec.md)
 - **Rol**: Usuario
 - **Autenticación**: `Authorization: Bearer <token>`

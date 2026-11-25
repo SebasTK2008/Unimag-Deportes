@@ -21,7 +21,7 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
    - **Entonces** el sistema muestra cada franja como libre, ocupada o bloqueada.
 
 2. **Escenario**: Franja bloqueada institucionalmente.
-   - **Dado** que una franja tiene un bloqueo institucional.
+   - **Dado** que una franja tiene un bloqueo institucional no cancelado.
    - **Cuando** se consulta el calendario.
    - **Entonces** la franja aparece como no disponible con el motivo del bloqueo visible.
 
@@ -79,7 +79,9 @@ Como Usuario o Administrador, o como el sistema al ser invocado internamente por
 
 ### Resultados Medibles
 
-- **CE-001**: Exactitud de Disponibilidad, "100% de las franjas con reserva activa o bloqueo institucional se muestran como no libres en el calendario".
+- **CE-001**: Exactitud de Disponibilidad, "100% de las franjas con reserva activa o bloqueo institucional no cancelado se muestran como no libres en el calendario".
 - **CE-002**: Transparencia, "100% de las franjas bloqueadas se muestran con su motivo visible".
 - **CE-003**: Consistencia, "0 espacios en mantenimiento mostrados como reservables".
 - **CE-004**: Sesión y Horizonte, "0 consultas de calendario sin sesión y 0 fechas mostradas fuera del rango inclusivo hoy…hoy + 6 en America/Bogota".
+
+**Cancelación de bloqueos (D-27):** el calendario y su DTO se derivan solo de bloqueos no cancelados; un cancelado no produce `BLOCKED` ni su motivo. Al cancelarlo se recalcula tras SSE/REST, sin exponer IDs administrativos. La aceptación debe verificar liberación condicionada a otros bloqueos, ocupación, mantenimiento y ventana temporal.
