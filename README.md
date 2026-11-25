@@ -3,7 +3,7 @@ Plataforma de reservas de espacios deportivos en la universidad del magdalena
 
 ## Desarrollo local
 
-El backend usa Spring Boot 4.2.0 y requiere Java 25, PostgreSQL y dos claves externas independientes de al menos 32 bytes: `APP_AUTH_JWT_SECRET` y `APP_AUTH_CODE_HMAC_SECRET`. No guarde claves reales en el repositorio. `compose.yaml` define PostgreSQL y Mailpit, y el proyecto incluye integración de Docker Compose para desarrollo. Se verificó el JAR con esos servicios: solicitud de código, entrega SMTP, login, perfil y logout.
+El backend usa Spring Boot 4.2.0 y requiere Java 25, PostgreSQL y dos claves externas independientes de al menos 32 bytes: `APP_AUTH_JWT_SECRET` y `APP_AUTH_CODE_HMAC_SECRET`. No guarde claves reales en el repositorio. Brevo es el SMTP predeterminado; Mailpit es una alternativa local optativa. `compose.yaml` inicia PostgreSQL y el proyecto incluye integración de Docker Compose para desarrollo.
 
 El flujo de UC01 usa `POST /auth/code` y `POST /auth/verify`; luego se completa el nombre mediante `PUT /me/profile` si `needsName` es `true`. Consulte los [contratos de autenticación](docs/techincal-plan/contracts/README.md#autenticación-uc01). El token dura 24 horas y se envía como `Authorization: Bearer`, nunca en cookies. El cliente React, en otro repositorio, conserva el destino de navegación y elimina su token al cerrar sesión.
 
@@ -11,7 +11,7 @@ Con el perfil opcional `dev`, `POST /dev/login` acepta JSON con `email` instituc
 
 ### Configuración
 
-El repositorio incluye `.env.example` como plantilla local para un cliente futuro en `http://localhost:5173`; `.env` y sus variantes están excluidos de Git. El archivo no se carga automáticamente. Para usarlo, cópielo si no existe, complete las claves obligatorias y configure explícitamente la importación de Spring desde la raíz del proyecto:
+El repositorio incluye `.env.example` como plantilla local para un cliente en `http://localhost:5173`; `.env` y sus variantes están excluidos de Git. La plantilla activa `SPRING_PROFILES_ACTIVE=dev` y contiene marcadores `SECRET-KEY` para SMTP y Storage: no son credenciales válidas. Revise esos valores antes de arrancar; para deshabilitar Storage, deje su clave vacía. El archivo no se carga automáticamente en Spring. Para usarlo, cópielo si no existe, complete las claves obligatorias y configure explícitamente la importación desde la raíz del proyecto:
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
@@ -20,9 +20,9 @@ $env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
 .\mvnw.cmd spring-boot:run
 ```
 
-En macOS/Linux, use `cp .env.example .env` y `SPRING_CONFIG_IMPORT='file:.env[.properties]' ./mvnw spring-boot:run`. Las variables del entorno tienen prioridad sobre el archivo importado. No incluya el prefijo `export` ni comillas de shell en `.env`: se interpreta como un archivo de propiedades de Spring. No active el perfil `dev` en producción; si necesita HTTP para el frontend local, actívelo explícitamente para desarrollo.
+En macOS/Linux, use `cp .env.example .env` y `SPRING_CONFIG_IMPORT='file:.env[.properties]' ./mvnw spring-boot:run`. Las variables del entorno tienen prioridad sobre el archivo importado. No incluya el prefijo `export` ni comillas de shell en `.env`: se interpreta como un archivo de propiedades de Spring. El perfil `dev` permite HTTP para el frontend local y habilita el login sin OTP; elimínelo de los perfiles activos al preparar un despliegue.
 
-Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. Por defecto, `compose.yaml` inicia PostgreSQL y Mailpit para desarrollo; el perfil opcional `app` incluye también el backend. No es una configuración de producción.
+Para desplegar el JAR, inyecte las variables directamente mediante el entorno o el gestor de secretos de la plataforma; `.env.example` no es una configuración de producción. Configure PostgreSQL y SMTP externos, los orígenes públicos y credenciales apropiados, y no incluya `.env` ni secretos en la imagen o repositorio. Por defecto, `compose.yaml` inicia solo PostgreSQL; el perfil `app` incluye el backend con Brevo y el perfil `mailpit` permite iniciar el capturador local. Este Compose conserva credenciales y servicios de desarrollo: no es una configuración de producción.
 
 | Variable | Uso / valor predeterminado |
 |---|---|
@@ -44,10 +44,10 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `PORT` | Puerto HTTP; `8080`. `SERVER_PORT` también puede sobrescribirlo mediante la configuración nativa de Spring. |
 | `APP_JOBS_STORAGE_CLEANUP_CRON` | Cada cinco minutos (`0 */5 * * * *`); `-` desactiva la limpieza de objetos pendientes. |
 | `APP_CHECKIN_FRONTEND_ORIGIN` | Origen público del frontend para los QR de UC05; vacío por defecto. Requiere HTTPS, salvo HTTP en perfiles `dev` o `test`; sin un origen válido, el endpoint QR responde `503 QR_NOT_CONFIGURED`. |
-| `MAIL_HOST`, `MAIL_PORT` | SMTP; `localhost`, `1025` (Mailpit). |
-| `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP opcionales. |
-| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `false` en local; configurar según el proveedor SMTP. |
-| `MAIL_SMTP_STARTTLS_REQUIRED` | `false` en local; `true` con Brevo para rechazar conexiones sin STARTTLS. |
+| `MAIL_HOST`, `MAIL_PORT` | SMTP; `smtp-relay.brevo.com`, `587`, tanto en Spring como en Compose. |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Vacías por defecto; configure las credenciales SMTP de Brevo. Para Mailpit deben quedar vacías. |
+| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | `true` por defecto para Brevo; `false` con Mailpit local. |
+| `MAIL_SMTP_STARTTLS_REQUIRED` | `true` por defecto: rechaza conexiones sin STARTTLS. Use `false` con Mailpit local. |
 | `APP_MAIL_FROM` | Remitente autorizado por el proveedor SMTP; dirección simple validada al arrancar. Opcional para Mailpit. |
 | `APP_MAIL_FROM_NAME` | Nombre visible del remitente, separado de la dirección; vacío por defecto. La plantilla usa `Unimag Deportes`. No admite saltos de línea. Sin dirección no se establece el encabezado From. |
 | `APP_MAIL_CONTACT_URL` | URL del formulario de contacto del frontend; pendiente de definir para despliegue. Si está vacía, el código de acceso no se envía y la solicitud responde `503 MAIL_DELIVERY_FAILED`; tampoco se envían comprobantes ni avisos. |
@@ -59,11 +59,56 @@ Para desplegar el JAR, inyecte las variables directamente mediante el entorno o 
 | `APP_JOBS_RESERVATION_LIFECYCLE_CRON`, `APP_JOBS_REMINDER_CRON` | Cron de seis campos, cada minuto por defecto (`0 * * * * *`); `-` desactiva cada job. |
 | `APP_JOBS_AUTH_CLEANUP_CRON` | Cada hora (`0 0 * * * *`); `-` lo desactiva. Limpia códigos vencidos/usados y solicitudes IP fuera de su retención. |
 
-Con las claves ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). Mailpit expone su buzón local en `http://localhost:8025`. Para ejecutar el JAR fuera de la integración automática de Compose, configure también las variables de conexión a PostgreSQL y el servidor SMTP.
+Con las claves y credenciales SMTP ya configuradas en el entorno y Docker disponible, ejecute `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`). La integración automática detecta PostgreSQL, pero no sustituye Brevo por Mailpit: ese servicio está excluido de la autodetección de Spring. Para ejecutar el JAR fuera de esa integración, configure también las variables de conexión a PostgreSQL.
+
+### Arranque con Docker
+
+Con `.env` privado completado, el backend y PostgreSQL se levantan con Brevo, sin Mailpit:
+
+```powershell
+docker compose --profile app up --build -d
+```
+
+Compose lee `.env` para interpolar las variables enumeradas en `compose.yaml`; no necesita `SPRING_CONFIG_IMPORT`. La API se publica en `http://localhost:8080` por defecto. Cambie `APP_PORT` para modificar el puerto del host; el contenedor escucha en `8080`.
+
+El `Dockerfile` usa una etapa de construcción con Maven y Java 25 y una imagen final JRE 25. Declara el usuario no privilegiado `app` con UID/GID `10001:10001`; el JAR y el script de salud permanecen propiedad de root y no requieren permisos de escritura del proceso. Las cargas multipart usan el directorio temporal del sistema. La construcción omite la ejecución de pruebas: ejecute `clean verify` por separado antes de aceptar la imagen.
+
+### Mailpit opcional
+
+Para ejecutar también el backend en Docker con captura local, use el override:
+
+```powershell
+docker compose -f compose.yaml -f compose.mailpit.yaml --profile app up --build -d
+```
+
+Este modo inicia Mailpit, dirige SMTP a `mailpit:1025`, vacía usuario y contraseña y desactiva autenticación y STARTTLS, incluso si `.env` contiene valores de Brevo. Requiere una versión de Docker Compose que admita `!reset`. El buzón local está en `http://localhost:8025`, salvo que cambie `MAILPIT_WEB_PORT`.
+
+Para usar Mailpit con Maven/JAR en el host, levante los servicios locales y sobrescriba SMTP explícitamente antes de ejecutar Spring:
+
+```powershell
+docker compose --profile mailpit up -d
+$env:MAIL_HOST = 'localhost'
+$env:MAIL_PORT = '1025' # Use MAILPIT_SMTP_PORT si cambió el puerto publicado.
+$env:MAIL_USERNAME = ''
+$env:MAIL_PASSWORD = ''
+$env:MAIL_SMTP_AUTH = 'false'
+$env:MAIL_SMTP_STARTTLS = 'false'
+$env:MAIL_SMTP_STARTTLS_REQUIRED = 'false'
+$env:SPRING_CONFIG_IMPORT = 'file:.env[.properties]'
+.\mvnw.cmd spring-boot:run
+```
+
+Algunas consolas eliminan una variable de entorno al asignarle una cadena vacía. Si su `.env` contiene credenciales Brevo, deje también `MAIL_USERNAME` y `MAIL_PASSWORD` vacíos en ese archivo para el modo local. No ejecute a la vez el backend de Maven y el de Compose en el mismo puerto. Para regresar a Brevo, retire las sobrescrituras locales y restaure sus credenciales; al volver a Compose, use solo `compose.yaml`. No use `docker compose down -v` para cambiar de modo: borra los datos de PostgreSQL.
+
+### Pruebas automatizadas
 
 `./mvnw clean verify` (Windows: `.\mvnw.cmd clean verify`) ejecuta las pruebas con PostgreSQL y Mailpit mediante Testcontainers; las claves ficticias de pruebas no requieren configurar secretos reales. Incluye contratos, límites, concurrencia, rollback, expiración, configuración y seguridad. El resultado y número de pruebas de cada ejecución quedan en `target/surefire-reports/`; no se deduce el estado vigente de cifras de ejecuciones anteriores.
 
 Para las pruebas no es necesario crear ni importar `.env`: Testcontainers y las configuraciones de prueba proporcionan sus propios valores. Ejecútelas en una consola sin `SPRING_CONFIG_IMPORT` ni variables de producción heredadas; por ejemplo, en PowerShell use `Remove-Item Env:SPRING_CONFIG_IMPORT -ErrorAction SilentlyContinue` antes de `.\mvnw.cmd clean verify`. Docker debe ser accesible para Testcontainers.
+
+La verificación del 24 de noviembre de 2026, posterior al cambio a Brevo predeterminado y Mailpit optativo, terminó con `BUILD SUCCESS`: **347 pruebas, cero fallos, errores u omisiones**, y generó `target/demo-0.0.1-SNAPSHOT.jar`. Incluye los defaults SMTP y la selección explícita de Mailpit. Las integraciones continúan usando servicios aislados y credenciales ficticias; no acreditan entrega institucional ni acceso al bucket real.
+
+También se construyó y ejecutó la imagen con UID efectivo `10001`, PostgreSQL nuevo y Mailpit aislados, sin perfil `dev`. Se comprobaron login OTP, perfil, roles, CORS, sondas y script de salud. Una carga multipart de 4 MiB con imágenes deliberadamente inválidas llegó a la validación del dominio y respondió `400 VALIDATION_ERROR`, sin errores de permisos; no fue una subida a Supabase. El directorio temporal resultó escribible y el JAR no escribible por el proceso. Al detener PostgreSQL, readiness respondió 503 y liveness 200; el servicio recuperó readiness al reiniciar la base. El apagado fue ordenado, sin terminación forzada. La configuración Compose base y el override Mailpit se validaron mediante `docker compose config`; estos resultados no equivalen a aceptar servicios externos ni el frontend.
 
 UC12 incluye pruebas de contrato, configuración y entrega desde `POST /contact` hasta SMTP con Mailpit, sin enviar a la cuenta institucional. Para el despliegue falta confirmar la URL pública del formulario React y establecer `APP_MAIL_CONTACT_URL`; las direcciones `localhost:5173` de la plantilla son solo locales. La navegación desde los correos, el comportamiento móvil, la accesibilidad y la recepción institucional requieren aceptación con el cliente y el proveedor reales.
 
@@ -91,13 +136,13 @@ APP_MAIL_FROM_NAME=Unimag Deportes
 
 Use una clave SMTP, no una API key ni la contraseña de la cuenta. No guarde credenciales reales en archivos versionados ni active logs SMTP de depuración. Mantenga configuradas las URLs de contacto y cancelación indicadas en la tabla.
 
-Con Maven/JAR y Brevo, establezca `SPRING_DOCKER_COMPOSE_ENABLED=false` para evitar que la conexión automática de Mailpit sustituya al SMTP externo. Inicie PostgreSQL por separado y configure `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`. Al usar el servicio `app` de Compose, las variables SMTP se transmiten al contenedor; sin `MAIL_HOST`, este usa `mailpit`, mientras Spring fuera del contenedor usa `localhost`. Una configuración local anterior con `MAIL_HOST=localhost` debe omitir esa variable al usar Mailpit desde `app`.
+Con Maven, puede conservar la integración automática de PostgreSQL: Mailpit no sustituye al SMTP externo, aunque su contenedor esté iniciado. Para ejecutar el JAR con PostgreSQL externo, establezca `SPRING_DOCKER_COMPOSE_ENABLED=false` y configure `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`. En Spring y en el servicio `app` de Compose, omitir `MAIL_HOST` y `MAIL_PORT` selecciona Brevo en el puerto 587. Una configuración anterior con `MAIL_HOST=localhost` debe retirarse al volver a Brevo; para Mailpit use las opciones explícitas descritas arriba.
 
 Las pruebas automáticas continúan usando Mailpit y credenciales ficticias. La aceptación real requiere comprobar código de acceso, comprobante PDF, notificaciones, contacto, enlaces y nombre visible en el buzón institucional y en los registros transaccionales de Brevo. Los detalles están en la [guía de conexión](docs/techincal-plan/backend-connection.md#8-validar-correo-con-brevo).
 
 ### Preparación funcional para el cliente
 
-La [guía de conexión del backend](docs/techincal-plan/backend-connection.md) contiene configuración local, arranque con Maven/Compose, comprobaciones HTTP sin frontend y requisitos para desplegar. Preparar la API no implica haber integrado el repositorio React.
+La [guía de conexión del backend](docs/techincal-plan/backend-connection.md) contiene comprobaciones HTTP sin frontend y requisitos para desplegar. Sus instrucciones de selección SMTP anteriores al cambio de defaults deben contrastarse con las secciones de arranque de este README: Mailpit ya no se inicia ni se selecciona automáticamente. Preparar la API no implica haber integrado el repositorio React.
 
 El calendario y la creación usan la misma política temporal, incluida la anticipación mínima. ADMIN conserva consultas, cuota, contacto y operaciones sobre reservas propias; solo USER crea reservas. Los contratos están en `docs/techincal-plan/contracts/`.
 
@@ -115,7 +160,7 @@ Para una prueba local con el cliente en `http://localhost:5173`, configure expl�
 
 En producción se requiere HTTPS y HSTS en el punto de entrada. Por defecto no se confía en encabezados reenviados: el límite por IP usa la dirección remota de la conexión. Si existe un proxy, configure explícitamente su confianza y evite que la API sea accesible directamente; no habilite la confianza indiscriminada en `X-Forwarded-For`. No active logs de cuerpos HTTP, credenciales SMTP o tokens.
 
-La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse. El último cambio de este tipo añadió el índice `audit_log_action_created_idx` para los indicadores de UC09; las bases creadas antes deben recrearse.
+La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse. Las bases con una V1 anterior no se actualizan automáticamente; si contienen datos necesarios, prepare su conservación y una estrategia de migración antes de intervenir. No repare únicamente el checksum para ocultar diferencias de estructura.
 
 ### Versionado de reglas (UC06)
 
@@ -128,7 +173,7 @@ Esta extensión reescribe la V1 existente: no hay V2 ni actualización automáti
 El backend recibe los archivos multipart, detecta su formato con ImageIO y los sube a un bucket privado mediante la API HTTP de Supabase. PostgreSQL conserva solamente `id`, `storage_key`, `content_type` y `size_bytes`; no guarda binarios ni enlaces temporales. Se conservan ambas imágenes obligatorias, el límite de 30 MiB por archivo y 64 MiB por solicitud. Se validan dimensiones antes de decodificar y se usa una muestra de hasta 1024 × 1024 píxeles para comprobar la decodificación sin crear el raster completo. Esa muestra se descarta: el archivo almacenado y entregado es el original, sin recodificar. La consulta `GET /spaces/{id}/images/{kind}` mantiene la autenticación Bearer y transmite el archivo mediante el service, sin revelar credenciales ni URL pública al cliente.
 
 1. En el proyecto `https://teiezrgnhzarhhsycwsh.supabase.co`, mantener privado el bucket `space-images`, ya creado según el responsable del prototipo. Su límite de archivo debe admitir al menos 31.457.280 bytes; sus restricciones MIME deben admitir los formatos que se vayan a usar.
-2. En la configuración API de Supabase, obtener una clave de servidor secreta o la heredada `service_role`. Configurar `APP_STORAGE_SUPABASE_URL`, `APP_STORAGE_SUPABASE_BUCKET` y `APP_STORAGE_SUPABASE_KEY` en el entorno del backend. `.env.example` incluye el origen y bucket indicados, pero deja la clave vacía. La plantilla requiere importación explícita como se explica arriba; Compose recibe las variables en el servicio `app`.
+2. En la configuración API de Supabase, obtener una clave de servidor secreta o la heredada `service_role`. Configurar `APP_STORAGE_SUPABASE_URL`, `APP_STORAGE_SUPABASE_BUCKET` y `APP_STORAGE_SUPABASE_KEY` en el entorno del backend. `.env.example` incluye el origen y bucket indicados y el marcador `SECRET-KEY`, que debe sustituirse por una clave válida o dejarse vacío para deshabilitar Storage; el marcador no equivale a configuración ausente. La plantilla requiere importación explícita como se explica arriba; Compose recibe las variables en el servicio `app`.
 3. Subir las imágenes desde el cliente a los endpoints existentes; el backend hace el resto. No hace falta conectar el frontend con Supabase ni sustituir la autenticación de la aplicación. La credencial de servidor tiene privilegios elevados: nunca usar `anon`/`publishable` para esta integración ni publicar la clave secreta.
 
 Las subidas ocurren antes de la transacción de negocio, sin mantener su bloqueo global durante la transferencia. Antes de cada subida se registra una compensación persistente en `storage_object_cleanup`, con una hora de margen. El plazo total de subida es inferior a ese margen. Al terminar, también si falla, se renueva la compensación por otra hora y se recrea si una limpieza excepcionalmente adelantada ya la retiró. Al confirmar las referencias, se retiran esas compensaciones en la misma transacción; si una referencia expiró, no se confirma el espacio parcialmente. Si la subida o la transacción falla, el job elimina los objetos sin referencia después del margen, incluso tras reiniciar el backend. En reemplazos se encola el objeto anterior en la transacción y se elimina después del commit; los fallos de Storage se reintentan a los cinco minutos. Cada ejecución procesa hasta 20 entradas y comprueba que ningún objeto a borrar esté referenciado. No se reintentan automáticamente las subidas.
@@ -151,6 +196,7 @@ Para mostrar imágenes privadas, React debe descargarlas con `fetch` y `Authoriz
 
 Antes de aceptar un despliegue:
 
+- Empezar con una sola réplica. SSE mantiene las suscripciones y eventos en el proceso; varias réplicas requieren difusión entre instancias y coordinación adicional de jobs. Los bloqueos transaccionales de PostgreSQL no convierten el envío de recordatorios en una entrega única distribuida.
 - Configurar PostgreSQL de destino (JDBC, TLS, permisos de Flyway y `btree_gist`) y comprobar una instalación limpia. Si se usa un pooler externo, verificar su compatibilidad; contratar Storage no configura la base de datos del backend.
 - Configurar Supabase privado y probar subida, lectura, reemplazo y limpieza con la clave de servidor real. Verificar límites de archivo, MIME, capacidad y transferencia.
 - Configurar SMTP, remitente y enlaces reales; comprobar recepción en los destinatarios previstos. Mailpit solo prueba entrega local. Revisar restricciones de puertos del hosting.

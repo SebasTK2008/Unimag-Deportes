@@ -1,0 +1,16 @@
+# Opt-in local SMTP: docker compose -f compose.yaml -f compose.mailpit.yaml --profile app up --build -d
+services:
+  mailpit:
+    profiles: !reset []
+  app:
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_SMTP_AUTH: "false"
+      MAIL_SMTP_STARTTLS: "false"
+      MAIL_SMTP_STARTTLS_REQUIRED: "false"
+    depends_on:
+      mailpit:
+        condition: service_started
