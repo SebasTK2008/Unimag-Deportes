@@ -25,6 +25,11 @@ public class AuditService {
     }
 
     @Transactional
+    public void record(String action, String entityType, UUID entityId, UUID userId, String detail) {
+        logs.save(new AuditLog(UUID.randomUUID(), action, entityType, entityId, userId, clock.instant(), detail));
+    }
+
+    @Transactional
     public void recordSuspension(UUID userId, Instant suspendedUntil) {
         logs.save(new AuditLog(UUID.randomUUID(), "USER_SUSPENDED", "USER", userId, null,
                 clock.instant(), suspendedUntil.toString()));

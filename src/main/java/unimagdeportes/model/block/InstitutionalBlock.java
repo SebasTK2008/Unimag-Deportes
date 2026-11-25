@@ -20,6 +20,11 @@ public class InstitutionalBlock {
     private Instant startAt;
     private Instant endAt;
     private UUID recurrenceGroup;
+    @Enumerated(EnumType.STRING)
+    private BlockStatus status = BlockStatus.ACTIVE;
+    private Instant cancelledAt;
+    private UUID cancelledBy;
+    private String cancellationReason;
 
     protected InstitutionalBlock() { }
 
@@ -41,4 +46,16 @@ public class InstitutionalBlock {
     public Instant getStartAt() { return startAt; }
     public Instant getEndAt() { return endAt; }
     public UUID getRecurrenceGroup() { return recurrenceGroup; }
+    public BlockStatus getStatus() { return status; }
+    public Instant getCancelledAt() { return cancelledAt; }
+    public UUID getCancelledBy() { return cancelledBy; }
+    public String getCancellationReason() { return cancellationReason; }
+
+    public void cancel(Instant at, UUID administratorId, String reason) {
+        if (status == BlockStatus.CANCELLED) return;
+        status = BlockStatus.CANCELLED;
+        cancelledAt = at;
+        cancelledBy = administratorId;
+        cancellationReason = reason;
+    }
 }
