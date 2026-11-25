@@ -1,12 +1,15 @@
 package unimagdeportes.mail;
 
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailPreparationException;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LoginCodeMessage {
+    private static final Logger LOG = LoggerFactory.getLogger(LoginCodeMessage.class);
     private final String contactUrl;
 
     public LoginCodeMessage(@Value("${app.mail.contact-url:}") String contactUrl) {
@@ -15,6 +18,7 @@ public class LoginCodeMessage {
 
     public String render(String code, Duration validity) {
         if (contactUrl.isEmpty()) {
+            LOG.warn("MAIL_CONTACT_NOT_CONFIGURED: configure APP_MAIL_CONTACT_URL para enviar códigos de acceso");
             throw new MailPreparationException("El canal de contacto no está configurado");
         }
         String body = "Tu código de acceso es " + code + ". Vence en " + validity.toMinutes()

@@ -15,13 +15,17 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.MailSendException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+@ExtendWith(OutputCaptureExtension.class)
 class BrevoHttpMailSenderTest {
     private final JsonMapper json = JsonMapper.builder().build();
     private final LinkedBlockingQueue<Captured> requests = new LinkedBlockingQueue<>();
@@ -120,7 +124,7 @@ class BrevoHttpMailSenderTest {
 
     @ParameterizedTest
     @ValueSource(ints = {200, 202, 301, 400, 401, 403, 429, 500, 503})
-    void translatesRejectionsWithoutRetryOrExposingCredentials(int responseStatus) {
+    void translatesRejectionsWithoutRetryOrExposingCredentials(int responseStatus, CapturedOutput output) {
         status = responseStatus;
         assertThatThrownBy(() -> sender.send("persona@example.org", "Asunto", "Código secreto"))
                 .isInstanceOf(MailSendException.class)
@@ -128,10 +132,13 @@ class BrevoHttpMailSenderTest {
                 .hasMessageNotContaining("test-api-key")
                 .hasMessageNotContaining("Código secreto");
         assertThat(requests).hasSize(1);
+        assertThat(output.getAll()).contains("MAIL_BREVO_REJECTED: http_status=" + responseStatus)
+                .doesNotContain("test-api-key", "Código secreto", "persona@example.org", "deportes@example.org",
+                        "Asunto");
     }
 
     @Test
-    void timesOutWithoutResending() {
+    void timesOutWithoutResending(CapturedOutput output) {
         sender.close();
         sender = createSender(Duration.ofSeconds(1));
         sender.send("persona@example.org", "Preparación", "Texto");
@@ -141,18 +148,22 @@ class BrevoHttpMailSenderTest {
                 .isInstanceOf(MailSendException.class)
                 .hasCauseInstanceOf(java.net.http.HttpTimeoutException.class);
         assertThat(requests).hasSize(1);
+        assertThat(output.getAll()).contains("MAIL_BREVO_IO_ERROR", "exception_type=HttpTimeoutException")
+                .doesNotContain("test-api-key", "persona@example.org", "deportes@example.org");
     }
 
     @Test
-    void translatesConnectionFailure() {
+    void translatesConnectionFailure(CapturedOutput output) {
         server.stop(0);
         assertThatThrownBy(() -> sender.send("persona@example.org", "Asunto", "Texto"))
                 .isInstanceOf(MailSendException.class);
         assertThat(requests).isEmpty();
+        assertThat(output.getAll()).contains("MAIL_BREVO_IO_ERROR", "exception_type=ConnectException")
+                .doesNotContain("test-api-key", "persona@example.org", "deportes@example.org");
     }
 
     @Test
-    void preservesThreadInterruption() {
+    void preservesThreadInterruption(CapturedOutput output) {
         Thread.currentThread().interrupt();
         try {
             assertThatThrownBy(() -> sender.send("persona@example.org", "Asunto", "Texto"))
@@ -161,5 +172,7 @@ class BrevoHttpMailSenderTest {
         } finally {
             Thread.interrupted();
         }
+        assertThat(output.getAll()).contains("MAIL_BREVO_INTERRUPTED")
+                .doesNotContain("test-api-key", "persona@example.org", "deportes@example.org");
     }
 }
