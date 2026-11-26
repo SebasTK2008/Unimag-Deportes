@@ -12,7 +12,6 @@ import unimagdeportes.dto.block.BlockDtos.AdminBlock;
 import unimagdeportes.dto.block.BlockDtos.CancelBlock;
 import unimagdeportes.event.AvailabilityChangedEvent;
 import unimagdeportes.exception.BusinessException;
-import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockStatus;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
 import unimagdeportes.service.audit.AuditService;
@@ -27,16 +26,16 @@ public class BlockCancellationService {
     private final Clock clock;
     private final AuditService audit;
     private final ApplicationEventPublisher events;
-    private final BlockMapper mapper;
+    private final BlockViewService views;
 
     public BlockCancellationService(InstitutionalBlockRepository blocks, ReservationLock lock, Clock clock,
-            AuditService audit, ApplicationEventPublisher events, BlockMapper mapper) {
+            AuditService audit, ApplicationEventPublisher events, BlockViewService views) {
         this.blocks = blocks;
         this.lock = lock;
         this.clock = clock;
         this.audit = audit;
         this.events = events;
-        this.mapper = mapper;
+        this.views = views;
     }
 
     @Transactional
@@ -50,7 +49,7 @@ public class BlockCancellationService {
         lock.acquire();
         var block = blocks.findById(id).orElseThrow(() ->
                 new BusinessException(HttpStatus.NOT_FOUND, "BLOCK_NOT_FOUND", "El bloqueo no existe."));
-        if (block.getStatus() == BlockStatus.CANCELLED) return mapper.toAdminBlock(block);
+        if (block.getStatus() == BlockStatus.CANCELLED) return views.describe(block);
         var now = clock.instant();
         if (!now.isBefore(block.getEndAt())) {
             throw new BusinessException(HttpStatus.CONFLICT, "BLOCK_NOT_CANCELLABLE",
@@ -60,6 +59,6 @@ public class BlockCancellationService {
         block.cancel(now.truncatedTo(ChronoUnit.MICROS), administratorId, reason);
         audit.record("BLOCK_CANCELLED", "INSTITUTIONAL_BLOCK", id, administratorId, reason);
         events.publishEvent(new AvailabilityChangedEvent(block.getSpaceId()));
-        return mapper.toAdminBlock(block);
+        return views.describe(block);
     }
 }

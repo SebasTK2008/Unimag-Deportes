@@ -2,6 +2,7 @@ package unimagdeportes.repository.audit;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +10,19 @@ import org.springframework.data.repository.query.Param;
 import unimagdeportes.model.audit.AuditLog;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
+    interface CreationActor {
+        UUID getEntityId();
+        UUID getUserId();
+    }
+
+    @Query("""
+            select distinct a.entityId as entityId, a.userId as userId
+            from AuditLog a
+            where a.action = 'BLOCK_CREATED' and a.entityType = 'INSTITUTIONAL_BLOCK'
+              and a.entityId in :ids
+            """)
+    List<CreationActor> findBlockCreationActors(@Param("ids") Collection<UUID> ids);
+
     long countByActionAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(String action, Instant from, Instant to);
 
     @Query("select distinct a.entityId from AuditLog a where a.action = :action "

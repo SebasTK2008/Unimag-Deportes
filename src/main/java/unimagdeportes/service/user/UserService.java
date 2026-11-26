@@ -2,6 +2,9 @@ package unimagdeportes.service.user;
 
 import java.time.Clock;
 import java.util.Locale;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,19 @@ public class UserService {
     @Transactional(readOnly = true)
     public AppUser findById(UUID id) {
         return users.findById(id).orElseThrow();
+    }
+
+    /** Current display names only; absent users/names do not invalidate historical attribution. */
+    @Transactional(readOnly = true)
+    public Map<UUID, String> displayNames(Collection<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        Map<UUID, String> names = new HashMap<>();
+        for (var user : users.findAllById(ids)) {
+            if (user.getName() != null && !user.getName().isBlank()) {
+                names.put(user.getId(), user.getName().strip());
+            }
+        }
+        return Map.copyOf(names);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)

@@ -79,6 +79,9 @@ class BlockCancellationIntegrationTest extends ReservationTestSupport {
         assertThat(result.get("reason").asString()).isEqualTo("Clase original");
         assertThat(result.get("cancellationReason").asString()).isEqualTo("Clase cancelada");
         assertThat(result.get("cancelledBy").asString()).isEqualTo(userId(admin).toString());
+        assertThat(result.get("createdBy").asString()).isEqualTo(userId(admin).toString());
+        assertThat(result.get("createdByName").asString()).isEqualTo("Persona de prueba");
+        assertThat(result.get("cancelledByName").asString()).isEqualTo("Persona de prueba");
         assertThat(result.get("cancelledAt").asString()).endsWith("-05:00");
         assertThat(result.get("startAt").asString()).isEqualTo("2026-11-11T08:00:00-05:00");
         assertThat(result.get("endAt").asString()).isEqualTo("2026-11-11T09:00:00-05:00");

@@ -19,6 +19,8 @@
 
 Devuelve el mismo objeto de bloqueo que contiene `items` en [GET /admin/blocks](GET-admin-blocks.md), con `status: CANCELLED`, fecha del servidor en America/Bogota, UUID del administrador y motivo de cancelación.
 
+D-28 añade `createdBy`, `createdByName` y `cancelledByName` con las mismas reglas de procedencia/nulabilidad del listado. Incluye enriquecimiento tanto en la primera respuesta como al repetir; no sustituye IDs por nombres ni devuelve correos.
+
 - Admite filas futuras o en curso: `now < endAt`. En el límite exacto del fin ya no se admite una primera cancelación.
 - Conserva identidad, espacio, tipo, motivo original, inicio, fin y grupo recurrente. No borra ni edita esos datos.
 - Solo cancela esa fila. No cancela filas hermanas, horas restantes ni toda la recurrencia.
@@ -30,6 +32,8 @@ Devuelve el mismo objeto de bloqueo que contiene `items` en [GET /admin/blocks](
 Adquiere `ReservationLock` antes de leer; relee estado y hora, persiste la transición y registra `BLOCK_CANCELLED` sobre `INSTITUTIONAL_BLOCK`, con actor, fecha y motivo en `detail`, en la misma transacción. Publica invalidación SSE después del commit. Un rollback no deja transición, auditoría ni evento de éxito.
 
 Repetir con cuerpo válido devuelve `200` con la primera cancelación, incluso si la fila ya terminó o se presenta otro motivo/administrador. No sobrescribe actor, fecha o motivo ni añade auditoría de transición o evento SSE. La repetición sigue exigiendo autorización y reautenticación; un cuerpo inválido responde `400`.
+
+La idempotencia conserva los metadatos persistidos, no una copia inmutable del JSON: los nombres se resuelven del perfil actual en cada respuesta y pueden cambiar al editarse ese perfil (D-28).
 
 ## Errores
 

@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC07 comprende gestión de espacios y bloqueos [SPEC 007 RF-001..RF-015]. Al crear, las filas por franja cancelan reservas futuras sin cuota y se rechaza si afectan una en curso. La ampliación aprobada D-27 permite cancelación lógica individual con historial y auditoría, sin reactivar reservas. Su ejecución y verificación se registran en T030–T033.
+UC07 comprende gestión de espacios y bloqueos [SPEC 007 RF-001..RF-016]. Al crear, las filas por franja cancelan reservas futuras sin cuota y se rechaza si afectan una en curso. D-27 permite cancelación lógica individual con historial y auditoría (T030–T033). D-28 añade nombres actuales de creador/cancelador a la representación administrativa, sin migración ni UUID visibles en tarjetas (T034–T036).
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -19,6 +19,7 @@ UC07 comprende gestión de espacios y bloqueos [SPEC 007 RF-001..RF-015]. Al cre
 | RF-010 | motivo visible en el calendario (UC02) | T009 |
 | RF-011 | reautenticación en bloqueos | T018 |
 | RF-012..RF-015, HU3, CE-007..CE-008 | estado y consulta histórica; cancelación transaccional individual | T030–T033 |
+| RF-016, HU3, CE-009 | `BlockViewService`, `AuditService`, `UserService`, DTO/mapper | T034–T036 |
 | RNF-001..RNF-003 | zona horaria, WCAG, auditoría | T013, T020 |
 | CE-001..CE-006 | aceptación | T014, T021 |
 | HU1, HU2 | espacios y bloqueos | Fase 3 |
@@ -34,7 +35,7 @@ UC07 comprende gestión de espacios y bloqueos [SPEC 007 RF-001..RF-015]. Al cre
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: operaciones administrativas poco frecuentes; consultas de disponibilidad eficientes.
 **Constraints**: franjas de 60 min (RN-08); mantenimiento no reservable (RN-09); prioridad de bloqueos (RN-42); cancelación sin cuota (RN-43); reautenticación (D-21); America/Bogota (RNF-07).
-**Scale/Scope**: gestión existente más consulta/cancelación de bloqueos; 15 RF + 3 RNF + 8 CE + 3 HU. V1 base y V2 incremental para preservar bloqueos existentes.
+**Scale/Scope**: gestión existente más consulta/cancelación de bloqueos; 16 RF + 3 RNF + 9 CE + 3 HU. V1 base y V2 incremental; D-28 reutiliza auditoría/perfiles sin nueva migración.
 
 ## Project Structure
 
@@ -191,6 +192,20 @@ T030 precede T031–T032; T033 valida ambos. UC02/UC03/UC09 consumen la lectura 
 **Revisión y correcciones:** `@auditor` revisó código y documentación una vez; no confirmó defectos funcionales y señaló que la carrera inicial podía pasar secuencialmente. Se reforzó con la barrera observable anterior. La primera selección aprobó doce integraciones y se interrumpió por timeout; una primera suite completa detectó una verificación Mockito de sobrecarga incorrecta y un contexto de prueba adicional sin conexión. Se corrigieron solo las pruebas: verificación del evento concreto y observador transaccional temporal registrado/retirado en el contexto compartido, filtrando payloads ajenos. La selección posterior de 21 pruebas pasó; la ejecución completa final citada ya incluye todas esas correcciones.
 
 No se migraron bases de despliegue ni se probó React. El historial no reconstruye estados anteriores del panel; no se verificaron proveedores externos reales.
+
+### Ampliación aprobada: nombres de administradores (D-28)
+
+- [x] **T034** Ampliar DTO/MapStruct con `createdBy`, `createdByName` y `cancelledByName`; mantener campos existentes. Resolver creador con consulta de auditoría por lote y nombres con `UserService`; no consultar repositorios de otros módulos desde `block`.
+- [x] **T035** Compartir enriquecimiento en `BlockViewService` para página y cancelación/reintento. Sin auditoría inequívoca no atribuir creador; sin perfil/nombre devolver nombre nulo. Duplicados del mismo actor son válidos; actor nulo o contradictorio no lo es. No filtrar por rol actual ni cambiar datos persistidos.
+- [x] **T036** Probar contratos, nombres distintos/iguales, activos, datos ausentes/contradictorios, cambio de perfil/rol, idempotencia de metadatos y número acotado de consultas por página. Ejecutar regresión y revisión con `@auditor`.
+
+El nombre representa el perfil actual, no una instantánea histórica. React debe ocultar IDs visibles, conservarlos en peticiones y claves internas, y presentar «Creado por»/«Cancelado por», con «Administrador no disponible» si falta nombre. Frontend y validación visual pendientes en su repositorio.
+
+**Verificación D-28:** la selección de `BlockViewServiceTest`, `BlockCreatorsTest`, `UserDisplayNamesTest`, `BlockCancellationServiceTest`, `BlockActorNamesIntegrationTest`, `BlockCancellationIntegrationTest` y `BlockCancellationMigrationTest` terminó con `BUILD SUCCESS`: 33 pruebas sin fallos, errores u omisiones. Incluye comparación de consultas de páginas de 10 y 20 filas con actores distintos.
+
+**Regresión completa D-28, 2026-11-25:** `.\mvnw.cmd clean verify` terminó a las 19:29 (America/Bogota) con `BUILD SUCCESS`: **409 pruebas, cero fallos, errores u omisiones**. Generó `target/demo-0.0.1-SNAPSHOT.jar`. No se añadieron ni modificaron migraciones para esta ampliación; la aceptación visual de React sigue pendiente.
+
+**Revisión D-28:** `@auditor` revisó los cambios de código, contratos, documentación y pruebas sin hallazgos ni correcciones pendientes. No ejecutó pruebas ni verificó React; la regresión completa se registra por separado.
 
 `T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (el esquema es compartido; la integración de bloqueo con reservas espera UC03).
 

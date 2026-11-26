@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import unimagdeportes.dto.block.BlockDtos.BlockPage;
 import unimagdeportes.exception.BusinessException;
-import unimagdeportes.mapper.block.BlockMapper;
 import unimagdeportes.model.block.BlockStatus;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
 import unimagdeportes.service.space.SpaceService;
@@ -21,12 +20,12 @@ public class BlockQueryService {
     private static final int MAX_PAGE_SIZE = 100;
     private final InstitutionalBlockRepository blocks;
     private final SpaceService spaces;
-    private final BlockMapper mapper;
+    private final BlockViewService views;
 
-    public BlockQueryService(InstitutionalBlockRepository blocks, SpaceService spaces, BlockMapper mapper) {
+    public BlockQueryService(InstitutionalBlockRepository blocks, SpaceService spaces, BlockViewService views) {
         this.blocks = blocks;
         this.spaces = spaces;
-        this.mapper = mapper;
+        this.views = views;
     }
 
     public record Filter(UUID spaceId, Instant from, Instant to, BlockStatus status, int page, int size) { }
@@ -49,7 +48,7 @@ public class BlockQueryService {
         spaces.get(filter.spaceId());
         var page = blocks.findHistory(filter.spaceId(), filter.from(), filter.to(), filter.status(),
                 PageRequest.of(filter.page(), filter.size(), Sort.by("startAt", "id")));
-        return new BlockPage(page.getContent().stream().map(mapper::toAdminBlock).toList(),
+        return new BlockPage(views.describe(page.getContent()),
                 filter.page(), filter.size(), page.getTotalElements());
     }
 }
