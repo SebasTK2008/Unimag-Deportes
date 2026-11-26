@@ -46,7 +46,7 @@ Los tres metadatos de cancelación son `null` para `ACTIVE`. Los datos originale
 
 ## Nombres de administradores (D-28)
 
-Ampliación aprobada; estado de implementación y pruebas en el plan UC07:
+Ampliación implementada; evidencia de pruebas en el plan UC07:
 
 - `createdBy` (UUID nullable) se deriva de las auditorías `BLOCK_CREATED` de esa fila y entidad `INSTITUTIONAL_BLOCK`. Se acepta un único actor conocido; duplicados del mismo actor no cambian el resultado. Si falta auditoría, hay un actor nulo o actores contradictorios, `createdBy` y `createdByName` son `null`; no se inventa el creador.
 - `createdByName` y `cancelledByName` (string nullable) son nombres actuales de los perfiles, no instantáneas de la fecha de la acción. La identidad no se filtra por el rol actual: un antiguo ADMIN sigue siendo el autor. Usuario ausente o nombre vacío produce nombre `null`, conservando su ID conocido.

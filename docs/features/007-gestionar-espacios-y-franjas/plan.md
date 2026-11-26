@@ -197,11 +197,13 @@ No se migraron bases de despliegue ni se probó React. El historial no reconstru
 
 - [x] **T034** Ampliar DTO/MapStruct con `createdBy`, `createdByName` y `cancelledByName`; mantener campos existentes. Resolver creador con consulta de auditoría por lote y nombres con `UserService`; no consultar repositorios de otros módulos desde `block`.
 - [x] **T035** Compartir enriquecimiento en `BlockViewService` para página y cancelación/reintento. Sin auditoría inequívoca no atribuir creador; sin perfil/nombre devolver nombre nulo. Duplicados del mismo actor son válidos; actor nulo o contradictorio no lo es. No filtrar por rol actual ni cambiar datos persistidos.
-- [ ] **T036** Probar contratos, nombres distintos/iguales, activos, datos ausentes/contradictorios, cambio de perfil/rol, idempotencia de metadatos y número acotado de consultas por página. Ejecutar regresión y revisión con `@auditor`.
+- [x] **T036** Probar contratos, nombres distintos/iguales, activos, datos ausentes/contradictorios, cambio de perfil/rol, idempotencia de metadatos y número acotado de consultas por página. Ejecutar regresión y revisión con `@auditor`.
 
 El nombre representa el perfil actual, no una instantánea histórica. React debe ocultar IDs visibles, conservarlos en peticiones y claves internas, y presentar «Creado por»/«Cancelado por», con «Administrador no disponible» si falta nombre. Frontend y validación visual pendientes en su repositorio.
 
-**Verificación parcial D-28:** la selección de `BlockViewServiceTest`, `BlockCreatorsTest`, `UserDisplayNamesTest`, `BlockCancellationServiceTest`, `BlockActorNamesIntegrationTest`, `BlockCancellationIntegrationTest` y `BlockCancellationMigrationTest` terminó con `BUILD SUCCESS`: 33 pruebas sin fallos, errores u omisiones. Incluye comparación de consultas de páginas de 10 y 20 filas con actores distintos. La regresión completa y revisión documental se registran al cerrar T036.
+**Verificación D-28:** la selección de `BlockViewServiceTest`, `BlockCreatorsTest`, `UserDisplayNamesTest`, `BlockCancellationServiceTest`, `BlockActorNamesIntegrationTest`, `BlockCancellationIntegrationTest` y `BlockCancellationMigrationTest` terminó con `BUILD SUCCESS`: 33 pruebas sin fallos, errores u omisiones. Incluye comparación de consultas de páginas de 10 y 20 filas con actores distintos.
+
+**Regresión completa D-28, 2026-11-25:** `.\mvnw.cmd clean verify` terminó a las 19:29 (America/Bogota) con `BUILD SUCCESS`: **409 pruebas, cero fallos, errores u omisiones**. Generó `target/demo-0.0.1-SNAPSHOT.jar`. No se añadieron ni modificaron migraciones para esta ampliación; la aceptación visual de React sigue pendiente.
 
 **Revisión D-28:** `@auditor` revisó los cambios de código, contratos, documentación y pruebas sin hallazgos ni correcciones pendientes. No ejecutó pruebas ni verificó React; la regresión completa se registra por separado.
 
