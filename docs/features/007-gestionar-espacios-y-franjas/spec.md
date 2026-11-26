@@ -1,7 +1,7 @@
 # Especificación de Funcionalidad: UC07 - Gestionar espacios y franjas
 
 **Creado**: 2026-10-13  
-**Última revisión**: 2026-11-25 (cancelación lógica individual de bloqueos, D-27)
+**Última revisión**: 2026-11-25 (nombres actuales de creadores y canceladores, D-28)
 
 **Imágenes de espacios:** al crear un espacio se requieren una imagen de vista previa y una panorámica 360°. Cada una puede reemplazarse, pero no eliminarse. El almacenamiento y los contratos se describen en [plan.md](plan.md#ampliación-pendiente-imágenes-de-espacios).
 
@@ -79,6 +79,8 @@ Como Administrador, quiero cancelar una franja institucional que ya no se necesi
 5. Cancelar una fila no afecta sus hermanas ni la recurrencia. Una creación de varias horas requiere tratar cada fila individualmente.
 6. Repetir con cuerpo válido conserva primera fecha, actor y motivo, incluso con otro motivo o después del fin; no duplica auditoría ni SSE. Una primera cancelación al llegar a `endAt` se rechaza.
 7. Transición y auditoría son atómicas bajo `ReservationLock`; no se publica éxito tras rollback. El listado paginado conserva cancelados; las lecturas operativas los excluyen.
+8. El listado y la respuesta de cancelación incluyen el creador identificado por `BLOCK_CREATED` y los nombres actuales de creador/cancelador. En la tarjeta se muestran «Creado por» y «Cancelado por», sin UUID visibles; los IDs se conservan para uso interno.
+9. Auditoría ausente, con actor nulo o contradictoria no atribuye creador. Usuario ausente o nombre vacío da nombre `null`; el cliente muestra «Administrador no disponible». En activos no muestra cancelador. El cambio de rol no borra autoría; el cambio de perfil actualiza el nombre mostrado, sin cambiar auditorías ni primera cancelación.
 
 ### Casos Extremos (Edge Cases)
 
@@ -133,6 +135,7 @@ Como Administrador, quiero cancelar una franja institucional que ya no se necesi
 - **RF-013**: El sistema DEBE ofrecer consulta administrativa paginada por espacio, rango y estado, incluido el historial de cancelados, sin reautenticación de lectura.
 - **RF-014**: El sistema NO DEBE reactivar ni modificar reservas, cuotas o implementos al cancelar un bloqueo. Solo los no cancelados imponen indisponibilidad.
 - **RF-015**: El sistema DEBE cancelar y auditar atómicamente; los reintentos válidos conservan la primera cancelación sin otra transición ni SSE. No se envían correos de levantamiento.
+- **RF-016**: La API administrativa DEBE añadir `createdBy`, `createdByName` y `cancelledByName` al listado y cancelación, sin eliminar IDs existentes ni exponer correos; resolver por lotes sin N+1, desde auditoría de creación y perfiles actuales, sin migración ni invención de autoría (D-28). Los nombres pueden cambiar entre reintentos; actor, fecha y motivo persistidos no.
 
 ### Requisitos No Funcionales
 
@@ -159,3 +162,4 @@ Como Administrador, quiero cancelar una franja institucional que ya no se necesi
 - **CE-006**: Seguridad, "0 bloqueos institucionales creados o cancelados sin reautenticación reciente del Administrador".
 - **CE-007**: Historial, "100% de las cancelaciones conservan datos originales y una auditoría de transición con actor, fecha y motivo".
 - **CE-008**: No reactivación, "0 reservas previas modificadas al cancelar un bloqueo; 0 auditorías de transición duplicadas por reintentos".
+- **CE-009**: Autoría legible, "100% de los nombres disponibles provienen del perfil del actor correcto; 0 UUID como sustituto visible de nombres en tarjetas". La aceptación visual requiere React; el backend verifica campos, nulabilidad y consultas por lotes.
