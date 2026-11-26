@@ -3,6 +3,10 @@ package unimagdeportes.service.audit;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +31,24 @@ public class AuditService {
     @Transactional
     public void record(String action, String entityType, UUID entityId, UUID userId, String detail) {
         logs.save(new AuditLog(UUID.randomUUID(), action, entityType, entityId, userId, clock.instant(), detail));
+    }
+
+    /** Only unambiguous creation actors are attributed; missing/contradictory audits remain unknown. */
+    @Transactional(readOnly = true)
+    public Map<UUID, UUID> blockCreators(Collection<UUID> blockIds) {
+        if (blockIds.isEmpty()) return Map.of();
+        Map<UUID, UUID> creators = new HashMap<>();
+        var ambiguous = new HashSet<UUID>();
+        for (var actor : logs.findBlockCreationActors(blockIds)) {
+            if (actor.getUserId() == null) {
+                ambiguous.add(actor.getEntityId());
+                continue;
+            }
+            UUID previous = creators.putIfAbsent(actor.getEntityId(), actor.getUserId());
+            if (previous != null && !previous.equals(actor.getUserId())) ambiguous.add(actor.getEntityId());
+        }
+        ambiguous.forEach(creators::remove);
+        return Map.copyOf(creators);
     }
 
     @Transactional

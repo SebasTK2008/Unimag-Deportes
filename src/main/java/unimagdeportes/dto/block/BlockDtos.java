@@ -24,7 +24,8 @@ public final class BlockDtos {
 
     public record AdminBlock(UUID id, UUID spaceId, BlockType type, String reason, OffsetDateTime startAt,
             OffsetDateTime endAt, UUID recurrenceGroup, BlockStatus status, OffsetDateTime cancelledAt,
-            UUID cancelledBy, String cancellationReason) { }
+            UUID cancelledBy, String cancellationReason, UUID createdBy, String createdByName,
+            String cancelledByName) { }
 
     public record BlockPage(List<AdminBlock> items, int page, int size, long totalElements) {
         public BlockPage { items = List.copyOf(items); }
