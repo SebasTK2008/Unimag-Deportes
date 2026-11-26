@@ -174,6 +174,14 @@ Las pruebas automáticas continúan usando Mailpit y credenciales ficticias. La 
 
 ### Preparación funcional para el cliente
 
+**Cancelación de bloqueos implementada (D-27):** cualquier ADMIN reautenticado puede cancelar una fila futura o en curso con motivo, historial y auditoría, sin reactivar reservas ni modificar cuota/implementos. No levanta mantenimiento ni otros bloqueos. El [listado administrativo](docs/techincal-plan/contracts/blocks/GET-admin-blocks.md) obtiene IDs e historial; la [cancelación individual](docs/techincal-plan/contracts/blocks/POST-admin-blocks-id-cancellation.md) es idempotente y no envía correos de levantamiento. React debe integrar confirmación, reautenticación e invalidación REST/SSE; esa integración no se realizó en este repositorio.
+
+**Nombres de administradores implementados (D-28):** el listado y cancelación incluyen nombres actuales de creador/cancelador (`createdBy`, `createdByName`, `cancelledByName`), conservando IDs internos. El creador se resuelve desde auditoría y ambos nombres desde perfiles, sin nueva migración ni cambios en espacios/reservas. Autoría ausente o contradictoria no se inventa. React debe mostrar nombres en lugar de UUID, con «Administrador no disponible» si falta nombre; la integración visual está pendiente.
+
+La regresión completa posterior a D-28, del 25 de noviembre de 2026, terminó con `.\mvnw.cmd clean verify`: **409 pruebas, cero fallos, errores u omisiones**, `BUILD SUCCESS` y JAR generado. `@auditor` revisó código/documentación sin hallazgos; el plan UC07 conserva la evidencia detallada. La ejecución de 394 pruebas siguiente es el antecedente previo a los nombres.
+
+La verificación final del 25 de noviembre de 2026 ejecutó `.\mvnw.cmd clean verify` con **394 pruebas, cero fallos, errores u omisiones**, `BUILD SUCCESS` y JAR generado. Incluye cancelación, historial, permisos, reintentos, no reactivación, SSE, una carrera con espera observada en PostgreSQL y migración V1→V2 con datos conservados. La observación de `@auditor` sobre la prueba de carrera fue corregida antes de esa ejecución. Véase la evidencia y los antecedentes en el [plan UC07](docs/features/007-gestionar-espacios-y-franjas/plan.md#ampliación-aprobada-2026-11-25-cancelar-bloqueos).
+
 La [guía de conexión del backend](docs/techincal-plan/backend-connection.md) contiene comprobaciones HTTP sin frontend y requisitos para desplegar. Sus instrucciones de selección SMTP anteriores al cambio de defaults deben contrastarse con las secciones de arranque de este README: Mailpit ya no se inicia ni se selecciona automáticamente. Preparar la API no implica haber integrado el repositorio React.
 
 El calendario y la creación usan la misma política temporal, incluida la anticipación mínima. ADMIN conserva consultas, cuota, contacto y operaciones sobre reservas propias; solo USER crea reservas. Los contratos están en `docs/techincal-plan/contracts/`.
@@ -192,13 +200,13 @@ Para una prueba local con el cliente en `http://localhost:5173`, configure expl�
 
 En producción se requiere HTTPS y HSTS en el punto de entrada. Por defecto no se confía en encabezados reenviados: el límite por IP usa la dirección remota de la conexión. Si existe un proxy, configure explícitamente su confianza y evite que la API sea accesible directamente; no habilite la confianza indiscriminada en `X-Forwarded-For`. No active logs de cuerpos HTTP, credenciales SMTP o tokens.
 
-La migración única `src/main/resources/db/migration/V1__shared_schema.sql` es editable durante el desarrollo. Cambiarla después de aplicarla provoca un conflicto de checksum en Flyway: coordine la recreación de las bases locales o de prueba, sin borrar datos que deban conservarse. Las bases con una V1 anterior no se actualizan automáticamente; si contienen datos necesarios, prepare su conservación y una estrategia de migración antes de intervenir. No repare únicamente el checksum para ocultar diferencias de estructura.
+Para esta ampliación se conserva `V1__shared_schema.sql` y se añade `V2__institutional_block_cancellation.sql`: Flyway conserva filas y añade estado `ACTIVE` y metadatos nulos a bloqueos existentes. Una instalación nueva aplica ambas migraciones. Una base con la V1 actual aplica V2 sin recreación; una V1 histórica distinta sigue necesitando respaldo y reconciliación previa. No borrar datos ni reparar solo el checksum para ocultar diferencias. Las notas fechadas de cambios anteriores que reescribieron V1 son históricas; no describen la estrategia de esta ampliación.
 
 ### Versionado de reglas (UC06)
 
 El diseño D-26 conserva versiones inmutables de cuota y umbral en `usage_parameters`; `usage_parameters_head` contiene únicamente la referencia vigente. Cada cambio efectivo crea una instantánea con número, UUID, fecha y administrador, y una auditoría `PARAMETERS_UPDATED` vinculada a esa versión. Las solicitudes sin cambios no crean otra versión. Los tres contratos REST de UC06 mantienen su forma; el historial se consulta en base de datos, sin endpoint adicional.
 
-Esta extensión reescribe la V1 existente: no hay V2 ni actualización automática de bases creadas con el esquema anterior. La instalación nueva inicia en versión 1 con cuota 4, umbral 3 y autor nulo. La fecha inicial indica cuándo se instaló el esquema. Antes de recrear una base anterior, respalde y coordine la conservación de los datos necesarios; no basta con reparar el checksum, porque también cambia la estructura.
+**Antecedente anterior a D-27:** la extensión de parámetros reescribió V1, sin migración incremental para aquellas bases anteriores. La instalación inicia los parámetros en versión 1 con cuota 4, umbral 3 y autor nulo; la fecha inicial indica la instalación, no un cambio histórico recuperado. D-27 añade V2 para cancelación de bloqueos sin reescribir la V1 actual. Una V1 histórica distinta requiere respaldo y reconciliación, no solo reparar checksum.
 
 ### Imágenes de espacios: Supabase Storage (UC07)
 
@@ -214,7 +222,7 @@ La limpieza usa un scheduler dedicado, separado de los tres hilos de los jobs de
 
 Sin configuración de Storage, el resto del backend puede iniciar; las operaciones que lo necesitan responden `503 STORAGE_NOT_CONFIGURED`. Los errores remotos, permisos incorrectos o archivos remotos ausentes responden `503 STORAGE_UNAVAILABLE`, sin exponer la respuesta del proveedor. Un corte después de empezar a transmitir puede truncar la descarga: ya no es posible reemplazarla por un error JSON. Si el alojamiento suspende el backend, también se aplaza la limpieza. Las descargas consumen transferencia tanto de Supabase como del backend; los planes gratuitos no son ilimitados.
 
-Este cambio también reescribe la V1 editable y añade la cola de limpieza: una base creada anteriormente no se actualiza automáticamente. El responsable confirmó que no hay imágenes ni datos que migrar; no se incluye una migración de binarios ni se recrean bases automáticamente. Mantener estables el proyecto y bucket mientras haya referencias o compensaciones pendientes.
+**Antecedente anterior a D-27:** el cambio de Storage reescribió V1 y añadió la cola de limpieza, sin actualización automática de bases anteriores. El responsable confirmó entonces que no había imágenes ni datos que migrar; no se incluyó migración de binarios ni recreación automática. La V2 posterior de cancelación de bloqueos no cambia Storage ni reconcilia aquellas V1 antiguas. Mantener estables el proyecto y bucket mientras haya referencias o compensaciones pendientes.
 
 Las pruebas del cliente Storage usan un servidor HTTP local y las pruebas de integración usan un doble de almacenamiento con PostgreSQL de Testcontainers; no utilizan credenciales ni archivos reales de Supabase. La aceptación contra el bucket real queda pendiente de configurar la clave en el servidor.
 

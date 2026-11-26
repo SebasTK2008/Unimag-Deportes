@@ -51,5 +51,5 @@ Sin cuerpo. El código se envía al correo institucional del Administrador auten
 
 ## Notas
 
-- La reautenticación es necesaria para acciones sensibles: `POST /admin/blocks` y `PUT /admin/parameters` (D-21).
+- La reautenticación es necesaria para acciones sensibles: `POST /admin/blocks`, `POST /admin/blocks/{id}/cancellation` y `PUT /admin/parameters` (D-21, D-27). `GET /admin/blocks` no la exige.
 - El código sigue las mismas reglas que el de inicio de sesión (6 dígitos fijos, 15 minutos y 5 intentos por defecto, configurables por despliegue).

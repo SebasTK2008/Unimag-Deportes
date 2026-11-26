@@ -38,7 +38,7 @@ Este plan crea además la infraestructura compartida (estructura, Flyway, correo
 **Project Type**: backend monolítico en n capas [D-02]; cliente React en otro repositorio [D-25].
 **Performance Goals**: login sin fricción en el celular (RNF-01); una sola consulta a `app_user` por petición [D-19].
 **Constraints**: código de 6 dígitos como HMAC, un uso, 15 min y 5 intentos por defecto, configurables por despliegue; límites de reenvío (RN-51..RN-53); JWT de 24 h sin cookies ni renovación (RN-54..RN-56); estado vigente (RN-58); datos mínimos (RNF-09); auditoría sin secretos (RNF-08); America/Bogota (RNF-07); CSP y escape (RNF-10).
-**Scale/Scope**: 7 endpoints, 4 entidades base, esquema en la migración única compartida, 17 RF + 5 RNF + 7 CE + 1 HU [SPEC 001].
+**Scale/Scope**: 7 endpoints, 4 entidades base, esquema de autenticación en la migración base V1 compartida, 17 RF + 5 RNF + 7 CE + 1 HU [SPEC 001]. D-27 añade V2 para bloqueos sin cambiar las tablas de autenticación.
 
 ## Project Structure
 
@@ -102,7 +102,7 @@ Fuente: [`contracts/auth/`](../../techincal-plan/contracts/README.md) (7 archivo
 - [x] **T001** Verificar la estructura de paquetes y agregar MapStruct 1.6.3 al `pom.xml`, incluidos sus procesadores junto con Lombok; comprobar compatibilidad con Java 25 y ajustar si falla.
 - [x] **T002** Configurar `application.yaml` (datasource mediante Compose o variables estándar de Spring Boot, correo, `America/Bogota`, `app.auth.*`, `app.cors.allowed-origins`).
 - [x] **T003** Configurar `compose.yaml` con PostgreSQL y Mailpit.
-- [x] **T004** Configurar Flyway y la extensión en la migración única compartida.
+- [x] **T004** Configurar Flyway y la extensión en la migración base V1 compartida.
 
 ### Phase 2: Foundational
 
@@ -110,7 +110,7 @@ Fuente: [`contracts/auth/`](../../techincal-plan/contracts/README.md) (7 archivo
 - [x] **T006** Crear `LoginCode` y su repositorio.
 - [x] **T007** Crear `AuditLog`, su repositorio y `AuditService`.
 - [x] **T008** Crear `UsageParameters` y su repositorio (base de UC06).
-- [x] **T009** Incorporar las tablas base en la migración única compartida.
+- [x] **T009** Incorporar las tablas base en V1 compartida.
 - [x] **T010** Implementar `MailSender` y `SmtpMailSender`.
 - [x] **T011** Configurar `Clock` y crear `BusinessException` + `GlobalExceptionHandler`.
 - [x] **T012** Configurar los mappers MapStruct base.

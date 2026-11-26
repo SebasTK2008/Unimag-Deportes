@@ -99,7 +99,7 @@ Fuente: [`contracts/reports/`](../../techincal-plan/contracts/README.md) (2 arch
 
 - [x] **T002** Crear los DTO de `dto/report/`.
 - [x] **T003** Crear `ReportMapper`.
-- [x] **T004** Agregar consultas de ocupación, bloqueos y agregados a los repositorios.
+- [x] **T004** Agregar consultas de ocupación, bloqueos y agregados a los repositorios. D-27 requiere que `BlockService.overlapping` excluya cancelados; la lectura histórica es independiente y no alimenta `OccupancyService`. Verificar precedencia de otros impedimentos sin nuevos indicadores.
 
 ### Phase 3: User Stories
 

@@ -7,7 +7,7 @@
 
 UC02 es la consulta **REST + SSE, de solo lectura** del calendario de disponibilidad por espacio y disciplina: franjas libres, ocupadas y bloqueadas, con actualización en tiempo real [SPEC 002 RF-001..RF-008]. Se resuelve con datos de UC07 (espacios y bloqueos) y UC03 (reservas); el calendario muestra siete fechas, desde hoy hasta hoy + 6 inclusive en America/Bogota, y exige sesión [OQ-09, OQ-14]. El endpoint conserva una fecha por petición.
 
-Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calendario por REST [PLAN D-11]. UC02 no crea tablas ni muta datos.
+Los cambios de disponibilidad se notifican por SSE y el cliente recarga el calendario por REST [PLAN D-11]. UC02 no crea tablas ni muta datos. D-27 añade la cancelación de bloqueos como productor post-commit; `BlockService.overlapping` excluye `CANCELLED`, mientras la consulta histórica administrativa los conserva. Probar otros impedimentos y rollback; el calendario público no necesita `blockId`.
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -112,7 +112,7 @@ Hay pruebas unitarias, de controlador e integración con PostgreSQL, incluido un
 - [ ] **T008** [US1/P1] Validar sesión y las 7 fechas hoy…hoy + 6; probar ambos extremos y rechazar ayer y hoy + 7.
 - [ ] **T009** [US1/P1] Implementar `AvailabilityController` con los 3 endpoints.
 - [ ] **T010** [US1/P1] Implementar el emisor SSE.
-- [ ] **T011** [US1/P1] Publicar eventos desde reserva, cancelación, bloqueo y cambio de espacio.
+- [ ] **T011** [US1/P1] Publicar eventos desde reserva, cancelación de reserva, creación/cancelación de bloqueo y cambio de espacio.
 - [ ] **T012** [US1/P1] Pruebas de contrato.
 - [ ] **T013** [US1/P1] Pruebas de integración.
 

@@ -5,7 +5,7 @@
 
 ## Summary
 
-UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Los bloqueos se materializan en una fila por franja y cancelan reservas futuras sin descontar cuota; si afectan una reserva en curso se rechaza toda la operación.
+UC07 comprende gestión de espacios y bloqueos [SPEC 007 RF-001..RF-016]. Al crear, las filas por franja cancelan reservas futuras sin cuota y se rechaza si afectan una en curso. D-27 permite cancelación lógica individual con historial y auditoría (T030–T033). D-28 añade nombres actuales de creador/cancelador a la representación administrativa, sin migración ni UUID visibles en tarjetas (T034–T036).
 
 ### Trazabilidad RF/RNF/CE/HU → componente / tarea
 
@@ -18,6 +18,8 @@ UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Lo
 | RF-008, RF-009 | cancelación de reservas afectadas | T009 |
 | RF-010 | motivo visible en el calendario (UC02) | T009 |
 | RF-011 | reautenticación en bloqueos | T018 |
+| RF-012..RF-015, HU3, CE-007..CE-008 | estado y consulta histórica; cancelación transaccional individual | T030–T033 |
+| RF-016, HU3, CE-009 | `BlockViewService`, `AuditService`, `UserService`, DTO/mapper | T034–T036 |
 | RNF-001..RNF-003 | zona horaria, WCAG, auditoría | T013, T020 |
 | CE-001..CE-006 | aceptación | T014, T021 |
 | HU1, HU2 | espacios y bloqueos | Fase 3 |
@@ -33,7 +35,7 @@ UC07 implementa la gestión de espacios y bloqueos [SPEC 007 RF-001..RF-011]. Lo
 **Project Type**: backend monolítico en n capas [D-02].
 **Performance Goals**: operaciones administrativas poco frecuentes; consultas de disponibilidad eficientes.
 **Constraints**: franjas de 60 min (RN-08); mantenimiento no reservable (RN-09); prioridad de bloqueos (RN-42); cancelación sin cuota (RN-43); reautenticación (D-21); America/Bogota (RNF-07).
-**Scale/Scope**: 4 endpoints originales más 2 de imágenes, esquema en la migración única compartida, 11 RF + 3 RNF + 6 CE + 2 HU.
+**Scale/Scope**: gestión existente más consulta/cancelación de bloqueos; 16 RF + 3 RNF + 9 CE + 3 HU. V1 base y V2 incremental; D-28 reutiliza auditoría/perfiles sin nueva migración.
 
 ## Project Structure
 
@@ -44,7 +46,7 @@ docs/features/007-gestionar-espacios-y-franjas/
 ├── plan.md
 └── spec.md
 docs/techincal-plan/contracts/spaces/   # 5 contratos, incluidos los de imágenes
-docs/techincal-plan/contracts/blocks/   # 1 contrato
+docs/techincal-plan/contracts/blocks/   # 3 contratos
 ```
 
 ### Source Code
@@ -57,12 +59,15 @@ src/main/java/unimagdeportes/
 ├── service/space/SpaceImageValidator.java
 ├── storage/{ImageStorage,SupabaseImageStorage,StorageObjectCleanup}.java
 ├── service/block/BlockService.java
+├── service/block/{BlockQueryService,BlockCancellationService}.java
+├── model/block/BlockStatus.java
 ├── repository/{SpaceRepository,InstitutionalBlockRepository}.java
 ├── model/{Space,SpaceImage,InstitutionalBlock,SpaceStatus,BlockType}.java
 ├── dto/{space,block}/ · mapper/{space,block}/
 
 src/main/resources/db/migration/
-└── V1__shared_schema.sql
+├── V1__shared_schema.sql
+└── V2__institutional_block_cancellation.sql
 
 src/test/java/unimagdeportes/{contract/{spaces,blocks},integration/{spaces,blocks},unit/blocks}/
 ```
@@ -80,6 +85,7 @@ src/test/java/unimagdeportes/{contract/{spaces,blocks},integration/{spaces,block
 7. **Cancelación** [RN-43]: se rechaza toda la operación si afecta una reserva en curso; las reservas futuras afectadas pasan a `CANCELLED_BY_ADMIN` sin descontar cuota y se avisa. Las reservas afectadas deben seguir siendo futuras en la validación inmediatamente anterior al commit; si alguna comenzó, la transacción se revierte íntegramente.
 8. **Recurrencia** [OQ-06]: materializada por franja con `recurrence_group`; no se edita por grupo.
 9. **Desactivar** [OQ-12]: equivale a `MAINTENANCE`; no cancela reservas existentes (OQ-05).
+10. **Cancelar bloqueo** [D-27, HU3]: cualquier ADMIN reautenticado cancela una fila con `now < endAt`; motivo separado obligatorio. Historial paginado; solo `ACTIVE` afecta calendario, reservas y ocupación. No se revierte cuota/stock ni reservas; no se cancela la serie ni se envían correos. Idempotencia preserva la primera transición.
 
 ## Contrato REST
 
@@ -91,6 +97,7 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 - Integración: creación/edición/mantenimiento, recurrencia, cascada y reautenticación en T014/T021.
 - Unitario: materialización de recurrencia en T022.
 - Aceptación: CE-001..CE-006 [SPEC 007].
+- HU3/CE-007..CE-008: contratos de listado/cancelación, límites temporales, motivo, permisos, idempotencia, solapamientos, no reactivación, concurrencia y rollback con SSE después del commit.
 
 ## Implementation Phases
 
@@ -103,7 +110,7 @@ Fuente: [`contracts/spaces/`](../../techincal-plan/contracts/README.md) y [`cont
 - [x] **T002** Crear `Space` y `SpaceStatus`.
 - [x] **T003** Modelar las disciplinas como colección JPA de `Space` (representación acordada en lugar de una entidad `SpaceDiscipline` independiente).
 - [x] **T004** Crear `InstitutionalBlock` y `BlockType`.
-- [x] **T005** Verificar espacios, disciplinas y bloqueos en la migración única.
+- [x] **T005** Verificar espacios, disciplinas y bloqueos en la migración base V1.
 - [x] **T006** Crear los repositorios de espacio y bloqueo; las disciplinas se gestionan mediante la colección JPA de `Space`.
 - [ ] **T007** Implementar `SpaceService`.
 - [x] **T008** Implementar `BlockService` con materialización de recurrencia.
@@ -171,6 +178,35 @@ T026 precede a T027; T027–T028 preceden a T029. La integración con las vistas
 
 ## Dependencies & Execution Order
 
+### Ampliación aprobada 2026-11-25: cancelar bloqueos
+
+- [x] **T030** Añadir estado/metadatos, restricciones e índices en V2; preservar filas y V1 aplicada.
+- [x] **T031** Implementar `GET /admin/blocks` en `BlockController`, DTO y `BlockQueryService`, con repositorio paginado y orden estable.
+- [x] **T032** Implementar `BlockCancellationService`, reautenticación, auditoría y SSE; filtrar no cancelados en `BlockService.overlapping`.
+- [x] **T033** Probar contratos, migración, carrera cancelación/reserva, reintentos, no reactivación y rollback; ejecutar suite y revisión documental.
+
+T030 precede T031–T032; T033 valida ambos. UC02/UC03/UC09 consumen la lectura operativa; HU3 no añade compensaciones a UC08/UC13. El frontend debe listar IDs, pedir motivo y confirmación, resolver reautenticación, mostrar historial y refrescar REST/SSE sin prometer una franja libre.
+
+**Evidencia final 2026-11-25:** `.\mvnw.cmd clean verify` terminó a las 15:13 (America/Bogota) con `BUILD SUCCESS`: **394 pruebas, cero fallos, errores u omisiones**; generó `target/demo-0.0.1-SNAPSHOT.jar`. Incluye seis pruebas unitarias de cancelación, once de integración HTTP/PostgreSQL/SSE y una de migración V1→V2 que conserva bloques, reservas y auditoría existentes. La carrera consulta `pg_locks` y `pg_blocking_pids` para acreditar que la reserva espera el bloqueo asesor de la transacción de cancelación antes de permitir su commit.
+
+**Revisión y correcciones:** `@auditor` revisó código y documentación una vez; no confirmó defectos funcionales y señaló que la carrera inicial podía pasar secuencialmente. Se reforzó con la barrera observable anterior. La primera selección aprobó doce integraciones y se interrumpió por timeout; una primera suite completa detectó una verificación Mockito de sobrecarga incorrecta y un contexto de prueba adicional sin conexión. Se corrigieron solo las pruebas: verificación del evento concreto y observador transaccional temporal registrado/retirado en el contexto compartido, filtrando payloads ajenos. La selección posterior de 21 pruebas pasó; la ejecución completa final citada ya incluye todas esas correcciones.
+
+No se migraron bases de despliegue ni se probó React. El historial no reconstruye estados anteriores del panel; no se verificaron proveedores externos reales.
+
+### Ampliación aprobada: nombres de administradores (D-28)
+
+- [x] **T034** Ampliar DTO/MapStruct con `createdBy`, `createdByName` y `cancelledByName`; mantener campos existentes. Resolver creador con consulta de auditoría por lote y nombres con `UserService`; no consultar repositorios de otros módulos desde `block`.
+- [x] **T035** Compartir enriquecimiento en `BlockViewService` para página y cancelación/reintento. Sin auditoría inequívoca no atribuir creador; sin perfil/nombre devolver nombre nulo. Duplicados del mismo actor son válidos; actor nulo o contradictorio no lo es. No filtrar por rol actual ni cambiar datos persistidos.
+- [x] **T036** Probar contratos, nombres distintos/iguales, activos, datos ausentes/contradictorios, cambio de perfil/rol, idempotencia de metadatos y número acotado de consultas por página. Ejecutar regresión y revisión con `@auditor`.
+
+El nombre representa el perfil actual, no una instantánea histórica. React debe ocultar IDs visibles, conservarlos en peticiones y claves internas, y presentar «Creado por»/«Cancelado por», con «Administrador no disponible» si falta nombre. Frontend y validación visual pendientes en su repositorio.
+
+**Verificación D-28:** la selección de `BlockViewServiceTest`, `BlockCreatorsTest`, `UserDisplayNamesTest`, `BlockCancellationServiceTest`, `BlockActorNamesIntegrationTest`, `BlockCancellationIntegrationTest` y `BlockCancellationMigrationTest` terminó con `BUILD SUCCESS`: 33 pruebas sin fallos, errores u omisiones. Incluye comparación de consultas de páginas de 10 y 20 filas con actores distintos.
+
+**Regresión completa D-28, 2026-11-25:** `.\mvnw.cmd clean verify` terminó a las 19:29 (America/Bogota) con `BUILD SUCCESS`: **409 pruebas, cero fallos, errores u omisiones**. Generó `target/demo-0.0.1-SNAPSHOT.jar`. No se añadieron ni modificaron migraciones para esta ampliación; la aceptación visual de React sigue pendiente.
+
+**Revisión D-28:** `@auditor` revisó los cambios de código, contratos, documentación y pruebas sin hallazgos ni correcciones pendientes. No ejecutó pruebas ni verificó React; la regresión completa se registra por separado.
+
 `T001 → T002/T003/T005/T006/T007 → T010..T014 → UC03 → T004/T008/T009/T015..T022 → T023..T025` (el esquema es compartido; la integración de bloqueo con reservas espera UC03).
 
 UC07-US1 depende de UC01; US2 requiere además UC03. UC02 consume espacios y bloqueos.
@@ -178,7 +214,7 @@ UC07-US1 depende de UC01; US2 requiere además UC03. UC02 consume espacios y blo
 ## Notes
 
 - `[US1]` y `[US2]` pueden implementarse por separado (US2 requiere US1).
-- Los bloqueos son inmutables en el prototipo; crear otro no retira el anterior (OQ-06).
+- Los datos originales de bloqueos son inmutables; D-27 sustituye la prohibición de cancelación de OQ-06 por cancelación lógica individual. Crear otro no retira el anterior.
 - El QR del espacio se implementa en UC05.
 
 ## Checklist de auto-revisión
@@ -187,3 +223,4 @@ UC07-US1 depende de UC01; US2 requiere además UC03. UC02 consume espacios y blo
 - [ ] RF/RNF/CE/HU trazados.
 - [ ] Cascada de cancelación sin cuota y con aviso.
 - [x] Reautenticación en bloqueos.
+- [x] HU3: historial, auditoría atómica, reintentos y ausencia de reactivación verificados.

@@ -43,7 +43,7 @@ Cada SPEC agrupa los casos de uso del diagrama que comparten actor, datos y regl
 | UC04 Gestionar mis reservas | H1 Consultar · H2 Cancelar | Usuario | REST |
 | UC05 Confirmar asistencia (QR) | H1 Check-in · H2 Generar e imprimir QR | Usuario · Administrador | REST (enlace del QR) |
 | UC06 Reglas de uso | H1 Consultar · H2 Configurar | Usuario · Administrador | REST |
-| UC07 Gestionar espacios y franjas | H1 Espacios y horario · H2 Bloquear franjas | Administrador | REST |
+| UC07 Gestionar espacios y franjas | H1 Espacios y horario · H2 Bloquear franjas · H3 Consultar historial y cancelar bloqueo | Administrador | REST |
 | UC08 Consultar cuota semanal | H1 Ver cuota · H2 Reinicio semanal | Usuario · Sistema | REST (H1); derivado (H2, ver D-06) |
 | UC09 Consultar panel de administración | H1 Ocupación · H2 Indicadores | Administrador | REST |
 | UC10 Aplicar sanciones | H1 Inasistencia · H2 Suspensión | Sistema | Scheduler |
@@ -51,7 +51,7 @@ Cada SPEC agrupa los casos de uso del diagrama que comparten actor, datos y regl
 | UC12 Contactar administrador | H1 Enviar mensaje | Usuario | REST |
 | UC13 Solicitar implementos extras | H1 Solicitar implementos al reservar · H2 Gestionar el catálogo | Usuario; Administrador | REST |
 
-**Relaciones del diagrama UML respetadas** (diagrama de casos de uso del proyecto, no incluido en el repositorio): `include`: UC03→UC02 y UC03→UC11-H1 (comprobante). Los 11 casos del diagrama quedan cubiertos: Iniciar sesión (UC01), Consultar disponibilidad (UC02), Reservar espacio (UC03), Consultar mis reservas y Cancelar reserva (UC04), Confirmar asistencia (UC05-H1), Consultar y Configurar reglas (UC06), Gestionar espacios y Bloquear franjas (UC07), Enviar comprobante (UC11-H1). Provienen del contexto y aún no están en el diagrama: UC05-H2, UC08, UC09, UC10, UC11-H2, UC11-H3, UC12 y UC13 (H1 y H2).
+**Relaciones del diagrama UML respetadas** (fuente y PNG en `docs/uc-diagrams/`): `include`: UC03→UC02 y UC03→UC11-H1 (comprobante). Los 11 casos del diagrama quedan cubiertos: Iniciar sesión (UC01), Consultar disponibilidad (UC02), Reservar espacio (UC03), Consultar mis reservas y Cancelar reserva (UC04), Confirmar asistencia (UC05-H1), Consultar y Configurar reglas (UC06), Gestionar espacios y Bloquear franjas (UC07), Enviar comprobante (UC11-H1). La cancelación lógica UC07-H3 amplía la gestión de franjas, sin introducir nuevas relaciones UML. Provienen del contexto y aún no están en el diagrama: UC05-H2, UC08, UC09, UC10, UC11-H2, UC11-H3, UC12 y UC13 (H1 y H2).
 
 ---
 
@@ -119,7 +119,7 @@ Dentro de cada capa los archivos se agrupan por **módulo de negocio** (`auth`, 
 | `Reservation` (estado, horario, check-in) | UC03 la crea; UC04 la lista (H1) y la cancela (H2); UC05-H1 registra el check-in; UC07-H2 la cancela por bloqueo; UC10 la marca inasistencia o completada; UC08, UC09 y UC02 la leen |
 | `UsageParameters` | UC06-H2 la escribe; UC01, UC03, UC04, UC05, UC06-H1, UC08, UC10 y UC11 la leen |
 | `Space` (y sus franjas derivadas) | UC07-H1 lo escribe; UC02, UC03, UC05-H2 (QR) y UC09 lo leen |
-| `InstitutionalBlock` | UC07-H2 lo crea; UC02, UC03 y UC09 lo leen |
+| `InstitutionalBlock` | UC07-H2 lo crea; UC07-H3 consulta historial y cancela lógicamente; UC02, UC03 y UC09 leen solo no cancelados |
 | `AppUser` (incluye suspensión) | UC01 lo crea; UC10-H2 lo suspende; UC03 valida su estado; el filtro de `security` lo lee en cada petición |
 | Token JWT (`TokenService`) | UC01 lo emite; el filtro de `security` lo verifica en cada petición. No se guarda en el servidor |
 | `MailSender` (correo saliente) | UC01 (código de acceso), UC11 (comprobante y notificaciones) y UC12 |
@@ -134,7 +134,7 @@ Unimag-Deportes/
 │   │   ├── plan-general.md                     # Este documento
 │   │   └── contracts/<módulo>/<MÉTODO>-<ruta>.md  # contratos REST por endpoint
 │   ├── reglas-y-contexto/unimagDeportes.md
-│   ├── uc-diagrams/                            # diagrama UML (no incluido en el repositorio)
+│   ├── uc-diagrams/                            # fuente y PNG del diagrama UML
 │   └── features/NNN-<uc>/{spec.md, plan.md}
 ├── src/main/java/unimagdeportes/              # paquete raíz (OQ-01)
 │   ├── Application.java
@@ -199,7 +199,7 @@ Unimag-Deportes/
 
 Convenciones: UUID como identificadores, `timestamptz` para instantes (se interpretan en America/Bogota), enums como texto, migraciones versionadas con Flyway. **No hay tabla de franjas, de cuota ni de sesiones**: las dos primeras se derivan (D-06) y la sesión vive en el token JWT, que el servidor no guarda (D-17).
 
-**Decisión de desarrollo:** toda la persistencia se concentra en `src/main/resources/db/migration/V1__shared_schema.sql`, una única migración Flyway editable. Al modificar una migración ya aplicada, Flyway detecta un cambio de checksum: debe coordinarse la recreación de las bases locales o de prueba afectadas, sin borrar datos que deban conservarse. Antes de conservar datos reales o estabilizar un despliegue compartido se acordará una estrategia de evolución del esquema.
+**Evolución de esquema (D-27, 2026-11-25):** V1 conserva el esquema base actual y no se reescribe para esta ampliación. `V2__institutional_block_cancellation.sql` añade estado/metadatos a los bloqueos existentes sin borrarlos, inicialmente `ACTIVE`. Flyway aplica V1+V2 en instalaciones nuevas y V2 sobre bases con la V1 actual. Las bases con una V1 histórica diferente siguen requiriendo reconciliación y respaldo: V2 no corrige sus checksums ni diferencias previas. No recrear bases con datos necesarios ni reparar solo el checksum.
 
 **Ampliación UC07 — imágenes de espacios:** cada espacio requiere al crearse una imagen de vista previa y una panorámica 360. El backend sube los archivos a Supabase Storage privado y PostgreSQL guarda sus claves estables, tipos y tamaños en `space_image`; `space` conserva dos referencias obligatorias. El Administrador puede reemplazarlas independientemente, sin eliminarlas, y su consulta individual requiere autenticación; el backend entrega el archivo mediante streaming. El límite es 30 MiB por imagen y 64.000.000 de píxeles por defecto (configurable); no se comprime ni redimensiona. El detector ImageIO acepta los formatos reconocidos por sus lectores disponibles. Las transferencias de subida se hacen antes de adquirir el bloqueo global de negocio. `storage_object_cleanup` registra compensaciones antes de subir y borrados posteriores al reemplazo; un job reintenta los fallos sin borrar objetos referenciados. La verificación integral está pendiente; véase el [plan UC07](../features/007-gestionar-espacios-y-franjas/plan.md).
 
@@ -230,7 +230,11 @@ Se aplica como máximo una suspensión por usuario y mes de inasistencia; las fa
 | `usage_parameters` | Versiones inmutables: UUID `id`, `version_number`, cuota, umbral, `created_at`, `created_by` | Número único positivo, valores positivos; autor FK a `app_user`, nulo solo en la versión inicial. Inserción por cambio efectivo; se rechazan UPDATE/DELETE de versiones. D-26 reemplaza D-12. |
 | `usage_parameters_head` | Singleton (`id = 1`) con `current_version_id` FK no nula | Solo almacena la referencia vigente; bloqueo pesimista para serializar publicaciones. |
 | `audit_log` | `id`, `action`, `entity_type`, `entity_id`, `user_id` (nullable), `detail`, `created_at` | RNF-08; sin códigos ni tokens en `detail`. Además de reservas, cancelaciones, check-ins y sanciones, registra `CODE_REQUESTED`, `LOGIN`, `LOGIN_FAILED` y `LOGOUT` (RN-61). Índice `(action, created_at)` para los indicadores de UC09 |
-| `monthly_suspension` | `user_id`, `absence_month`, `created_at`, `suspended_until` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; intervalo de suspensión `[created_at, suspended_until)`; incluido en la migración única. |
+| `monthly_suspension` | `user_id`, `absence_month`, `created_at`, `suspended_until` | Clave primaria `(user_id, absence_month)`; mes representado por su primer día; intervalo de suspensión `[created_at, suspended_until)`; incluido en la migración base V1. |
+
+**Ampliación `institutional_block` (D-27):** `status` (`ACTIVE` por defecto o `CANCELLED`), `cancelled_at`, `cancelled_by` (FK a `app_user`) y `cancellation_reason`. Los tres metadatos deben ser nulos en activo y no nulos en cancelado; motivo recortado de 1–1000 caracteres. Índice adicional `(space_id, status, start_at, id)` para consulta por estado y orden estable. `audit_log` registra `BLOCK_CANCELLED`/`INSTITUTIONAL_BLOCK`, ID de fila, actor, fecha y motivo en `detail`; no se confunde con `RESERVATION_CANCELLED_BY_ADMIN`.
+
+UC07 es propietario de crear, consultar y cancelar lógicamente `InstitutionalBlock`. UC02, UC03 y UC09 solo consumen bloqueos no cancelados mediante `BlockService.overlapping`; el historial paginado es independiente. La cancelación adquiere el mismo bloqueo asesor de §4.1 antes de leer estado/hora, y confirma metadatos y auditoría atómicamente. No aplica la restricción de creación sobre reservas en curso: no modifica reservas. Invalida SSE solo tras commit y solo en la primera transición. El panel de ocupación representa estado derivado, no una reconstrucción retrospectiva de cada cambio.
 
 **Estados de la reserva que no liberan el espacio** (participan en la restricción de exclusión): `CONFIRMED`, `IN_USE`, `COMPLETED`, `NO_SHOW`. Las cancelaciones, incluida `CANCELLED_BY_SUSPENSION`, liberan. Esa misma lista determina qué reservas consumen stock de implementos (RN-65, RN-66).
 
@@ -301,6 +305,10 @@ erDiagram
         datetime start_at
         datetime end_at
         string recurrence_group
+        string status
+        datetime cancelled_at
+        uuid cancelled_by FK
+        string cancellation_reason
     }
     usage_parameters {
         uuid id PK
@@ -330,6 +338,7 @@ erDiagram
     space ||--o{ space_discipline : sirve
     space ||--o{ reservation : recibe
     space ||--o{ institutional_block : bloquea
+    app_user |o--o{ institutional_block : cancela
     reservation ||--o{ reservation_equipment : incluye
     equipment ||--o{ reservation_equipment : solicitado
 ```
@@ -369,7 +378,7 @@ Los cambios de estado del job son idempotentes. El correo es de mejor esfuerzo: 
 
 ### 5.3 Calendario en vivo
 
-`GET /spaces/{id}/availability/stream` (SSE) avisa al cliente cuando cambia la disponibilidad del espacio (reserva, cancelación, bloqueo, cambio de estado). El cliente vuelve a pedir el calendario.
+`GET /spaces/{id}/availability/stream` (SSE) avisa después del commit cuando cambia la disponibilidad (reserva, cancelación de reserva, creación/cancelación de bloqueo, cambio de estado). El cliente vuelve a pedir el calendario; reintentos sin transición y rollback no publican cancelación efectiva.
 
 **Efecto de no usar cookies**: el `EventSource` nativo del navegador no permite enviar el encabezado `Authorization`. El cliente debe abrir el flujo con `fetch` en modo *streaming* (o una librería de SSE que acepte encabezados). **No se debe pasar el token en la URL** (`?token=`), porque quedaría en los registros de acceso y del proxy. Alternativa si esto complica el cliente: *polling* corto (D-11).
 
@@ -455,6 +464,8 @@ Este índice solo fija las rutas y los roles. El contrato detallado de cada endp
 | `GET /admin/parameters`, `PUT /admin/parameters` | UC06-H2 | Administrador (el `PUT` exige reautenticación reciente) |
 | `GET/POST /admin/spaces`, `PUT /admin/spaces/{id}` | UC07-H1 | Administrador |
 | `POST /admin/blocks` | UC07-H2 | Administrador (exige reautenticación reciente) |
+| `GET /admin/blocks` | UC07-H3 | Administrador, sin reautenticación de lectura |
+| `POST /admin/blocks/{id}/cancellation` | UC07-H3 | Cualquier Administrador con reautenticación reciente |
 | `GET /quota/me` | UC08-H1 | Usuario, Administrador |
 | `GET /admin/occupancy` | UC09-H1 | Administrador |
 | `GET /admin/indicators` | UC09-H2 | Administrador |
@@ -463,7 +474,7 @@ Este índice solo fija las rutas y los roles. El contrato detallado de cada endp
 | `GET /equipment/availability?startAt=&endAt=` | UC13 | Usuario, Administrador |
 | `POST /admin/equipment`, `PUT /admin/equipment/{id}` | UC13 | Administrador |
 
-Sin endpoint propio: UC08-H2, UC10 y UC11 (internos). `POST /reservations` acepta, de forma opcional, una lista de implementos solicitados con su cantidad y valida el stock disponible en la franja (UC13). `GET /equipment/availability` evalúa la ventana `startAt`–`endAt` solicitada (una franja o un rango) y devuelve la disponibilidad por solape con las reservas activas (RN-65). Los bloqueos creados son inmutables en el prototipo: no hay edición, eliminación ni sustitución; crear otro bloqueo no retira el anterior. Corregir uno requiere intervención operativa directa fuera de la API, con respaldo y auditoría manual.
+Sin endpoint propio: UC08-H2, UC10 y UC11 (internos). `POST /reservations` acepta implementos opcionales y valida stock; `GET /equipment/availability` evalúa compromisos por solape (RN-65). Los datos originales de bloqueos se conservan; D-27 permite cancelación lógica individual por ID y consulta histórica, sin edición original, borrado físico, sustitución ni cancelación masiva de serie. Crear otro no retira el anterior.
 
 Códigos de error de autenticación: `401 TOKEN_EXPIRED` (el cliente pide iniciar sesión y regresa a la pantalla de origen), `401 TOKEN_INVALID`, `403 PROFILE_INCOMPLETE`, `403 REAUTH_REQUIRED`.
 
@@ -525,7 +536,7 @@ Con 5 solicitudes por hora y 5 intentos por código, un atacante tiene 25 intent
 
 **Cierre de sesión.** El cliente elimina el token de ese dispositivo. `POST /auth/logout` solo registra el cierre en auditoría (RN-61); no revoca el token, porque el servidor no guarda sesiones (RN-57). No existe "cerrar todas las sesiones" (ver limitaciones §7.1.7 y OQ-17).
 
-**Reautenticación del Administrador.** Las acciones que cancelan reservas en masa o cambian las reglas (`POST /admin/blocks`, `PUT /admin/parameters`) exigen un token con `reauth_at` dentro de los últimos 10 minutos **[TÉC]**. Si no lo tiene, responden `403 REAUTH_REQUIRED` y el cliente pide un código nuevo (`/auth/reauth/code`). `POST /auth/reauth/verify` valida el código y devuelve un token nuevo con `reauth_at` y **el mismo `exp`** del token presentado, de modo que no extiende la sesión (RN-56). `ReauthPolicy` (pura) decide si la reautenticación sigue vigente.
+**Reautenticación del Administrador.** Crear bloqueos, levantar una restricción institucional (`POST /admin/blocks/{id}/cancellation`, D-27) y cambiar reglas (`PUT /admin/parameters`) exigen `reauth_at` dentro de los últimos 10 minutos. Sin él responden `403 REAUTH_REQUIRED`; el cliente solicita código nuevo. La verificación devuelve token con `reauth_at` y el mismo `exp`, sin extender sesión. `ReauthPolicy` decide la vigencia; el GET administrativo no exige reautenticación.
 
 #### 7.1.3 Amenazas y mitigaciones
 
@@ -700,10 +711,16 @@ La creación también valida RN-67: máximo fijo de 2 horas por fecha en America
 | D-24 | **Mapeo DTO ↔ entidad con MapStruct** | Mapeo manual; otra librería de mapeo | Evita mapeo repetitivo y errores; el código generado se valida en compilación y no añade reflexión en tiempo de ejecución (decisión del plan, 2026-11-10) | Todos |
 | D-25 | **Cliente web en React en un repositorio aparte**; la API se consume desde otro origen con CORS y `Authorization` | Servir el cliente desde el mismo backend; otro framework | Separa la interfaz del backend y permite desplegarlos por separado; el backend queda como API pura (OQ-01, OQ-13) | Todos |
 | D-26 | **Versiones inmutables de parámetros y referencia vigente**; reemplaza D-12 | Sobrescribir el singleton; historial solo en auditoría | Conservar cuota y umbral de cada cambio junto con autor y fecha. Publicar versión, referencia y auditoría en una transacción, sin cambiar los contratos REST | UC06 |
+| D-27 | **Cancelación lógica individual de bloqueos con historial**, aprobada 2026-11-25; sustituye la prohibición de cancelación de OQ-06 y amplía las acciones sensibles de D-21 | Borrado físico, edición original, reactivación de reservas o cancelación masiva de serie | Retirar restricciones que ya no se necesitan, con actor, fecha, motivo y auditoría atómica; V2 incremental preserva datos | UC07-H3, UC02, UC03, UC09 |
+| D-28 | **Nombres actuales de creador/cancelador en bloqueos administrativos** | Mostrar UUID como nombre, inventar autores históricos, duplicar perfiles o añadir instantáneas sin requerimiento | Creador desde `BLOCK_CREATED`/`INSTITUTIONAL_BLOCK`, cancelador desde `cancelledBy`; nombres de perfiles actuales por lotes mediante services. Mantiene IDs y permisos, sin migración | UC07-H3 |
+
+**D-28 — ampliación aprobada:** añadir `createdBy`, `createdByName` y `cancelledByName` al listado y respuesta de cancelación, incluido reintento. La auditoría debe identificar un único actor conocido: ausencia, actor nulo o conflicto devuelve creador nulo; duplicados del mismo actor no alteran la identidad. Nombre nulo si falta usuario/nombre; no filtrar por rol vigente ni exponer correo. Los nombres se consultan actualmente y pueden variar al cambiar perfil, sin violar idempotencia de actor/fecha/motivo de D-27. `BlockViewService` reúne IDs para consultar auditoría/usuarios por lotes mediante `AuditService`/`UserService`, sin N+1 ni tocar V1/V2. React conserva UUID internos pero muestra solo nombres y el fallback «Administrador no disponible»; no muestra cancelador en activos. No se afirma integración React desde el backend.
+
+**D-27 — contrato aprobado:** cualquier ADMIN reautenticado puede cancelar una fila con `now < endAt`, futura o en curso, con motivo recortado de 1–1000 caracteres. Primera transición `ACTIVE → CANCELLED`, datos originales intactos. Repeticiones autorizadas con cuerpo válido responden 200 con la cancelación original, incluso con otro motivo o tras el fin; no duplican auditoría/SSE. No cambia reservas canceladas, cuota, stock, estado del espacio o recurrencia; no envía correo de levantamiento. `GET /admin/blocks` exige ADMIN sin reautenticación, espacio/rango por solape, estado opcional, página base cero y tamaño 20 (1–100), orden inicio/ID. Los contratos de UC07 detallan cuerpos y errores. D-21 conserva sus garantías y se amplía por levantar una restricción institucional, no por cancelar reservas en masa. El alcance de historial no añade reconstrucción temporal del panel.
 
 **D-26 — publicación:** se bloquea `usage_parameters_head` (`id = 1`) antes de leer la versión vigente. Se combinan los campos enviados con los vigentes; si no cambian, se devuelve la configuración sin insertar versión ni auditoría de modificación. En otro caso se inserta una versión con número anterior + 1, UUID y fecha del `Clock`, se cambia la referencia y se registra `PARAMETERS_UPDATED` con el UUID de la versión. El bloqueo se mantiene hasta el commit; no basta con bloquear la última versión, porque esa fila deja de ser la vigente. Los consumidores usan `ParameterService.current()`; no seleccionan una fila por `id = 1` ni por fecha máxima. Se conserva la regla del umbral vigente al registrar inasistencias.
 
-**D-26 — esquema de desarrollo:** se reescribe únicamente `V1__shared_schema.sql`, con versión inicial 1, cuota 4 y umbral 3. La fecha inicial es la de instalación del esquema, no una fecha histórica recuperada. No se añade V2 ni se transfieren automáticamente datos de bases anteriores; su recreación requiere coordinación conforme al README.
+**D-26 — esquema de desarrollo (decisión histórica anterior a D-27):** esta ampliación de parámetros reescribió únicamente `V1__shared_schema.sql`, con versión inicial 1, cuota 4 y umbral 3. La fecha inicial es la de instalación del esquema, no una fecha histórica recuperada. No añadió V2 ni transfirió datos de bases anteriores. Desde D-27 la cancelación de bloqueos usa V2 incremental y no requiere recrear una base con la V1 actual.
 
 ---
 
@@ -718,7 +735,7 @@ La columna «Decisión» registra los acuerdos; permanecen pendientes técnicos 
 | OQ-03 | **[Cerrado 2026-10-18]** El login por código y el token JWT de 24 h sin cookies ya están en el contexto (RF-01, RF-22, RN-49 a RN-61) y la SPEC 001 se actualizó | UC01 | Mantener el login por código y documentarlo como sustituible por Microsoft |
 | OQ-04 | Comportamiento si falla el envío de correo (comprobante, avisos, código de acceso) | UC01, UC11 | **[Cerrado 2026-11-10]** Registrar el fallo y no revertir la operación; en el código de acceso, informar y permitir reintentar |
 | OQ-05 | Efecto de cambiar parámetros o de poner un espacio en mantenimiento sobre reservas existentes; y diferencia entre el estado "en mantenimiento" del espacio y el bloqueo institucional de tipo mantenimiento | UC06-H2, UC07 | **[Cerrado 2026-11-10]** Rige para operaciones nuevas; poner un espacio en mantenimiento no cancela reservas existentes |
-| OQ-06 | Estructura del horario de operación y de la recurrencia de los bloqueos | UC07 | **[Cerrado 2026-11-10]** `opening_time`/`closing_time` simples; los bloqueos recurrentes se **materializan** en una fila por franja. Son inmutables en el prototipo; crear otro no modifica el anterior. |
+| OQ-06 | Estructura del horario de operación y de la recurrencia de los bloqueos | UC07 | **[Cerrado 2026-11-10; alcance de inmutabilidad sustituido por D-27 el 2026-11-25]** Se conserva horario simple y materialización por franja. Los datos originales siguen inmutables, pero se permite cancelación lógica individual con historial; no propaga a filas hermanas ni altera `recurrence_group`. Crear otro no modifica el anterior. |
 | OQ-07 | Conteo de inasistencias después de una suspensión | UC10 | **Actualizado:** conteo por mes calendario, reinicio el día 1 y umbral vigente al registrar la inasistencia; cancelación de reservas futuras durante la suspensión. |
 | OQ-08 | Período de los indicadores | UC09-H2 | **[Cerrado 2026-11-10]** Períodos fijos semanal y mensual; el frontend permite elegir cuál ver |
 | OQ-09 | Horizonte del calendario frente al límite de anticipación para reservar | UC02, UC03, UC06 | **[Actualizado 2026-11-16 por decisión del usuario]** Siete fechas calendario contando hoy: hoy hasta hoy + 6 inclusive en America/Bogota. La reserva admite toda la última fecha, sujeto al horario del espacio, no una duración en horas. Se conserva una fecha por petición; `maxAdvanceDays: 6` expresa el desplazamiento máximo. Sustituye la decisión previa de ocho fechas (hoy + 7 inclusive), que a su vez había reemplazado el horizonte inicial de hoy + 6. |

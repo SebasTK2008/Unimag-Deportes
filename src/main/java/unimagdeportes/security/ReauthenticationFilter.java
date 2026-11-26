@@ -20,7 +20,8 @@ public class ReauthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        boolean sensitive = request.getMethod().equals("POST") && request.getServletPath().equals("/admin/blocks")
+        boolean sensitive = request.getMethod().equals("POST") && (request.getServletPath().equals("/admin/blocks")
+                || request.getServletPath().matches("/admin/blocks/[^/]+/cancellation"))
                 || request.getMethod().equals("PUT") && request.getServletPath().equals("/admin/parameters");
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (sensitive && authentication instanceof UserAuthentication userAuthentication

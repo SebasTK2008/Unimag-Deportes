@@ -76,7 +76,7 @@ Como Usuario autenticado, quiero elegir disciplina, espacio, fecha y franja(s) y
   La reserva bloquea el espacio completo, sin importar la disciplina elegida (RN-07).
 
 - **¿Se puede reservar una franja bloqueada institucionalmente o un espacio en mantenimiento?**
-  No. Los bloqueos institucionales tienen prioridad sobre las reservas libres (RN-42) y un espacio en mantenimiento no aparece como reservable (RN-09).
+  No mientras exista un bloqueo institucional no cancelado (RN-42); un espacio en mantenimiento tampoco es reservable (RN-09). Tras cancelar un bloqueo puede crearse una nueva reserva si supera todas las reglas. La reserva anterior no se reactiva; comprobar ambos resultados en aceptación (D-27).
 
 - **¿La reserva se puede transferir o hacer a nombre de otra persona?**
   No. Las reservas son nominales: quedan a nombre del Usuario que las crea, quien es el que debe asistir y hacer el check-in (RN-03, RN-04).

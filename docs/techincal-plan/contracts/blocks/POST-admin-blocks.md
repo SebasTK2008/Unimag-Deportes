@@ -69,7 +69,8 @@
 
 ## Notas
 
-- Los bloqueos recurrentes se materializan en una fila por franja bloqueada y se agrupan por `recurrenceGroup` (OQ-06). El prototipo no ofrece edición, eliminación ni sustitución de bloqueos; crear otro no retira el anterior. Su corrección requiere intervención operativa directa fuera de la API, con respaldo y auditoría manual.
+- Los bloqueos recurrentes se materializan en una fila por franja bloqueada y se agrupan por `recurrenceGroup` (OQ-06). D-27 permite [cancelación lógica individual](POST-admin-blocks-id-cancellation.md), sin edición original, borrado físico ni sustitución; crear otro no retira el anterior. El [listado administrativo](GET-admin-blocks.md) permite obtener los IDs sin cambiar esta respuesta de creación.
 - Los bloqueos tienen prioridad sobre reservas futuras, que pasan a `CANCELLED_BY_ADMIN` sin contar cuota; si alguna reserva está en curso se rechaza toda la operación (RN-42, RN-43).
 - Las franjas bloqueadas se muestran como no disponibles con el motivo (RN-44).
 - Cada reserva cancelada genera un aviso por correo (RN-43, RN-47).
+- La cancelación posterior del bloqueo no reactiva esas reservas, no compensa de nuevo cuota/implementos ni envía correo de levantamiento.
