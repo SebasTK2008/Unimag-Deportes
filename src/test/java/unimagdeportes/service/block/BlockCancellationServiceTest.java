@@ -27,6 +27,7 @@ import unimagdeportes.model.block.InstitutionalBlock;
 import unimagdeportes.repository.block.InstitutionalBlockRepository;
 import unimagdeportes.service.audit.AuditService;
 import unimagdeportes.service.reservation.ReservationLock;
+import unimagdeportes.service.user.UserService;
 
 class BlockCancellationServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-11T12:00:00.123456789Z");
@@ -35,8 +36,9 @@ class BlockCancellationServiceTest {
     private final Clock clock = mock(Clock.class);
     private final AuditService audit = mock(AuditService.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final UserService users = mock(UserService.class);
     private final BlockCancellationService service = new BlockCancellationService(blocks, lock, clock, audit,
-            events, Mappers.getMapper(BlockMapper.class));
+            events, new BlockViewService(audit, users, Mappers.getMapper(BlockMapper.class)));
     private final UUID admin = UUID.randomUUID();
     private final UUID id = UUID.randomUUID();
 
